@@ -254,6 +254,7 @@ Use this vocabulary for TSX migrations.
 8. Add one color token before repeating the same arbitrary color value in multiple components.
 9. Keep complex one-off gradients and `color-mix()` expressions local during migration only when they encode component-specific art direction; promote repeated patterns into the interaction/status tokens above.
 10. Treat CSS-wide/special keywords such as `transparent`, `currentColor` / `currentcolor`, `inherit`, `initial`, `unset`, and `revert` as non-token color semantics for transparent fills, SVG/current-color inheritance, and reset/inherit states. The guard should exempt these keywords while still rejecting real unapproved named colors in app UI chrome.
+11. Add style guard fixtures for the keyword exemptions and for at least one rejected real named color so the guard distinguishes CSS semantics from unapproved palette names.
 
 ## Existing conflicts and exception handling
 

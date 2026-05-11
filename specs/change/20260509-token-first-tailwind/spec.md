@@ -238,7 +238,7 @@ Each migration PR should be reviewable on its own, keep business logic stable, a
   - [ ] Substep 3.2 Implement: 添加硬编码 UI color 检查，覆盖 `#hex`、`rgb()`、`rgba()`、`hsl()`、`hsla()` 和命名色。
   - [ ] Substep 3.2a Implement: 在命名色检查中豁免 CSS-wide/special keywords，例如 `transparent`、`currentColor` / `currentcolor`、`inherit`、`initial`、`unset` 和 `revert`，避免 ghost button、SVG current-color 和继承/reset 状态被误判为未登记颜色。
   - [ ] Substep 3.3 Implement: 添加显式 allowlist 机制，覆盖 brand assets、SVG illustrations、user accent input、canvas/sketch user colors、user-authored file/inspect colors、external runtime documents 和 tests/fixtures。
-  - [ ] Substep 3.4 Implement: 需要抽取 helper 时，在 `apps/web/tests/` 下添加聚焦测试。
+  - [ ] Substep 3.4 Implement: 需要抽取 helper 时，在 `apps/web/tests/` 下添加聚焦测试；测试 fixtures 必须覆盖 `transparent`、`currentColor` / `currentcolor`、`inherit`、`initial`、`unset` 和 `revert` 通过，以及真实未登记 named colors 失败。
   - [ ] Substep 3.5 Verify: 运行 `pnpm guard`。
   - [ ] Substep 3.6 Verify: 故意在一个 TSX 文件中临时写入默认 Tailwind 原生颜色 class（例如 `text-red-500`），确认 `pnpm guard` 能检出并失败，然后移除临时代码。
   - [ ] Substep 3.7 Verify: 故意在普通 app UI TSX 中临时写入未 allowlist 的硬编码色（例如 `style={{ color: '#ff0000' }}`），确认 `pnpm guard` 能检出并失败，然后移除临时代码。
