@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { Dialog, Page, Request, Response } from '@playwright/test';
+import type { Dialog, Locator, Page, Request, Response } from '@playwright/test';
 import { automatedUiScenarios } from '@/playwright/resources';
 import type { UiScenario } from '@/playwright/resources';
 
@@ -318,6 +318,316 @@ for (const entry of automatedUiScenarios()) {
     }
   });
 }
+
+test('workspace restores the last manually selected file tab after reload instead of jumping back to the generated artifact', async ({ page }) => {
+  await page.route('**/api/agents', async (route) => {
+    await route.fulfill({
+      json: {
+        agents: [
+          {
+            id: 'mock',
+            name: 'Mock Agent',
+            bin: 'mock-agent',
+            available: true,
+            version: 'test',
+            models: [{ id: 'default', label: 'Default' }],
+          },
+        ],
+      },
+    });
+  });
+
+  await page.route('**/api/runs', async (route) => {
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: '{"runId":"mock-run"}',
+    });
+  });
+
+  await page.route('**/api/runs/*/events', async (route) => {
+    const artifact =
+      '<artifact identifier="workspace-artifact" type="text/html" title="Workspace Artifact">' +
+      '<!doctype html><html><body><main><h1>Workspace Artifact</h1></main></body></html>' +
+      '</artifact>';
+    const body = [
+      'event: start',
+      'data: {"bin":"mock-agent"}',
+      '',
+      'event: stdout',
+      `data: ${JSON.stringify({ chunk: artifact })}`,
+      '',
+      'event: end',
+      'data: {"code":0,"status":"succeeded"}',
+      '',
+      '',
+    ].join('\n');
+
+    await route.fulfill({
+      status: 200,
+      headers: {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache',
+      },
+      body,
+    });
+  });
+
+  await page.goto('/');
+  await page.getByTestId('new-project-name').fill('Workspace active tab restore');
+  await page.getByTestId('create-project').click();
+  await expectWorkspaceReady(page);
+
+  await sendPrompt(page, 'Create a workspace persistence artifact');
+  await expect(page.getByText('workspace-artifact.html', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('artifact-preview-frame')).toBeVisible();
+
+  await page.getByTestId('design-files-upload-input').setInputFiles({
+    name: 'manual-reference.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5W6McAAAAASUVORK5CYII=',
+      'base64',
+    ),
+  });
+
+  const artifactTab = page.getByRole('tab', { name: /workspace-artifact\.html/i });
+  const manualFileTab = page.getByRole('tab', { name: /manual-reference\.png/i });
+  await expect(artifactTab).toBeVisible();
+  await expect(manualFileTab).toBeVisible();
+
+  await manualFileTab.click();
+  await expect(manualFileTab).toHaveAttribute('aria-selected', 'true');
+  await expect(artifactTab).toHaveAttribute('aria-selected', 'false');
+
+  await page.reload();
+  await expect(page.getByTestId('file-workspace')).toBeVisible();
+
+  const restoredArtifactTab = page.getByRole('tab', { name: /workspace-artifact\.html/i });
+  const restoredManualFileTab = page.getByRole('tab', { name: /manual-reference\.png/i });
+  await expect(restoredArtifactTab).toBeVisible();
+  await expect(restoredManualFileTab).toBeVisible();
+  await expect(restoredManualFileTab).toHaveAttribute('aria-selected', 'true');
+  await expect(restoredArtifactTab).toHaveAttribute('aria-selected', 'false');
+});
+
+test('switching between projects restores each project workspace to its last active file tab', async ({ page }) => {
+  await page.route('**/api/agents', async (route) => {
+    await route.fulfill({
+      json: {
+        agents: [
+          {
+            id: 'mock',
+            name: 'Mock Agent',
+            bin: 'mock-agent',
+            available: true,
+            version: 'test',
+            models: [{ id: 'default', label: 'Default' }],
+          },
+        ],
+      },
+    });
+  });
+
+  const pngBytes = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5W6McAAAAASUVORK5CYII=',
+    'base64',
+  );
+  const alphaName = `Workspace Alpha ${Date.now()}`;
+  const betaName = `Workspace Beta ${Date.now()}`;
+
+  await page.goto('/');
+
+  await page.getByTestId('new-project-name').fill(alphaName);
+  await page.getByTestId('create-project').click();
+  await expectWorkspaceReady(page);
+
+  await page.getByTestId('design-files-upload-input').setInputFiles({
+    name: 'alpha-primary.png',
+    mimeType: 'image/png',
+    buffer: pngBytes,
+  });
+  await page.getByTestId('design-files-upload-input').setInputFiles({
+    name: 'alpha-secondary.png',
+    mimeType: 'image/png',
+    buffer: pngBytes,
+  });
+
+  const alphaPrimaryTab = page.getByRole('tab', { name: /alpha-primary\.png/i });
+  const alphaSecondaryTab = page.getByRole('tab', { name: /alpha-secondary\.png/i });
+  await expect(alphaPrimaryTab).toBeVisible();
+  await expect(alphaSecondaryTab).toBeVisible();
+  await alphaPrimaryTab.click();
+  await expect(alphaPrimaryTab).toHaveAttribute('aria-selected', 'true');
+  await expect(alphaSecondaryTab).toHaveAttribute('aria-selected', 'false');
+
+  await page.getByRole('button', { name: /back to projects/i }).click();
+  await expect(page.getByTestId('new-project-panel')).toBeVisible();
+
+  await page.getByTestId('new-project-name').fill(betaName);
+  await page.getByTestId('create-project').click();
+  await expectWorkspaceReady(page);
+
+  await page.getByTestId('design-files-upload-input').setInputFiles({
+    name: 'beta-primary.png',
+    mimeType: 'image/png',
+    buffer: pngBytes,
+  });
+  await page.getByTestId('design-files-upload-input').setInputFiles({
+    name: 'beta-secondary.png',
+    mimeType: 'image/png',
+    buffer: pngBytes,
+  });
+
+  const betaPrimaryTab = page.getByRole('tab', { name: /beta-primary\.png/i });
+  const betaSecondaryTab = page.getByRole('tab', { name: /beta-secondary\.png/i });
+  await expect(betaPrimaryTab).toBeVisible();
+  await expect(betaSecondaryTab).toBeVisible();
+  await betaPrimaryTab.click();
+  await expect(betaPrimaryTab).toHaveAttribute('aria-selected', 'true');
+  await expect(betaSecondaryTab).toHaveAttribute('aria-selected', 'false');
+
+  await page.getByRole('button', { name: /back to projects/i }).click();
+  await expect(page.getByTestId('new-project-panel')).toBeVisible();
+
+  await homeDesignCard(page, alphaName).click();
+  await expectWorkspaceReady(page);
+  await expect(page.getByRole('tab', { name: /alpha-primary\.png/i })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /alpha-secondary\.png/i })).toHaveAttribute('aria-selected', 'false');
+
+  await page.getByRole('button', { name: /back to projects/i }).click();
+  await expect(page.getByTestId('new-project-panel')).toBeVisible();
+
+  await homeDesignCard(page, betaName).click();
+  await expectWorkspaceReady(page);
+  await expect(page.getByRole('tab', { name: /beta-primary\.png/i })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /beta-secondary\.png/i })).toHaveAttribute('aria-selected', 'false');
+});
+
+test('a later completed run updates the workspace to the newest artifact tab and preview', async ({ page }) => {
+  await page.route('**/api/agents', async (route) => {
+    await route.fulfill({
+      json: {
+        agents: [
+          {
+            id: 'mock',
+            name: 'Mock Agent',
+            bin: 'mock-agent',
+            available: true,
+            version: 'test',
+            models: [{ id: 'default', label: 'Default' }],
+          },
+        ],
+      },
+    });
+  });
+
+  let runCount = 0;
+  await page.route('**/api/runs', async (route) => {
+    runCount += 1;
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({ runId: `workspace-run-${runCount}` }),
+    });
+  });
+
+  let eventCount = 0;
+  await page.route('**/api/runs/*/events', async (route) => {
+    eventCount += 1;
+    const artifact =
+      eventCount === 1
+        ? '<artifact identifier="first-workspace-artifact" type="text/html" title="First Workspace Artifact"><!doctype html><html><body><main><h1>First Workspace Artifact</h1></main></body></html></artifact>'
+        : '<artifact identifier="latest-workspace-artifact" type="text/html" title="Latest Workspace Artifact"><!doctype html><html><body><main><h1>Latest Workspace Artifact</h1></main></body></html></artifact>';
+    const body = [
+      'event: start',
+      'data: {"bin":"mock-agent"}',
+      '',
+      'event: stdout',
+      `data: ${JSON.stringify({ chunk: artifact })}`,
+      '',
+      'event: end',
+      'data: {"code":0,"status":"succeeded"}',
+      '',
+      '',
+    ].join('\n');
+
+    await route.fulfill({
+      status: 200,
+      headers: {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache',
+      },
+      body,
+    });
+  });
+
+  await page.goto('/');
+  await page.getByTestId('new-project-name').fill('Workspace latest artifact sync');
+  await page.getByTestId('create-project').click();
+  await expectWorkspaceReady(page);
+
+  await sendPrompt(page, 'Create the first workspace artifact');
+  const firstArtifactTab = page.getByRole('tab', { name: /first-workspace-artifact\.html/i });
+  await expect(firstArtifactTab).toBeVisible();
+  await expect(firstArtifactTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('artifact-preview-frame')).toBeVisible();
+  await expect(
+    page.frameLocator('[data-testid="artifact-preview-frame"]').getByRole('heading', { name: 'First Workspace Artifact' }),
+  ).toBeVisible();
+
+  await sendPrompt(page, 'Create the latest workspace artifact');
+  const latestArtifactTab = page.getByRole('tab', { name: /latest-workspace-artifact\.html/i });
+  await expect(latestArtifactTab).toBeVisible();
+  await expect(firstArtifactTab).toBeVisible();
+  await expect(latestArtifactTab).toHaveAttribute('aria-selected', 'true');
+  await expect(firstArtifactTab).toHaveAttribute('aria-selected', 'false');
+  await expect(
+    page.frameLocator('[data-testid="artifact-preview-frame"]').getByRole('heading', { name: 'Latest Workspace Artifact' }),
+  ).toBeVisible();
+});
+
+test('reloading a project restores the Design Files panel when it was the last active workspace surface', async ({ page }) => {
+  const pngBytes = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5W6McAAAAASUVORK5CYII=',
+    'base64',
+  );
+
+  await page.goto('/');
+  await page.getByTestId('new-project-name').fill('Workspace design files restore');
+  await page.getByTestId('create-project').click();
+  await expectWorkspaceReady(page);
+
+  await page.getByTestId('design-files-upload-input').setInputFiles({
+    name: 'restore-me.png',
+    mimeType: 'image/png',
+    buffer: pngBytes,
+  });
+  await expect(page.getByRole('tab', { name: /restore-me\.png/i })).toBeVisible();
+
+  await page.getByTestId('design-files-tab').click();
+  await expect(page.getByTestId('design-files-tab')).toHaveAttribute('aria-selected', 'true');
+
+  const fileRow = page.locator('[data-testid^="design-file-row-"]', {
+    hasText: 'restore-me.png',
+  });
+  await expect(fileRow).toBeVisible();
+  const rowButton = fileRow.getByRole('button').first();
+  await rowButton.click();
+  await expect(page.getByTestId('design-file-preview')).toBeVisible();
+  await expect(page.getByTestId('design-file-preview').getByText(/restore-me\.png/i)).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByTestId('file-workspace')).toBeVisible();
+  await expect(page.getByTestId('design-files-tab')).toHaveAttribute('aria-selected', 'true');
+  await expect(
+    page.locator('[data-testid^="design-file-row-"]', {
+      hasText: 'restore-me.png',
+    }),
+  ).toBeVisible();
+  await expect(page.getByTestId('design-file-preview')).toBeVisible();
+  await expect(page.getByTestId('design-file-preview').getByText(/restore-me\.png/i)).toBeVisible();
+});
 
 test('daemon error details persist between failed sends', async ({ page }) => {
   const entry = automatedUiScenarios().find((scenario) => scenario.id === 'prototype-basic');
@@ -1301,4 +1611,10 @@ async function runConversationDeleteRecoveryFlow(
 
   await page.getByTestId('conversation-history-trigger').click();
   await expect(page.getByTestId('conversation-list').locator('.chat-conv-item')).toHaveCount(1);
+}
+
+function homeDesignCard(page: Page, name: string): Locator {
+  return page.locator('.design-card', {
+    has: page.locator('.design-card-name', { hasText: name }),
+  });
 }
