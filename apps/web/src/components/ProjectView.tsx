@@ -356,6 +356,8 @@ export function ProjectView({
   // Track which conversation the current messages belong to, so we can
   // correctly gate new-conversation creation even during async loads.
   const messagesConversationIdRef = useRef<string | null>(null);
+  const creatingConversationRef = useRef(false);
+  const [creatingConversation, setCreatingConversation] = useState(false);
   const currentConversationHasActiveRun = useMemo(
     () => messages.some((m) => m.role === 'assistant' && isActiveRunStatus(m.runStatus)),
     [messages],
@@ -373,6 +375,7 @@ export function ProjectView({
     || currentConversationHasActiveRun
     || failedMessagesConversationId === activeConversationId;
   const currentConversationActionDisabled = currentConversationBusy || currentConversationSendDisabled;
+  const newConversationDisabled = creatingConversation;
   const activeCompletionNotificationRunsRef = useRef<Set<string>>(new Set());
   const completedNotificationRunsRef = useRef<Set<string>>(new Set());
 
@@ -1799,6 +1802,7 @@ export function ProjectView({
   }, [cancelSendTextBuffer, cancelReattachTextBuffers, persistMessage]);
 
   const handleNewConversation = useCallback(async () => {
+    if (creatingConversationRef.current) return;
     // Only block if we're sure the current conversation is empty:
     // messages must be loaded AND match the active conversation.
     if (
@@ -1807,6 +1811,8 @@ export function ProjectView({
     ) {
       return;
     }
+    creatingConversationRef.current = true;
+    setCreatingConversation(true);
     setConversationLoadError(null);
     try {
       const fresh = await createConversation(project.id);
@@ -1824,6 +1830,9 @@ export function ProjectView({
       const message = err instanceof Error ? err.message : 'Could not create a conversation for this project.';
       setConversationLoadError(message);
       setError(message);
+    } finally {
+      creatingConversationRef.current = false;
+      setCreatingConversation(false);
     }
   }, [project.id, activeConversationId, messages.length]);
 
@@ -2297,6 +2306,7 @@ export function ProjectView({
               }}
               onContinueRemainingTasks={handleContinueRemainingTasks}
               onNewConversation={handleNewConversation}
+              newConversationDisabled={newConversationDisabled}
               conversations={conversations}
               activeConversationId={activeConversationId}
               onSelectConversation={handleSelectConversation}

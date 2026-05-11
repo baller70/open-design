@@ -230,6 +230,7 @@ interface Props {
   onContinueRemainingTasks?: (assistantMessage: ChatMessage, todos: TodoItem[]) => void;
   // Header "+" button — kicks off ProjectView's create-conversation flow.
   onNewConversation?: () => void;
+  newConversationDisabled?: boolean;
   // Conversation list that used to live in the topbar. The chat tab now
   // owns the list so users can browse + switch conversations without
   // leaving the pane.
@@ -279,6 +280,7 @@ export function ChatPane({
   onSubmitForm,
   onContinueRemainingTasks,
   onNewConversation,
+  newConversationDisabled = false,
   conversations,
   activeConversationId,
   onSelectConversation,
@@ -571,7 +573,9 @@ export function ChatPane({
                       type="button"
                       className="chat-history-new"
                       data-testid="conversation-history-new"
+                      disabled={newConversationDisabled}
                       onClick={() => {
+                        if (newConversationDisabled) return;
                         onNewConversation();
                         setShowConvList(false);
                       }}
@@ -613,7 +617,7 @@ export function ChatPane({
             title={t('chat.newConversationsTitle')}
             aria-label={t('chat.newConversation')}
             onClick={onNewConversation}
-            disabled={!onNewConversation}
+            disabled={!onNewConversation || newConversationDisabled}
           >
             <Icon name="plus" size={16} />
           </button>

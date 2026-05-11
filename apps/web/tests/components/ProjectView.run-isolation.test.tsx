@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -307,6 +307,28 @@ describe('ProjectView conversation run isolation', () => {
     fireEvent.click(screen.getByTestId('new-conversation'));
 
     expect(createConversation).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks duplicate new conversations while creation is in flight', async () => {
+    let resolveCreate!: (conversation: Conversation) => void;
+    createConversation.mockImplementationOnce(
+      () => new Promise<Conversation>((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+
+    renderProjectView();
+
+    await waitFor(() => expect(screen.getByTestId('active-conversation').textContent).toBe('conv-a'));
+
+    fireEvent.click(screen.getByTestId('new-conversation'));
+    fireEvent.click(screen.getByTestId('new-conversation'));
+
+    expect(createConversation).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveCreate(createdConversation);
+    });
   });
 
   it('notifies when a detached active run is terminal after returning to its conversation', async () => {
