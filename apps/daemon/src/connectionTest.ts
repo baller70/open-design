@@ -1330,7 +1330,7 @@ export async function testAgentConnection(
   if (
     input.agentId !== 'codex' ||
     primaryResult.ok ||
-    !new Set<ConnectionTestKind>(['agent_spawn_failed', 'unknown']).has(primaryResult.kind) ||
+    !new Set<ConnectionTestKind>(['agent_spawn_failed', 'agent_not_installed', 'unknown']).has(primaryResult.kind) ||
     !executableResolution.configuredOverridePath ||
     !executableResolution.pathResolvedPath ||
     executableResolution.configuredOverridePath === executableResolution.pathResolvedPath
