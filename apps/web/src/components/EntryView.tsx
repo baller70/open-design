@@ -33,6 +33,7 @@ import { PetRail } from './pet/PetRail';
 import { PromptTemplatePreviewModal } from './PromptTemplatePreviewModal';
 import { PromptTemplatesTab } from './PromptTemplatesTab';
 import { apiProtocolLabel } from '../utils/apiProtocol';
+import { AppChromeHeader, SettingsIconButton } from './AppChromeHeader';
 
 type TopTab = 'designs' | 'templates' | 'design-systems' | 'image-templates' | 'video-templates';
 
@@ -396,6 +397,15 @@ export function EntryView({
 
   return (
     <div className="entry-shell">
+      <AppChromeHeader
+        actions={(
+          <SettingsIconButton
+            onClick={() => onOpenSettings()}
+            title={t('settings.envConfigure')}
+            ariaLabel={t('settings.envConfigure')}
+          />
+        )}
+      />
       <div
         className={`entry${petRailHidden ? '' : ' has-pet-rail'}`}
         style={{
@@ -405,16 +415,6 @@ export function EntryView({
         }}
       >
       <aside className="entry-side" style={{ width: sidebarWidth }}>
-        <div className="entry-brand">
-          <span className="entry-brand-mark" aria-hidden>
-            <img src="/app-icon.svg" alt="" className="brand-mark-img" draggable={false} />
-          </span>
-          <div className="entry-brand-text">
-            <div className="entry-brand-title-row">
-              <span className="entry-brand-title">{t('app.brand')}</span>
-            </div>
-          </div>
-        </div>
         <NewProjectPanel
           skills={skills}
           designSystems={designSystems}

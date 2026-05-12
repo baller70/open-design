@@ -543,12 +543,12 @@ code {
 }
 .app-project-title {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
   width: 100%;
   overflow: hidden;
+  white-space: nowrap;
 }
 .app-project-title-line {
   display: flex;
@@ -557,6 +557,7 @@ code {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
+  flex: 1 1 auto;
 }
 .app-project-title .title {
   color: var(--text-strong);
@@ -3794,7 +3795,7 @@ code {
    ============================================================ */
 .entry-shell {
   display: grid;
-  grid-template-rows: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   min-height: 0;
   background: var(--bg);
@@ -3883,6 +3884,7 @@ code {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding-top: 24px;
 }
 .newproj-tabs-shell {
   position: relative;
