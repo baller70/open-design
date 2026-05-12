@@ -124,8 +124,10 @@ export type TrackingExportFormat =
   | 'pptx'
   | 'zip'
   | 'html'
+  | 'markdown'
   | 'template'
-  | 'vercel';
+  | 'vercel'
+  | 'cloudflare_pages';
 
 export type TrackingRunResult = 'success' | 'failed' | 'cancelled';
 export type TrackingCreateResult = 'success' | 'failed';

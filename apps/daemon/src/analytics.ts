@@ -17,6 +17,7 @@ import {
   ANALYTICS_HEADER_LOCALE,
   ANALYTICS_HEADER_REQUEST_ID,
   ANALYTICS_HEADER_SESSION_ID,
+  anonymizeArtifactId as anonymizeArtifactIdShared,
   type AnalyticsClientType,
   type AnalyticsConfigResponse,
   EVENT_SCHEMA_VERSION,
@@ -155,20 +156,10 @@ export function createAnalyticsService(
   };
 }
 
-// Deterministic 16-hex-char anonymized id for an artifact. Hashing prevents
-// the filename from leaking into PostHog while keeping the id stable across
-// runs of the same project/file pair. Used by /api/analytics helpers and the
-// run/export emission sites.
-export function anonymizeArtifactId(args: {
-  projectId: string;
-  fileName: string;
-}): string {
-  return crypto
-    .createHash('sha256')
-    .update(`${args.projectId}:${args.fileName}`)
-    .digest('hex')
-    .slice(0, 16);
-}
+// Re-export so server.ts and route handlers don't need a second import
+// path; the canonical hash lives in @open-design/contracts/analytics so
+// the web bundle produces the same id for the same (projectId, fileName).
+export const anonymizeArtifactId = anonymizeArtifactIdShared;
 
 // Generate a fresh insert_id when the request didn't carry one. Used for
 // daemon-internal events where there is no matching web emission.

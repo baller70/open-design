@@ -1,6 +1,16 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { APP_CHROME_FILE_ACTIONS_ID } from './AppChromeHeader';
+import {
+  anonymizeArtifactId,
+  artifactKindToTracking,
+} from '@open-design/contracts/analytics';
+import { useAnalytics } from '../analytics/provider';
+import {
+  trackArtifactExportResult,
+  trackStudioClickShareOption,
+  trackStudioViewArtifact,
+} from '../analytics/events';
 import { MarkdownRenderer, artifactRendererRegistry } from '../artifacts/renderer-registry';
 import { renderMarkdownToSafeHtml } from '../artifacts/markdown';
 import { useT, useI18n } from '../i18n';
@@ -457,6 +467,29 @@ export function FileViewer({
     file,
     isDeckHint: Boolean(isDeck),
   });
+
+  // studio_view artifact — fire once per (project, file) pair so the
+  // activation funnel can attribute "user opened the produced artifact"
+  // even when the sub-viewer below is HtmlViewer / MarkdownViewer / etc.
+  // artifact_id is anonymized to satisfy the CSV's no-filename rule.
+  const analytics = useAnalytics();
+  const studioViewKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = `${projectId}::${file.name}`;
+    if (studioViewKeyRef.current === key) return;
+    studioViewKeyRef.current = key;
+    trackStudioViewArtifact(analytics.track, {
+      page: 'studio',
+      area: 'artifact',
+      element: 'artifact_view',
+      view_type: 'artifact',
+      artifact_id: anonymizeArtifactId({ projectId, fileName: file.name }),
+      artifact_kind: artifactKindToTracking({
+        rendererId: rendererMatch?.renderer.id ?? null,
+        fileKind: file.kind ?? null,
+      }),
+    });
+  }, [projectId, file.name, file.kind, rendererMatch?.renderer.id, analytics.track]);
 
   if (rendererMatch?.renderer.id === 'html' || rendererMatch?.renderer.id === 'deck-html') {
     return (
