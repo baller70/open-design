@@ -285,6 +285,7 @@ describe('ProjectView daemon cleanup', () => {
     fetchDesignSystem.mockResolvedValue(null);
     getTemplate.mockResolvedValue(null);
     listActiveChatRuns.mockResolvedValue([]);
+    streamViaDaemon.mockResolvedValue(undefined);
 
     chatPaneSpy.mockClear();
     window.sessionStorage.setItem('od:auto-send-first:project-2', '1');
@@ -319,8 +320,11 @@ describe('ProjectView daemon cleanup', () => {
         />,
       );
 
-      const lastProps = await waitForReadyChatPaneProps();
-      expect(lastProps?.initialDraft).toBeUndefined();
+      await waitFor(() => expect(streamViaDaemon).toHaveBeenCalledTimes(1));
+      const seededCall = chatPaneSpy.mock.calls.find(
+        (call) => call[0]?.initialDraft === 'design a landing page for a coffee shop',
+      );
+      expect(seededCall).toBeUndefined();
     } finally {
       window.sessionStorage.removeItem('od:auto-send-first:project-2');
     }
