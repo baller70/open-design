@@ -78,7 +78,7 @@ function createWatcher(
   opts: Required<Pick<ProjectWatcherOptions, 'ignored' | 'awaitWriteFinish'>>,
   usePolling: boolean,
 ): FSWatcher {
-  return chokidar.watch(dir, {
+  const watcherOptions = {
     ignored: opts.ignored,
     ignoreInitial: true,
     awaitWriteFinish: opts.awaitWriteFinish,
@@ -88,9 +88,9 @@ function createWatcher(
     // symlink would still cost descriptors and surface external FS activity.
     followSymlinks: false,
     usePolling,
-    interval: usePolling ? 100 : undefined,
-    binaryInterval: usePolling ? 300 : undefined,
-  });
+    ...(usePolling ? { interval: 100, binaryInterval: 300 } : {}),
+  };
+  return chokidar.watch(dir, watcherOptions);
 }
 
 function makeEntry(dir: string, opts: Required<Pick<ProjectWatcherOptions, 'ignored' | 'awaitWriteFinish'>>): WatcherEntry {
