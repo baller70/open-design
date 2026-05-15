@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 const STORAGE_KEY = 'open-design:config';
 
@@ -125,7 +126,7 @@ test('entry chrome avoids horizontal overflow on compact desktop width', async (
   expect(pageOverflow).toBeLessThanOrEqual(2);
 });
 
-async function gotoEntryHome(page: Parameters<typeof test>[0]['page']) {
+async function gotoEntryHome(page: Page) {
   await page.goto('/');
   const privacyDialog = page.getByRole('dialog').filter({ hasText: 'Help us improve Open Design' });
   if (await privacyDialog.isVisible().catch(() => false)) {
