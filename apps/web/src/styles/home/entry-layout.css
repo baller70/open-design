@@ -10,19 +10,20 @@
    actions, so the entry view does not render `AppChromeHeader`. */
 .entry-shell--no-header {
   grid-template-rows: 1fr;
+  --entry-rail-width: 56px;
 }
 
 /* Left rail */
 .entry-nav-rail {
-  width: 64px;
+  width: var(--entry-rail-width, 64px);
   border-right: 1px solid var(--border);
   background: var(--bg-panel);
-  padding: 14px 0;
+  padding: 8px 0 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   /* The rail intentionally lets its descendants escape horizontally so
      the hover tooltips and the bottom help popover can render to the
      right of the icon column without being clipped. Vertical overflow
@@ -40,14 +41,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   width: 100%;
 }
 .entry-nav-rail__footer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   width: 100%;
   padding-bottom: 4px;
 }
@@ -165,9 +166,9 @@
 }
 .entry-nav-rail__logo {
   appearance: none;
-  width: 40px;
-  height: 40px;
-  padding: 4px;
+  width: 36px;
+  height: 36px;
+  padding: 3px;
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: transparent;
@@ -175,7 +176,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   transition: background-color 120ms ease, border-color 120ms ease,
     transform 120ms ease;
 }
@@ -200,8 +201,8 @@
 }
 .entry-nav-rail__btn {
   appearance: none;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: transparent;
@@ -269,14 +270,14 @@
   padding: 0;
   /* Used by descendants (e.g. the plugins-home Scenario row) to
      pin themselves directly below the sticky topbar. Mirrors the
-     topbar's vertical footprint (12px top + 32px chip + 12px bottom). */
-  --entry-topbar-h: 56px;
+     topbar's vertical footprint (12px top + 32px chip). */
+  --entry-topbar-h: 44px;
 }
 .entry-main__inner {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 32px 32px 64px;
+  padding: 40px 32px 64px;
   display: flex;
   flex-direction: column;
   gap: 32px;
@@ -307,7 +308,16 @@
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
-  padding: 12px 18px;
+  padding: 12px 16px 0;
+  background: var(--bg);
+  isolation: isolate;
+}
+.entry-main__topbar::before {
+  content: '';
+  position: absolute;
+  inset: -1px 0;
+  z-index: -1;
+  pointer-events: none;
   background: var(--bg);
 }
 /* Chip group — the GitHub star, inline model switcher, and Use

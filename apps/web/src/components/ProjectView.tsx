@@ -229,6 +229,50 @@ function saveChatPanelWidth(width: number): void {
   }
 }
 
+function autoSendFirstMessageKey(projectId: string): string {
+  return `od:auto-send-first:${projectId}`;
+}
+
+function autoSendAttachmentsKey(projectId: string): string {
+  return `od:auto-send-attachments:${projectId}`;
+}
+
+function readAutoSendAttachments(projectId: string): ChatAttachment[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.sessionStorage.getItem(autoSendAttachmentsKey(projectId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isStoredChatAttachment);
+  } catch {
+    return [];
+  }
+}
+
+function clearAutoSendSession(projectId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(autoSendFirstMessageKey(projectId));
+    window.sessionStorage.removeItem(autoSendAttachmentsKey(projectId));
+  } catch {
+    /* ignore */
+  }
+}
+
+function isStoredChatAttachment(value: unknown): value is ChatAttachment {
+  if (value === null || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.path === 'string' &&
+    record.path.length > 0 &&
+    typeof record.name === 'string' &&
+    record.name.length > 0 &&
+    (record.kind === 'image' || record.kind === 'file') &&
+    (record.size === undefined || typeof record.size === 'number')
+  );
+}
+
 function appendLiveArtifactEventItem(
   prev: LiveArtifactEventItem[],
   event: LiveArtifactEventItem['event'],
@@ -2484,18 +2528,20 @@ export function ProjectView({
   // captures the prompt independently so downstream effects can still
   // dispatch the auto-send without going through initialDraft.
   const autoSendSeedRef = useRef<string | null>(null);
+  const autoSendAttachmentsRef = useRef<ChatAttachment[] | null>(null);
   const autoSendFirstMessageRef = useRef(false);
   if (autoSendSeedRef.current === null) {
     let isAutoSend = false;
     try {
       isAutoSend = Boolean(
-        window.sessionStorage.getItem(`od:auto-send-first:${project.id}`),
+        window.sessionStorage.getItem(autoSendFirstMessageKey(project.id)),
       );
     } catch {
       /* sessionStorage may be unavailable; treat as manual flow. */
     }
     autoSendFirstMessageRef.current = isAutoSend;
     autoSendSeedRef.current = isAutoSend ? (project.pendingPrompt ?? '') : '';
+    autoSendAttachmentsRef.current = isAutoSend ? readAutoSendAttachments(project.id) : [];
   }
   const [initialDraft, setInitialDraft] = useState<
     { projectId: string; value: string } | undefined
@@ -2672,9 +2718,7 @@ export function ProjectView({
     if (messages.length > 0) return;
     let flag: string | null = null;
     try {
-      flag = window.sessionStorage.getItem(
-        `od:auto-send-first:${project.id}`,
-      );
+      flag = window.sessionStorage.getItem(autoSendFirstMessageKey(project.id));
     } catch {
       flag = null;
     }
@@ -2689,14 +2733,16 @@ export function ProjectView({
       project.pendingPrompt ||
       ''
     ).trim();
-    if (!seed) return;
-    autoSentRef.current = true;
-    try {
-      window.sessionStorage.removeItem(`od:auto-send-first:${project.id}`);
-    } catch {
-      /* ignore */
+    const attachments = autoSendAttachmentsRef.current ?? [];
+    if (!seed && attachments.length === 0) {
+      autoSentRef.current = true;
+      clearAutoSendSession(project.id);
+      return;
     }
-    void handleSend(seed, [], []);
+    autoSentRef.current = true;
+    clearAutoSendSession(project.id);
+    autoSendAttachmentsRef.current = [];
+    void handleSend(seed, attachments, []);
   }, [
     activeConversationId,
     messagesInitialized,
@@ -2729,6 +2775,7 @@ export function ProjectView({
         enabled={critiqueTheaterEnabled}
       />
       <AppChromeHeader
+        showTrafficSpace={false}
         onBack={onBack}
         backLabel={t('project.backToProjects')}
         actions={(
@@ -2833,6 +2880,7 @@ export function ProjectView({
               error={conversationLoadError ?? error ?? audioVoiceOptionsError}
               projectId={project.id}
               projectFiles={projectFiles}
+              hasActiveDesignSystem={!!project.designSystemId}
               projectFileNames={projectFileNames}
               skills={skills}
               onEnsureProject={handleEnsureProject}

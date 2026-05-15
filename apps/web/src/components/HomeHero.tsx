@@ -8,7 +8,12 @@
 // without owning their data lifecycles.
 
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ForwardedRef, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type {
+  ClipboardEvent as ReactClipboardEvent,
+  DragEvent as ReactDragEvent,
+  ForwardedRef,
+  KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import type { InputFieldSpec, InstalledPluginRecord, McpServerConfig } from '@open-design/contracts';
 import type { SkillSummary } from '../types';
 import { Icon, type IconName } from './Icon';
@@ -47,6 +52,9 @@ interface Props {
   pluginInputTemplate?: string | null;
   onPluginInputValuesChange?: (values: Record<string, unknown>) => void;
   onPluginInputValidityChange?: (valid: boolean) => void;
+  stagedFiles?: File[];
+  onAddFiles?: (files: File[]) => void;
+  onRemoveFile?: (index: number) => void;
   pluginOptions: InstalledPluginRecord[];
   pluginsLoading: boolean;
   skillOptions?: SkillSummary[];
@@ -102,6 +110,9 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
     pluginInputValues = {},
     pluginInputTemplate = null,
     onPluginInputValuesChange = () => undefined,
+    stagedFiles = [],
+    onAddFiles = () => undefined,
+    onRemoveFile = () => undefined,
     pluginOptions,
     pluginsLoading,
     skillOptions = [],
@@ -124,12 +135,14 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
   const [mentionTab, setMentionTab] = useState<HomeMentionTab>('all');
   const [hoveredPlugin, setHoveredPlugin] = useState<InstalledPluginRecord | null>(null);
   const [promptScrollTop, setPromptScrollTop] = useState(0);
+  const [dragActive, setDragActive] = useState(false);
   const composingRef = useRef(false);
   const inputElementRef = useRef<HTMLTextAreaElement | null>(null);
-  const canSubmit = prompt.trim().length > 0 && !submitDisabled;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const canSubmit = (prompt.trim().length > 0 || stagedFiles.length > 0) && !submitDisabled;
   const placeholder = activePluginTitle || activeSkillTitle
     ? 'Edit the example query or write your own…'
-    : 'What do you want to design? Type a prompt, @search plugins, skills, or MCP…';
+    : 'Describe a design, paste or drop files, or @search plugins, skills, or MCP…';
   const mention = getContextMention(prompt);
   const mentionActive = Boolean(mention);
   const mentionQuery = mention?.query ?? '';
@@ -315,6 +328,26 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
     onPluginInputValuesChange({ ...pluginInputValues, [name]: value });
   }
 
+  function handleFiles(files: File[]) {
+    if (files.length === 0) return;
+    onAddFiles(files);
+  }
+
+  function handlePaste(event: ReactClipboardEvent<HTMLTextAreaElement>) {
+    const files = filesFromClipboard(event.clipboardData);
+    if (files.length === 0) return;
+    event.preventDefault();
+    handleFiles(files);
+  }
+
+  function handleDrop(event: ReactDragEvent<HTMLDivElement>) {
+    const files = Array.from(event.dataTransfer.files ?? []);
+    if (files.length === 0) return;
+    event.preventDefault();
+    setDragActive(false);
+    handleFiles(files);
+  }
+
   function openActivePluginDetails() {
     if (activePluginRecord) onOpenPluginDetails(activePluginRecord);
   }
@@ -335,7 +368,23 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
         and press <kbd>Enter</kbd>.
       </p>
 
-      <div className="home-hero__input-card">
+      <div
+        className={`home-hero__input-card${dragActive ? ' is-drag-active' : ''}`}
+        onDragEnter={(event) => {
+          if (event.dataTransfer.types.includes('Files')) setDragActive(true);
+        }}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes('Files')) return;
+          event.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={(event) => {
+          const nextTarget = event.relatedTarget;
+          if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+          setDragActive(false);
+        }}
+        onDrop={handleDrop}
+      >
         {activePluginTitle || activeSkillTitle || selectedPluginContexts.length > 0 ? (
           <div className="home-hero__active">
             {selectedPluginContexts.map((plugin) => (
@@ -475,6 +524,7 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
                 onPromptChange(e.target.value);
                 setSelectedIndex(0);
               }}
+              onPaste={handlePaste}
               onScroll={(event) => {
                 setPromptScrollTop(event.currentTarget.scrollTop);
               }}
@@ -536,6 +586,34 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
             />
           ) : null}
         </div>
+        {stagedFiles.length > 0 ? (
+          <div className="home-hero__attachments" data-testid="home-hero-staged-files">
+            {stagedFiles.map((file, index) => (
+              <span
+                key={homeFileKey(file, index)}
+                className="home-hero__attachment-chip"
+                title={`${file.name} · ${formatFileSize(file.size)}`}
+              >
+                <span className="home-hero__attachment-icon" aria-hidden>
+                  <Icon name={isImageFile(file) ? 'image' : 'file'} size={13} />
+                </span>
+                <span className="home-hero__attachment-name">{file.name}</span>
+                <span className="home-hero__attachment-size">
+                  {formatFileSize(file.size)}
+                </span>
+                <button
+                  type="button"
+                  className="home-hero__attachment-remove"
+                  onClick={() => onRemoveFile(index)}
+                  aria-label={`Remove ${file.name}`}
+                  title="Remove file"
+                >
+                  <Icon name="close" size={10} />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
         {pickerOpen ? (
           <div
             id="home-hero-context-picker"
@@ -645,9 +723,33 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
           </div>
         ) : null}
         <div className="home-hero__input-foot">
-          <span className="home-hero__hint">
-            <kbd>↵</kbd> to run · <kbd>Shift</kbd>+<kbd>↵</kbd> for new line
-          </span>
+          <input
+            ref={fileInputRef}
+            data-testid="home-hero-file-input"
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              handleFiles(files);
+              event.target.value = '';
+            }}
+          />
+          <div className="home-hero__foot-left">
+            <button
+              type="button"
+              className="home-hero__attach"
+              data-testid="home-hero-attach"
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach files"
+              aria-label="Attach files"
+            >
+              <Icon name="attach" size={14} />
+            </button>
+            <span className="home-hero__hint">
+              <kbd>↵</kbd> to run · <kbd>Shift</kbd>+<kbd>↵</kbd> for new line
+            </span>
+          </div>
           <button
             type="button"
             className="home-hero__submit"
@@ -710,6 +812,38 @@ function assignForwardedRef<T>(forwardedRef: ForwardedRef<T>, value: T | null) {
   if (forwardedRef) {
     forwardedRef.current = value;
   }
+}
+
+function filesFromClipboard(data: DataTransfer): File[] {
+  const files: File[] = [];
+  for (const item of Array.from(data.items ?? [])) {
+    if (item.kind !== 'file') continue;
+    const file = item.getAsFile();
+    if (file) files.push(file);
+  }
+  return files;
+}
+
+function homeFileKey(file: File, index: number): string {
+  return `${file.name}-${file.size}-${file.lastModified}-${index}`;
+}
+
+function isImageFile(file: File): boolean {
+  return file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(file.name);
+}
+
+function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = bytes / 1024;
+  for (const unit of units) {
+    if (value < 1024 || unit === units[units.length - 1]) {
+      return `${value.toFixed(value >= 10 ? 0 : 1)} ${unit}`;
+    }
+    value /= 1024;
+  }
+  return `${bytes} B`;
 }
 
 type PromptOverlayPart =

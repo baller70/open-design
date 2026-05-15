@@ -321,6 +321,408 @@ code {
   grid-row: 3;
 }
 
+.workspace-shell {
+  height: 100vh;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 40px minmax(0, 1fr);
+  background: var(--bg-app);
+}
+.workspace-shell__body {
+  min-height: 0;
+  overflow: hidden;
+}
+.workspace-shell__body > .app,
+.workspace-shell__body > .entry-shell {
+  height: 100%;
+  min-height: 0;
+}
+
+.workspace-tabs-chrome.app-chrome-header {
+  min-height: 38px;
+  height: 38px;
+  padding: 0 8px 0 12px;
+  gap: 0;
+  background: color-mix(in srgb, var(--bg-panel) 88%, var(--bg-subtle));
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--bg-panel) 80%, transparent) inset;
+  user-select: none;
+  -webkit-app-region: drag;
+  overflow: visible;
+  position: relative;
+  z-index: 120;
+}
+.workspace-tabs-chrome .workspace-tabs-traffic {
+  margin-right: calc(var(--app-chrome-traffic-margin) + 8px);
+}
+.workspace-tabs-new-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  -webkit-app-region: no-drag;
+  transition: background 100ms ease, color 100ms ease;
+}
+.workspace-tabs-new-btn:hover {
+  background: color-mix(in srgb, var(--bg-panel) 72%, var(--bg-subtle));
+  color: var(--text);
+}
+.workspace-tabs-drag {
+  flex: 1 1 auto;
+  min-width: 12px;
+  align-self: stretch;
+  -webkit-app-region: drag;
+}
+.workspace-tabs-icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  -webkit-app-region: no-drag;
+}
+.workspace-tabs-icon-btn:hover:not(:disabled),
+.workspace-tabs-icon-btn.is-active {
+  color: var(--text-strong);
+  background: color-mix(in srgb, var(--bg-panel) 78%, var(--bg-subtle));
+  border-color: var(--border);
+}
+.workspace-tabs-strip {
+  align-self: stretch;
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding-left: 0;
+  overflow: visible;
+  contain: layout style;
+  -webkit-app-region: no-drag;
+}
+.workspace-tab {
+  position: relative;
+  height: 26px;
+  min-width: 76px;
+  max-width: 136px;
+  flex: 1 1 124px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  overflow: hidden;
+  contain: layout style;
+  transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
+}
+.workspace-tab + .workspace-tab::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 14px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.workspace-tab:hover {
+  background: color-mix(in srgb, var(--bg-panel) 64%, transparent);
+  border-color: color-mix(in srgb, var(--border) 60%, transparent);
+  color: var(--text);
+}
+.workspace-tab.is-active {
+  background: color-mix(in srgb, var(--bg-panel) 92%, var(--bg-subtle));
+  border-color: color-mix(in srgb, var(--border-strong) 52%, transparent);
+  color: var(--text-strong);
+  box-shadow: 0 1px 1px color-mix(in srgb, var(--text) 6%, transparent);
+}
+.workspace-tab:hover::before,
+.workspace-tab.is-active::before {
+  opacity: 0;
+}
+.workspace-tab__main {
+  min-width: 0;
+  height: 100%;
+  padding: 0 2px 0 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  text-align: left;
+}
+.workspace-tab__main:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+}
+.workspace-tab__icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  opacity: 0.74;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+.workspace-tab__icon svg,
+.workspace-tab__close svg,
+.workspace-tabs-icon-btn svg {
+  display: block;
+  flex: none;
+}
+.workspace-tab__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 520;
+  letter-spacing: 0;
+}
+.workspace-tab__close {
+  width: 16px;
+  height: 16px;
+  margin-right: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  flex: 0 0 auto;
+}
+.workspace-tab:hover .workspace-tab__close,
+.workspace-tab.is-active .workspace-tab__close {
+  opacity: 1;
+}
+.workspace-tab__close:hover {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+.workspace-tab--overflow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 26px;
+  min-width: auto;
+  max-width: none;
+  padding: 0 9px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 540;
+}
+.workspace-tabs-actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  margin-left: 3px;
+  z-index: 35;
+  -webkit-app-region: no-drag;
+}
+.workspace-tabs-popover {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(620px, calc(100vh - 72px));
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 130;
+  -webkit-app-region: no-drag;
+}
+.workspace-tabs-popover,
+.workspace-tabs-popover * {
+  -webkit-app-region: no-drag;
+}
+.workspace-tabs-search {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid var(--selected);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text-muted);
+  box-shadow: 0 0 0 3px var(--selected-soft);
+}
+.workspace-tabs-search input {
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font-size: 13px;
+}
+.workspace-tabs-search input:focus {
+  border: 0;
+  box-shadow: none;
+}
+.workspace-tabs-popover__section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 5px 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+.workspace-tabs-list {
+  min-height: 0;
+  max-height: 500px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+  contain: layout style paint;
+}
+.workspace-tabs-list__item {
+  min-height: 34px;
+  border-radius: 7px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 26px;
+  align-items: center;
+  contain: layout style;
+}
+.workspace-tabs-list__item:hover,
+.workspace-tabs-list__item.is-active {
+  background: color-mix(in srgb, var(--selected) 9%, var(--bg-subtle));
+}
+.workspace-tabs-list__main {
+  min-width: 0;
+  height: 34px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+}
+.workspace-tabs-list__main:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+}
+.workspace-tabs-list__icon {
+  width: 17px;
+  height: 17px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+.workspace-tabs-list__icon svg,
+.workspace-tabs-list__close svg,
+.workspace-tabs-search svg {
+  display: block;
+  flex: none;
+}
+.workspace-tabs-list__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.workspace-tabs-list__title,
+.workspace-tabs-list__meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-tabs-list__title {
+  color: var(--text-strong);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.workspace-tabs-list__meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.workspace-tabs-list__close {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.workspace-tabs-list__close:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-muted);
+}
+.workspace-tabs-empty {
+  padding: 18px 8px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+@media (max-width: 720px) {
+  .workspace-tabs-chrome.app-chrome-header {
+    padding-right: 6px;
+  }
+  .workspace-tab {
+    min-width: 40px;
+    max-width: 44px;
+    flex-basis: 44px;
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+  .workspace-tab__main {
+    justify-content: center;
+    padding: 0;
+  }
+  .workspace-tab__label,
+  .workspace-tab__close,
+  .workspace-tab--overflow {
+    display: none;
+  }
+}
+
 .app-chrome-header {
   --app-chrome-traffic-space: 0px;
   --app-chrome-traffic-margin: 0px; /* Set to 8px on macOS */
@@ -336,45 +738,9 @@ code {
 .app-chrome-traffic-space {
   width: var(--app-chrome-traffic-space);
   flex: 0 0 var(--app-chrome-traffic-space);
-  /* Add extra spacing after the traffic light controls on macOS to prevent
-     the window controls from crowding the brand logo. The daemon sets both
-     --app-chrome-traffic-space (80px) and --app-chrome-traffic-margin (8px)
-     on macOS, while other platforms keep both at 0px. */
+  /* Add extra spacing after the traffic light controls on macOS so project
+     navigation starts after the native window controls. */
   margin-right: var(--app-chrome-traffic-margin);
-}
-.app-chrome-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex-shrink: 0;
-}
-.app-chrome-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  overflow: visible;
-  flex-shrink: 0;
-}
-.app-chrome-mark .brand-mark-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-  padding: 0;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-.app-chrome-name {
-  color: var(--text-strong);
-  font-size: 18px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
 }
 .app-chrome-back,
 .settings-icon-btn {
@@ -4272,7 +4638,7 @@ a.avatar-item:visited {
 
 .entry {
   display: grid;
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: var(--entry-rail-width, 64px) 1fr;
   height: 100%;
   min-height: 0;
   background: var(--bg);
@@ -8130,7 +8496,17 @@ button.connector-action.is-loading {
   font-size: 13px;
   color: var(--text-muted);
   width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
   text-align: center;
+}
+.ws-tab .tab-icon svg,
+.ws-tab-close svg {
+  display: block;
+  flex: none;
 }
 .ws-tab.active .tab-icon { color: var(--text); }
 .ws-tab-label {
@@ -15723,8 +16099,20 @@ body.entry-resizing { cursor: col-resize; user-select: none; }
   box-shadow: var(--shadow-xs);
 }
 .composer-tools-tab-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   font-size: 13px;
   line-height: 1;
+  flex: 0 0 auto;
+}
+.composer-tools-tab > svg,
+[role='tab'] > svg {
+  display: block;
+  flex: none;
+  align-self: center;
 }
 .composer-tools-content {
   display: flex;

@@ -90,6 +90,7 @@ interface Props {
       appliedPluginSnapshotId?: string;
       pluginInputs?: Record<string, unknown>;
       autoSendFirstMessage?: boolean;
+      pendingFiles?: File[];
     },
   ) => void;
   onCreatePluginShareProject: (

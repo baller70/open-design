@@ -66,6 +66,13 @@ test('entry chrome settings menu opens with brand header and no pet rail', async
   await expect(page.getByTestId('entry-use-everywhere-button')).toBeVisible();
   await expect(page.getByTestId('entry-nav-logo')).toBeVisible();
   await expect(page.getByTestId('recent-projects-strip')).toBeVisible();
+  await expect(page.locator('.entry-nav-rail')).toBeVisible();
+  await expect(page.getByTestId('entry-nav-new-project')).toBeVisible();
+  await expect(page.locator('.entry-brand')).toHaveCount(0);
+
+  // The pet picker rail was removed; pet adoption now lives in
+  // Settings → Pet exclusively. Make sure no rail leaks back into the
+  // entry layout.
   await expect(page.locator('.pet-rail')).toHaveCount(0);
 
   await page.locator('.avatar-menu .settings-icon-btn').click();

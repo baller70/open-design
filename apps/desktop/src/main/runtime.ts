@@ -432,27 +432,32 @@ const MAC_WINDOW_CHROME =
   process.platform === "darwin"
     ? ({
         titleBarStyle: "hiddenInset" as const,
-        trafficLightPosition: { x: 14, y: 12 },
+        trafficLightPosition: { x: 12, y: 10 },
       })
     : {};
 
 const MAC_WINDOW_CHROME_CSS = `
   .app-chrome-header {
-    --app-chrome-traffic-space: 56px !important;
-    --app-chrome-traffic-margin: 8px !important;
+    --app-chrome-traffic-space: 64px !important;
+    --app-chrome-traffic-margin: 4px !important;
     -webkit-app-region: drag;
   }
   .app-chrome-traffic-space {
-    flex: 0 0 56px !important;
-    width: 56px !important;
+    flex: 0 0 64px !important;
+    width: 64px !important;
   }
   .app-chrome-header button,
+  .app-chrome-header a,
   .app-chrome-header [role="button"],
   .app-chrome-header [contenteditable],
   .app-chrome-actions,
   .app-chrome-actions *,
   .avatar-popover,
-  .avatar-popover * {
+  .avatar-popover *,
+  .inline-switcher__popover,
+  .inline-switcher__popover *,
+  .workspace-tabs-popover,
+  .workspace-tabs-popover * {
     -webkit-app-region: no-drag;
   }
   .app-chrome-drag {
@@ -494,26 +499,12 @@ const MAC_WINDOW_CHROME_CSS = `
   .share-menu-popover,
   .share-menu-popover *,
   .entry-side-resizer,
+  .inline-switcher__popover,
+  .inline-switcher__popover *,
   .avatar-popover,
-  .avatar-popover * {
-    -webkit-app-region: no-drag;
-  }
-  /* Header-less entry: clear traffic-light gutter and provide a
-     drag region so the window can still be moved by the empty
-     space along the top of the rail and the topbar background. */
-  .entry-shell--no-header .entry-nav-rail {
-    padding-top: 38px !important;
-  }
-  .entry-shell--no-header .entry-main__topbar {
-    -webkit-app-region: drag;
-    min-height: 24px;
-    padding-top: 16px !important;
-  }
-  .entry-shell--no-header .entry-main__topbar button,
-  .entry-shell--no-header .entry-main__topbar [role="button"],
-  .entry-shell--no-header .entry-main__topbar a,
-  .entry-shell--no-header .avatar-popover,
-  .entry-shell--no-header .avatar-popover * {
+  .avatar-popover *,
+  .workspace-tabs-popover,
+  .workspace-tabs-popover * {
     -webkit-app-region: no-drag;
   }
 `;

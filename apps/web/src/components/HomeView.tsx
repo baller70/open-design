@@ -130,6 +130,7 @@ export function HomeView({
   const [active, setActive] = useState<ActivePlugin | null>(null);
   const [activeSkill, setActiveSkill] = useState<SkillSummary | null>(null);
   const [selectedPluginContexts, setSelectedPluginContexts] = useState<SelectedPluginContext[]>([]);
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>([]);
   const [mcpLoading, setMcpLoading] = useState(true);
   const [prompt, setPrompt] = useState('');
@@ -210,8 +211,11 @@ export function HomeView({
   }, [promptHandoff]);
 
   const contextItemCount = useMemo(
-    () => (active?.result?.contextItems?.length ?? 0) + selectedPluginContexts.length,
-    [active, selectedPluginContexts],
+    () =>
+      (active?.result?.contextItems?.length ?? 0) +
+      selectedPluginContexts.length +
+      stagedFiles.length,
+    [active, selectedPluginContexts, stagedFiles.length],
   );
 
   // When the active plugin was bound through a chip, the badge shows
@@ -495,6 +499,17 @@ export function HomeView({
     });
   }
 
+  function stageFiles(files: File[]) {
+    if (files.length === 0) return;
+    setStagedFiles((current) => [...current, ...files]);
+    setError(null);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  function removeStagedFile(index: number) {
+    setStagedFiles((current) => current.filter((_, i) => i !== index));
+  }
+
   function updateActiveInputs(next: Record<string, unknown>) {
     if (!active) return;
     const inputsValid = pluginInputsAreValid(active.inputFields, next);
@@ -626,7 +641,7 @@ export function HomeView({
 
   async function submit() {
     const trimmed = prompt.trim();
-    if (!trimmed) return;
+    if (!trimmed && stagedFiles.length === 0) return;
     let submittedActive = active;
     if (submittedActive && !submittedActive.inputsValid) {
       setError('Fill the required plugin parameters before running.');
@@ -659,6 +674,7 @@ export function HomeView({
       pluginInputs: submittedActive ? submittedActive.inputs : defaultInputs,
       projectKind: submittedActive?.projectKind ?? fallbackProjectKind ?? projectKindForSkill(activeSkill) ?? 'other',
       contextPlugins,
+      attachments: stagedFiles,
     });
   }
 
@@ -688,6 +704,9 @@ export function HomeView({
             prev && prev.inputsValid !== valid ? { ...prev, inputsValid: valid } : prev
           ));
         }}
+        stagedFiles={stagedFiles}
+        onAddFiles={stageFiles}
+        onRemoveFile={removeStagedFile}
         pluginOptions={plugins}
         pluginsLoading={pluginsLoading}
         skillOptions={selectableSkills}

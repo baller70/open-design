@@ -1679,6 +1679,22 @@ async function ensureGhReady() {
 
 const TERMINAL_RUN_STATUSES = new Set(['succeeded', 'failed', 'canceled']);
 
+function reconcileAssistantMessageOnRunEnd(db, runs, run) {
+  if (!run.assistantMessageId) return;
+  void runs
+    .wait(run)
+    .then((finalStatus) => {
+      db.prepare(
+        `UPDATE messages
+            SET run_status = ?, ended_at = COALESCE(ended_at, ?)
+          WHERE id = ? AND run_status IN ('queued', 'running')`,
+      ).run(finalStatus.status, Date.now(), run.assistantMessageId);
+    })
+    .catch((err) => {
+      console.warn('[runs] message reconciliation failed', err);
+    });
+}
+
 export function shouldReportRunCompletedFromMessage(saved, body = {}) {
   return Boolean(
     saved &&
@@ -9517,6 +9533,7 @@ export async function startServer({
         db,
       });
     }
+    reconcileAssistantMessageOnRunEnd(db, design.runs, run);
     design.runs.start(run, () => startChatRun(meta, run));
   });
 

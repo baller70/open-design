@@ -974,7 +974,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
         reset();
         return;
       }
-      if ((!prompt && nextCommentAttachments.length === 0) || streaming) return;
+      if ((!prompt && staged.length === 0 && nextCommentAttachments.length === 0) || streaming) return;
       onSend(prompt, staged, nextCommentAttachments, skillMeta);
       reset();
     }
@@ -1466,7 +1466,10 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
                   });
                   void submit();
                 }}
-                disabled={sendDisabled || (!draft.trim() && currentCommentAttachments().length === 0)}
+                disabled={
+                  sendDisabled ||
+                  (!draft.trim() && staged.length === 0 && currentCommentAttachments().length === 0)
+                }
               >
                 <Icon name="send" size={13} />
                 <span>{t('chat.send')}</span>

@@ -32,6 +32,9 @@ export interface PluginLoopSubmit {
   // free-form fallback uses `other` and binds the hidden od-default
   // router plugin so the agent asks for the exact task type in-chat.
   projectKind?: 'prototype' | 'deck' | 'template' | 'image' | 'video' | 'audio' | 'other' | null;
+  // Files staged on Home before the project exists. App uploads them
+  // into the created project's Design Files before the first auto-send.
+  attachments?: File[];
 }
 
 interface Props {

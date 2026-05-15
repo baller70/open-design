@@ -73,6 +73,38 @@ function defaultPluginIdForKind(metadata: ProjectMetadata): string | null {
   return defaultScenarioPluginIdForKind(metadata.kind);
 }
 
+function defaultPluginInputsForCreate(
+  input: CreateInput,
+  pluginId: string | null,
+): Record<string, unknown> | null {
+  if (pluginId !== 'od-media-generation') return null;
+  const kind = input.metadata.kind;
+  if (kind !== 'image' && kind !== 'video' && kind !== 'audio') return null;
+
+  const promptTemplate = input.metadata.promptTemplate;
+  const subject =
+    promptTemplate?.prompt?.trim()
+    || input.name.trim()
+    || promptTemplate?.title?.trim()
+    || `${kind} concept`;
+  const style =
+    promptTemplate?.summary?.trim()
+    || 'cinematic, high-quality, on-brand';
+  const aspect =
+    kind === 'image'
+      ? input.metadata.imageAspect
+      : kind === 'video'
+        ? input.metadata.videoAspect
+        : undefined;
+
+  return {
+    mediaKind: kind,
+    subject,
+    style,
+    ...(aspect ? { aspect } : {}),
+  };
+}
+
 // Theme options exposed in the avatar-popover appearance submenu.
 // Mirrors the segmented control in `SettingsDialog` so the same three
 // choices (System / Light / Dark) are available from both surfaces.
@@ -176,6 +208,7 @@ interface Props {
       appliedPluginSnapshotId?: string;
       pluginInputs?: Record<string, unknown>;
       autoSendFirstMessage?: boolean;
+      pendingFiles?: File[];
     },
   ) => void;
   onCreatePluginShareProject: (
@@ -311,9 +344,11 @@ export function EntryShell({
     // (e.g. a deck- or image-specialized pipeline) can take over a
     // single row without touching the form.
     const pluginId = defaultPluginIdForKind(input.metadata);
+    const pluginInputs = defaultPluginInputsForCreate(input, pluginId);
     onCreateProject({
       ...input,
       ...(pluginId ? { pluginId } : {}),
+      ...(pluginInputs ? { pluginInputs } : {}),
     });
   }
 
@@ -333,7 +368,8 @@ export function EntryShell({
   // before continuing.
   function handlePluginLoopSubmit(payload: PluginLoopSubmit) {
     const head = payload.prompt.trim().split(/\s+/).slice(0, 8).join(' ');
-    const fallbackName = head.length > 0 ? head : 'Untitled';
+    const firstAttachmentName = payload.attachments?.[0]?.name ?? '';
+    const fallbackName = head.length > 0 ? head : firstAttachmentName || 'Untitled';
     const name =
       payload.pluginTitle && payload.pluginTitle.trim().length > 0
         ? payload.pluginTitle.trim()
@@ -355,6 +391,9 @@ export function EntryShell({
         ? { appliedPluginSnapshotId: payload.appliedPluginSnapshotId }
         : {}),
       ...(payload.pluginInputs ? { pluginInputs: payload.pluginInputs } : {}),
+      ...(payload.attachments && payload.attachments.length > 0
+        ? { pendingFiles: payload.attachments }
+        : {}),
       autoSendFirstMessage: true,
     });
   }
@@ -768,7 +807,10 @@ export function EntryShell({
         onCreate={handleCreate}
         onImportClaudeDesign={onImportClaudeDesign}
         {...(onImportFolder ? { onImportFolder } : {})}
-        onOpenConnectorsTab={() => openIntegrationTab('connectors')}
+        onOpenConnectorsTab={() => {
+          setNewProjectOpen(false);
+          openIntegrationTab('connectors');
+        }}
         onClose={() => setNewProjectOpen(false)}
       />
     </div>

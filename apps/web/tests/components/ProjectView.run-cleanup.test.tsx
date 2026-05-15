@@ -330,6 +330,80 @@ describe('ProjectView daemon cleanup', () => {
     }
   });
 
+  it('auto-sends Home-staged design files as first-turn daemon attachments', async () => {
+    listConversations.mockResolvedValue([{ id: 'conv-1', title: 'Conversation' }]);
+    listMessages.mockResolvedValue([]);
+    fetchPreviewComments.mockResolvedValue([]);
+    loadTabs.mockResolvedValue({ tabs: [], activeTabId: null });
+    fetchProjectFiles.mockResolvedValue([]);
+    fetchLiveArtifacts.mockResolvedValue([]);
+    fetchSkill.mockResolvedValue(null);
+    fetchDesignSystem.mockResolvedValue(null);
+    getTemplate.mockResolvedValue(null);
+    listActiveChatRuns.mockResolvedValue([]);
+    streamViaDaemon.mockResolvedValue(undefined);
+
+    chatPaneSpy.mockClear();
+    window.sessionStorage.setItem('od:auto-send-first:project-files', '1');
+    window.sessionStorage.setItem(
+      'od:auto-send-attachments:project-files',
+      JSON.stringify([
+        { path: 'brief.pdf', name: 'brief.pdf', kind: 'file', size: 5 },
+        { path: 'logo.png', name: 'logo.png', kind: 'image', size: 7 },
+      ]),
+    );
+
+    try {
+      render(
+        <ProjectView
+          project={{
+            id: 'project-files',
+            name: 'Project',
+            skillId: null,
+            designSystemId: null,
+          } as never}
+          routeFileName={null}
+          config={{ mode: 'daemon', agentId: 'agent-1', notifications: undefined, agentModels: {} } as never}
+          agents={[{ id: 'agent-1', name: 'OpenCode', models: [] } as never]}
+          skills={[]}
+          designTemplates={[]}
+          designSystems={[]}
+          daemonLive
+          onModeChange={() => {}}
+          onAgentChange={() => {}}
+          onAgentModelChange={() => {}}
+          onRefreshAgents={() => {}}
+          onOpenSettings={() => {}}
+          onBack={() => {}}
+          onClearPendingPrompt={() => {}}
+          onTouchProject={() => {}}
+          onProjectChange={() => {}}
+          onProjectsRefresh={() => {}}
+        />,
+      );
+
+      await waitFor(() => expect(streamViaDaemon).toHaveBeenCalledTimes(1));
+      expect(streamViaDaemon.mock.calls[0]?.[0]).toMatchObject({
+        attachments: ['brief.pdf', 'logo.png'],
+        history: [
+          expect.objectContaining({
+            role: 'user',
+            content: '',
+            attachments: [
+              { path: 'brief.pdf', name: 'brief.pdf', kind: 'file', size: 5 },
+              { path: 'logo.png', name: 'logo.png', kind: 'image', size: 7 },
+            ],
+          }),
+        ],
+      });
+      expect(window.sessionStorage.getItem('od:auto-send-first:project-files')).toBeNull();
+      expect(window.sessionStorage.getItem('od:auto-send-attachments:project-files')).toBeNull();
+    } finally {
+      window.sessionStorage.removeItem('od:auto-send-first:project-files');
+      window.sessionStorage.removeItem('od:auto-send-attachments:project-files');
+    }
+  });
+
   // Sister check: without the auto-send flag, the composer should still
   // seed from pendingPrompt so the user can edit before manually sending.
   it('seeds composer initialDraft with pendingPrompt when auto-send flag is absent', async () => {
