@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-15T02:20:11.273Z",
+  "generatedAt": "2026-05-15T02:32:41.441Z",
   "contributors": {
     "huyhoangnhh98": {
       "lastAnnouncedTier": "spark",
@@ -8,10 +8,11 @@
       "lastAnnouncedAt": "2026-05-12T06:18:59.356Z"
     },
     "shangxinyu1": {
-      "lastAnnouncedTier": "node",
-      "lastKnownScore": 252,
-      "lastCheckedAt": "2026-05-14T10:02:03.120Z",
-      "lastAnnouncedAt": "2026-05-12T06:25:45.145Z"
+      "lastAnnouncedTier": "beacon",
+      "lastKnownScore": 1205,
+      "lastCheckedAt": "2026-05-15T02:32:41.440Z",
+      "scoreVersion": "weighted-v1",
+      "lastAnnouncedAt": "2026-05-15T02:32:41.440Z"
     },
     "sid-qin": {
       "lastAnnouncedTier": "node",
