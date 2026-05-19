@@ -156,6 +156,8 @@ Active design system exception: the active design system is the visual direction
 - When a downstream framework mentions "active direction" or "theme tokens", bind those fields from the active design system instead of the built-in direction library.
 `;
 
+const DEFAULT_DESIGN_SYSTEM_USAGE = `Read DESIGN.md for visual principles, paste tokens.css verbatim into the first <style> when it is provided, and match component shapes from the reference component manifest or fixture when available. Treat any pull-layer index as optional context for deeper inspection; do not assume those files have already been loaded.`;
+
 export interface ComposeInput {
   agentId?: string | null | undefined;
   includeCodexImagegenOverride?: boolean | undefined;
@@ -182,6 +184,8 @@ export interface ComposeInput {
   // prose still sets the high-level voice and the structured form
   // disambiguates token names + worked component shapes.
   //
+  // - `designSystemUsageMd`      — optional USAGE.md router that tells
+  //                                agents how to consume this package.
   // - `designSystemTokensCss`    — verbatim `tokens.css` :root contract
   //                                that the agent pastes into the
   //                                artifact's <style>.
@@ -190,9 +194,14 @@ export interface ComposeInput {
   // - `designSystemFixtureHtml`        — verbatim `components.html`
   //                                      fallback when no manifest can
   //                                      be derived.
+  // - `designSystemPullIndex`          — lightweight manifest-derived
+  //                                      list of richer files available
+  //                                      for later pull-channel work.
+  designSystemUsageMd?: string | undefined;
   designSystemTokensCss?: string | undefined;
   designSystemComponentsManifest?: string | undefined;
   designSystemFixtureHtml?: string | undefined;
+  designSystemPullIndex?: string | undefined;
   // Craft references the active skill opted into via `od.craft.requires`.
   // The daemon resolves the slug list to file contents and concatenates
   // them with section headers; we inject them between the DESIGN.md and
@@ -273,9 +282,11 @@ export function composeSystemPrompt({
   skillMode,
   designSystemBody,
   designSystemTitle,
+  designSystemUsageMd,
   designSystemTokensCss,
   designSystemComponentsManifest,
   designSystemFixtureHtml,
+  designSystemPullIndex,
   craftBody,
   craftSections,
   memoryBody,
@@ -343,6 +354,14 @@ export function composeSystemPrompt({
   }
 
   if (activeDesignSystemBody && activeDesignSystemBody.length > 0) {
+    const usageBlock =
+      designSystemUsageMd && designSystemUsageMd.trim().length > 0
+        ? designSystemUsageMd.trim()
+        : DEFAULT_DESIGN_SYSTEM_USAGE;
+    parts.push(
+      `\n\n## How to use this design system${designSystemTitle ? ` — ${designSystemTitle}` : ''}\n\n${usageBlock}`,
+    );
+
     parts.push(
       `\n\n## Active design system${designSystemTitle ? ` — ${designSystemTitle}` : ''}\n\nTreat the following DESIGN.md as authoritative for color, typography, spacing, and component rules. Do not invent tokens outside this palette. When you copy the active skill's seed template, bind these tokens into its \`:root\` block before generating any layout.\n\n${activeDesignSystemBody}`,
     );
@@ -371,6 +390,12 @@ export function composeSystemPrompt({
   } else if (designSystemFixtureHtml && designSystemFixtureHtml.trim().length > 0) {
     parts.push(
       `\n\n## Reference fixture${designSystemTitle ? ` — ${designSystemTitle}` : ''}\n\nA self-contained worked artifact in this design system. Match its component shapes (button structure, card structure, type-scale rhythm, focus ring, spacing cadence) when generating new artifacts. Copying fragments is encouraged as long as you keep the \`var(--*)\` references intact — they are already wired to the tokens above.\n\n\`\`\`html\n${designSystemFixtureHtml.trim()}\n\`\`\``,
+    );
+  }
+
+  if (designSystemPullIndex && designSystemPullIndex.trim().length > 0) {
+    parts.push(
+      `\n\n## Pull-layer files available on demand${designSystemTitle ? ` — ${designSystemTitle}` : ''}\n\nThis design-system package declares richer files for inspection, source evidence, or human preview. Keep the push prompt light: use the index below to decide what to read later if the host exposes a design-system file-reading tool.\n\n\`\`\`text\n${designSystemPullIndex.trim()}\n\`\`\``,
     );
   }
 

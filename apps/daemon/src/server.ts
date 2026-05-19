@@ -8088,9 +8088,11 @@ export async function startServer({
     // including the structured ones. Any other value (unset, `1`,
     // `true`, etc.) keeps the new default. Drift on prose-only brands
     // is pinned by `scripts/check-design-system-flag-parity.ts`.
+    let designSystemUsageMd;
     let designSystemTokensCss;
     let designSystemComponentsManifest;
     let designSystemFixtureHtml;
+    let designSystemPullIndex;
     if (effectiveDesignSystemId) {
       let systems = await listAllDesignSystems();
       let summary = systems.find((s) => s.id === effectiveDesignSystemId);
@@ -8116,9 +8118,11 @@ export async function startServer({
           DESIGN_SYSTEMS_DIR,
           USER_DESIGN_SYSTEMS_DIR,
         );
+        designSystemUsageMd = assets.usageMd;
         designSystemTokensCss = assets.tokensCss;
         designSystemComponentsManifest = assets.componentsManifest;
         designSystemFixtureHtml = assets.fixtureHtml;
+        designSystemPullIndex = assets.pullIndex;
       }
     }
 
@@ -8273,9 +8277,11 @@ export async function startServer({
       skillMode,
       designSystemBody,
       designSystemTitle,
+      designSystemUsageMd,
       designSystemTokensCss,
       designSystemComponentsManifest,
       designSystemFixtureHtml,
+      designSystemPullIndex,
       craftBody,
       craftSections,
       memoryBody,

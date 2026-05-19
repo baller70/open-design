@@ -235,6 +235,91 @@ describe('Design System Project manifest runtime consumption', () => {
     expect(assets.tokensCss).toBe(':root { --accent: #2F6FEB; }');
     expect(assets.fixtureHtml).toBeUndefined();
   });
+
+  it('reads USAGE.md, committed component cache, and manifest pull index without loading rich files', async () => {
+    const root = fresh();
+    const dir = writeDesignSystemProject(root, 'hybrid-project', {
+      manifest: {
+        schemaVersion: 'od-design-system-project/v1',
+        id: 'hybrid-project',
+        name: 'Hybrid Project',
+        category: 'Imported',
+        source: { type: 'local', path: '/tmp/project' },
+        files: {
+          design: 'DESIGN.md',
+          tokens: 'tokens.css',
+          components: 'components.html',
+        },
+        usage: 'USAGE.md',
+        componentsManifest: 'components.manifest.json',
+        assetsDir: 'assets',
+        fonts: [{ family: 'Inter', weight: 500, file: 'fonts/Inter-Medium.woff2' }],
+        preview: {
+          dir: 'preview',
+          pages: [
+            { path: 'preview/colors.html', role: 'colors', title: 'Colors' },
+            { path: 'preview/app.html', role: 'app', title: 'App Preview' },
+          ],
+        },
+        sourceFiles: {
+          scanned: 'source/scanned-files.json',
+          evidence: 'source/evidence.md',
+          tokens: 'source/tokens.source.json',
+          snippets: 'source/snippets/INDEX.json',
+        },
+      },
+      tokens: ':root { --accent: #00aa55; }',
+      components: '<button class="btn">Derived should lose to cache</button>',
+    });
+    writeFileSync(path.join(dir, 'USAGE.md'), '## Read Order\n\nUse cache first.');
+    writeFileSync(
+      path.join(dir, 'components.manifest.json'),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        brandId: 'cache-brand',
+        source: { componentsHtml: 'components.html', tokensCss: 'tokens.css' },
+        fixture: {
+          styleBlockCount: 1,
+          selectorCount: 3,
+          classCount: 2,
+          elementCount: 1,
+        },
+        tokens: {
+          declared: ['--accent'],
+          referenced: ['--accent'],
+          unusedDeclared: [],
+          undeclaredReferenced: [],
+        },
+        selectors: ['.cached-button'],
+        classes: ['cached-button'],
+        elements: ['button'],
+        groups: [
+          {
+            id: 'buttons',
+            label: 'Cached buttons',
+            present: true,
+            selectors: ['.cached-button'],
+            classes: ['cached-button'],
+            elements: ['button'],
+            tokenReferences: ['--accent'],
+          },
+        ],
+        literals: {
+          colorExpressions: 0,
+          pixelValues: 0,
+          hardcodedFontFamilies: 0,
+        },
+      }, null, 2)}\n`,
+    );
+
+    const assets = await readDesignSystemAssets(root, 'hybrid-project');
+    expect(assets.usageMd).toContain('Use cache first');
+    expect(assets.componentsManifest).toContain('components.manifest schema v1 for cache-brand');
+    expect(assets.componentsManifest).toContain('Cached buttons');
+    expect(assets.pullIndex).toContain('preview/colors.html: Colors; colors');
+    expect(assets.pullIndex).toContain('fonts/Inter-Medium.woff2: font: Inter 500');
+    expect(assets.pullIndex).toContain('source/snippets/INDEX.json: source snippet index');
+  });
 });
 
 // Reviewer feedback (nettee, PR-D #1544): the parity guard at
