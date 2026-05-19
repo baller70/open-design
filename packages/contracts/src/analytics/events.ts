@@ -262,7 +262,7 @@ export interface SettingsByokTestResultProps {
   page: 'settings';
   area: 'execution_model';
   provider_id: 'anthropic' | 'openai' | 'azure' | 'ollama' | 'google' | 'senseaudio';
-  result: 'success' | 'failed' | 'timeout';
+  result: 'success' | 'failed' | 'timeout' | 'not_ready';
   error_code?: string;
   duration_ms: number;
 }

@@ -137,7 +137,7 @@ export const pl: Dict = {
   'settings.onboardingSkip': "Skip for now",
   'settings.kicker': 'Ustawienia',
   'settings.title': 'Tryb wykonywania',
-  'settings.subtitle': 'Wybierz lokalne CLI albo BYOK. Klucz API jest przechowywany tylko w tej przeglądarce.',
+  'settings.subtitle': 'Wybierz lokalne CLI albo BYOK.',
   'settings.modeAria': 'Tryb wykonywania',
   'settings.protocolAria': 'Protokół API',
   'settings.modeDaemon': 'Lokalne CLI',
@@ -183,6 +183,8 @@ export const pl: Dict = {
   'settings.agentInstall.stepSelect': 'Wybierz kartę agenta, gdy pojawi się jako zainstalowany.',
   'settings.noAgentsDetected':
       'Nie wykryto jeszcze żadnych agentów. Zainstaluj Claude Code, Codex, Devin for Terminal, Gemini CLI, OpenCode, Cursor Agent, Qwen lub GitHub Copilot CLI, a następnie kliknij Ponów skanowanie.',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': 'Wymagane uwierzytelnienie',
   'settings.agentAuthUnknown': 'Stan uwierzytelnienia nieznany',
   'settings.apiSection': 'Anthropic API',
@@ -198,6 +200,10 @@ export const pl: Dict = {
       'To sugerowane modele dla tego protokołu. Twój dostawca może obsługiwać inne modele.',
   'settings.baseUrl': 'Bazowy URL',
   'settings.baseUrlInvalid': 'Wpisz poprawny publiczny URL http:// lub https://. Localhost jest dozwolony; prywatne adresy IP są blokowane.',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': 'Nazwa wdrożenia',
   'settings.azureDeploymentModelHint':
       'Dla Azure OpenAI to pole jest używane jako nazwa wdrożenia w /openai/deployments/<model>. Wpisz nazwę wdrożenia utworzonego w Azure.',
@@ -223,14 +229,14 @@ export const pl: Dict = {
   'settings.agentModelHead': 'Model dla:',
   'settings.modelPicker': 'Model',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': 'Poziom rozumowania',
   'settings.modelPickerHint':
       'Pobierane z CLI, gdy obsługuje ono polecenie `models`. „Domyślne” pozostawia wybór konfiguracji CLI; „Własne…” pozwala wpisać dowolne ID modelu akceptowane przez CLI.',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',

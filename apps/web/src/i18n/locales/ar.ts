@@ -137,7 +137,7 @@ export const ar: Dict = {
   'settings.onboardingSkip': "Skip for now",
   'settings.kicker': 'الإعدادات',
   'settings.title': 'وضع التنفيذ',
-  'settings.subtitle': 'اختر بين CLI المحلي و BYOK. يتم حفظ مفتاح API في هذا المتصفح فقط.',
+  'settings.subtitle': 'اختر بين CLI المحلي و BYOK.',
   'settings.modeAria': 'وضع التنفيذ',
   'settings.protocolAria': 'بروتوكول API',
   'settings.modeDaemon': 'CLI محلي',
@@ -183,6 +183,8 @@ export const ar: Dict = {
   'settings.agentInstall.stepSelect': 'اختر بطاقة الوكيل عندما يظهر كأنه مثبت.',
   'settings.noAgentsDetected':
     'لم يتم اكتشاف أي وكلاء بعد. قم بتثبيت Claude Code أو Codex أو Devin أو Gemini CLI أو OpenCode أو Cursor Agent أو Qwen أو GitHub Copilot CLI، ثم اضغط على إعادة المسح.',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': 'المصادقة مطلوبة',
   'settings.agentAuthUnknown': 'حالة المصادقة غير معروفة',
   'settings.apiSection': 'Anthropic API',
@@ -198,6 +200,10 @@ export const ar: Dict = {
     'هذه نماذج مقترحة لهذا البروتوكول. قد يدعم مزوّدك نماذج مختلفة.',
   'settings.baseUrl': 'رابط القاعدة',
   'settings.baseUrlInvalid': 'أدخل رابط http:// أو https:// عام وصالح. يُسمح بـ localhost؛ ويتم حظر عناوين IP للشبكات الخاصة.',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': 'اسم النشر',
   'settings.azureDeploymentModelHint':
     'في Azure OpenAI، يُستخدم هذا الحقل كاسم النشر في /openai/deployments/<model>. أدخل اسم النشر الذي أنشأته في Azure.',
@@ -223,14 +229,14 @@ export const ar: Dict = {
   'settings.agentModelHead': 'النموذج لـ:',
   'settings.modelPicker': 'النموذج',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': 'جهد التفكير',
   'settings.modelPickerHint':
     'يتم جلبه من CLI عندما يعرض أمر `models`. "الافتراضي" يترك الخيار لإعدادات CLI؛ "مخصص..." يسمح لك بكتابة أي معرف نموذج يقبله CLI.',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',

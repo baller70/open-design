@@ -137,7 +137,7 @@ export const uk: Dict = {
   'settings.onboardingSkip': "Skip for now",
   'settings.kicker': 'Налаштування',
   'settings.title': 'Режим виконання',
-  'settings.subtitle': 'Виберіть локальний CLI або BYOK. Ваш API-ключ зберігається лише в цьому браузері.',
+  'settings.subtitle': 'Виберіть локальний CLI або BYOK.',
   'settings.modeAria': 'Режим виконання',
   'settings.protocolAria': 'Протокол API',
   'settings.modeDaemon': 'Локальний CLI',
@@ -184,6 +184,8 @@ export const uk: Dict = {
   'settings.agentInstall.stepSelect': 'Виберіть картку агента, коли він з\'явиться як встановлений.',
   'settings.noAgentsDetected':
     'Агентів ще не виявлено. Встановіть один з: Claude Code, Codex, Devin for Terminal, Gemini CLI, OpenCode, Cursor Agent, Qwen або GitHub Copilot CLI, а потім натисніть Переканувати.',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': 'Потрібна автентифікація',
   'settings.agentAuthUnknown': 'Стан автентифікації невідомий',
   'settings.apiSection': 'Anthropic API',
@@ -199,6 +201,10 @@ export const uk: Dict = {
     'Це рекомендовані моделі для цього протоколу. Ваш провайдер може підтримувати інші моделі.',
   'settings.baseUrl': 'Базовий URL',
   'settings.baseUrlInvalid': 'Введіть дійсний публічний URL з http:// або https://. Localhost дозволено; IP приватних мереж блокуються.',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': 'Назва розгортання',
   'settings.azureDeploymentModelHint':
     'Для Azure OpenAI це поле використовується як назва розгортання в /openai/deployments/<model>. Введіть назву розгортання, створену в Azure.',
@@ -224,14 +230,14 @@ export const uk: Dict = {
   'settings.agentModelHead': 'Модель для:',
   'settings.modelPicker': 'Модель',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': 'Інтенсивність міркувань',
   'settings.modelPickerHint':
     'Отримується з CLI, коли він виявляє команду `models`. «За замовчуванням» залишає вибір конфігурації CLI; «Власна…» дозволяє ввести будь-яке ID моделі, яке приймає CLI.',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',

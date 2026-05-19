@@ -137,7 +137,7 @@ export const ja: Dict = {
   'settings.onboardingSkip': "Skip for now",
   'settings.kicker': '設定',
   'settings.title': '実行モード',
-  'settings.subtitle': 'ローカル CLI と BYOK のどちらを使うか選択します。API キーはこのブラウザ内にのみ保存されます。',
+  'settings.subtitle': 'ローカル CLI と BYOK のどちらを使うか選択します。',
   'settings.modeAria': '実行モード',
   'settings.protocolAria': 'API プロトコル',
   'settings.modeDaemon': 'ローカル CLI',
@@ -183,6 +183,8 @@ export const ja: Dict = {
   'settings.agentInstall.stepSelect': 'インストール済みとして表示されたらエージェントカードを選択します。',
   'settings.noAgentsDetected':
     'エージェントが検出されませんでした。Claude Code、Codex、Gemini CLI、OpenCode、Cursor Agent、Qwen、または GitHub Copilot CLI のいずれかをインストールして、再スキャンをクリックしてください。',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': '認証が必要です',
   'settings.agentAuthUnknown': '認証状態は不明です',
   'settings.apiSection': 'Anthropic API',
@@ -198,6 +200,10 @@ export const ja: Dict = {
     'これはこのプロトコル向けの推奨モデルです。プロバイダーによっては別のモデルをサポートしている場合があります。',
   'settings.baseUrl': 'ベース URL',
   'settings.baseUrlInvalid': '有効な公開 http:// または https:// URL を入力してください。localhost は許可され、プライベートネットワーク IP はブロックされます。',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': 'デプロイ名',
   'settings.azureDeploymentModelHint':
     'Azure OpenAI では、このフィールドが /openai/deployments/<model> のデプロイ名として使われます。Azure で作成したデプロイ名を入力してください。',
@@ -223,14 +229,14 @@ export const ja: Dict = {
   'settings.agentModelHead': 'モデル：',
   'settings.modelPicker': 'モデル',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': '推論の強さ',
   'settings.modelPickerHint':
     'CLI が `models` コマンドを公開している場合に取得されます。「デフォルト」は CLI 自身の設定に委ね、「カスタム…」は CLI が受け付ける任意のモデル ID を入力できます。',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',

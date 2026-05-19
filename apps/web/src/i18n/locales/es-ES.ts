@@ -137,7 +137,7 @@ export const esES: Dict = {
   'settings.onboardingSkip': "Skip for now",
   'settings.kicker': 'Ajustes',
   'settings.title': 'Modo de ejecución',
-  'settings.subtitle': 'Elige entre CLI local y BYOK. Tu clave de API se guarda solo en este navegador.',
+  'settings.subtitle': 'Elige entre CLI local y BYOK.',
   'settings.modeAria': 'Modo de ejecución',
   'settings.protocolAria': 'Protocolo de API',
   'settings.modeDaemon': 'CLI local',
@@ -183,6 +183,8 @@ export const esES: Dict = {
   'settings.agentInstall.stepSelect': 'Selecciona la tarjeta del agente cuando aparezca como instalado.',
   'settings.noAgentsDetected':
     'Aún no se ha detectado ningún agente. Instala Claude Code, Codex, Devin for Terminal, Gemini CLI, OpenCode, Cursor Agent, Qwen o GitHub Copilot CLI y pulsa Reescanear.',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': 'Autenticación requerida',
   'settings.agentAuthUnknown': 'Estado de autenticación desconocido',
   'settings.apiSection': 'API de Anthropic',
@@ -198,6 +200,10 @@ export const esES: Dict = {
     'Estos son modelos sugeridos para este protocolo. Tu proveedor puede admitir modelos diferentes.',
   'settings.baseUrl': 'URL base',
   'settings.baseUrlInvalid': 'Introduce una URL pública http:// o https:// válida. Localhost está permitido; las IPs de red privada se bloquean.',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': 'Nombre del despliegue',
   'settings.azureDeploymentModelHint':
     'Para Azure OpenAI, este campo se usa como nombre del despliegue en /openai/deployments/<model>. Introduce el nombre del despliegue que creaste en Azure.',
@@ -223,14 +229,14 @@ export const esES: Dict = {
   'settings.agentModelHead': 'Modelo para:',
   'settings.modelPicker': 'Modelo',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': 'Esfuerzo de razonamiento',
   'settings.modelPickerHint':
     'Se obtiene de la CLI cuando expone un comando `models`. «Predeterminado» deja la elección a la propia configuración de la CLI; «Personalizado…» permite escribir cualquier id de modelo aceptado por la CLI.',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',

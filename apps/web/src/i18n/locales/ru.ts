@@ -137,7 +137,7 @@ export const ru: Dict = {
   'settings.onboardingSkip': "Skip for now",
   'settings.kicker': 'Настройки',
   'settings.title': 'Режим выполнения',
-  'settings.subtitle': 'Выберите локальный CLI или BYOK. Ваш API-ключ хранится только в этом браузере.',
+  'settings.subtitle': 'Выберите локальный CLI или BYOK.',
   'settings.modeAria': 'Режим выполнения',
   'settings.protocolAria': 'Протокол API',
   'settings.modeDaemon': 'Локальный CLI',
@@ -183,6 +183,8 @@ export const ru: Dict = {
   'settings.agentInstall.stepSelect': 'Выберите карточку агента, когда он появится как установленный.',
   'settings.noAgentsDetected':
     'Агенты ещё не обнаружены. Установите один из следующих инструментов: Claude Code, Codex, Devin for Terminal, Gemini CLI, OpenCode, Cursor Agent, Qwen или GitHub Copilot CLI, затем нажмите «Пересканировать».',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': 'Требуется аутентификация',
   'settings.agentAuthUnknown': 'Статус аутентификации неизвестен',
   'settings.apiSection': 'Anthropic API',
@@ -198,6 +200,10 @@ export const ru: Dict = {
     'Это рекомендуемые модели для этого протокола. Ваш провайдер может поддерживать другие модели.',
   'settings.baseUrl': 'Базовый URL',
   'settings.baseUrlInvalid': 'Введите корректный публичный URL с http:// или https://. Localhost разрешен; IP частных сетей блокируются.',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': 'Имя развертывания',
   'settings.azureDeploymentModelHint':
     'Для Azure OpenAI это поле используется как имя развертывания в /openai/deployments/<model>. Укажите имя развертывания, созданного в Azure.',
@@ -223,14 +229,14 @@ export const ru: Dict = {
   'settings.agentModelHead': 'Модель для:',
   'settings.modelPicker': 'Модель',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': 'Сложность рассуждений',
   'settings.modelPickerHint':
     'Получается из CLI, если он поддерживает команду `models`. «По умолчанию» оставляет выбор конфигурации CLI, а «Пользовательская…» позволяет ввести любой ID модели, который CLI принимает.',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',

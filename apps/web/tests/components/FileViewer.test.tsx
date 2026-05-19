@@ -678,7 +678,7 @@ describe('FileViewer SVG artifacts', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /share/i }));
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
 
     expect(screen.getByRole('menuitem', { name: /Deploy to Vercel/i })).toBeTruthy();
     fireEvent.click(screen.getByRole('menuitem', { name: /Deploy to Cloudflare Pages/i }));
@@ -696,6 +696,41 @@ describe('FileViewer SVG artifacts', () => {
     expect(screen.queryByText(/generates a Pages project name automatically/i)).toBeNull();
     expect(screen.queryByText(/project name is selected automatically/i)).toBeNull();
     expect(screen.queryByLabelText('Pages project name')).toBeNull();
+  });
+
+  it('nudges the export button once when an artifact becomes exportable', async () => {
+    const file = baseFile({
+      name: 'nudge.html',
+      path: 'nudge.html',
+      mime: 'text/html',
+      kind: 'html',
+      artifactManifest: {
+        version: 1,
+        kind: 'html',
+        title: 'Nudge',
+        entry: 'nudge.html',
+        renderer: 'html',
+        exports: ['html'],
+      },
+    });
+
+    render(
+      <FileViewer
+        projectId="project-nudge"
+        projectKind="prototype"
+        file={file}
+        liveHtml="<html><body><h1>Ready</h1></body></html>"
+      />,
+    );
+
+    const exportButton = screen.getByRole('button', { name: /export/i });
+    await waitFor(() => {
+      expect(exportButton.classList.contains('export-ready-nudge')).toBe(true);
+    });
+
+    fireEvent.click(exportButton);
+
+    expect(exportButton.classList.contains('export-ready-nudge')).toBe(false);
   });
 
   it('keeps the explicitly selected deploy provider when another provider already has a deployment', async () => {
@@ -758,7 +793,7 @@ describe('FileViewer SVG artifacts', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /share/i }));
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
     fireEvent.click(await screen.findByRole('menuitem', { name: /Deploy to Cloudflare Pages/i }));
 
     const providerSelect = await screen.findByRole('combobox', { name: /Provider/i });
@@ -820,7 +855,7 @@ describe('FileViewer SVG artifacts', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /share/i }));
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
     fireEvent.click(await screen.findByRole('menuitem', { name: /Deploy to Cloudflare Pages/i }));
 
     const providerSelect = await screen.findByRole('combobox', { name: /Provider/i });
@@ -946,7 +981,7 @@ describe('FileViewer SVG artifacts', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /share/i }));
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
     fireEvent.click(await screen.findByRole('menuitem', { name: /Deploy to Cloudflare Pages/i }));
 
     const zoneSelect = await screen.findByRole('combobox', { name: /Domain/i });
@@ -1037,7 +1072,7 @@ describe('FileViewer SVG artifacts', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /share/i }));
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
 
     expect(await screen.findByRole('menuitem', { name: /Copy link · Vercel/i })).toBeTruthy();
     const cloudflareCopy = await screen.findByRole('menuitem', { name: /Copy link · Cloudflare Pages/i });
@@ -1084,7 +1119,7 @@ describe('FileViewer SVG artifacts', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /share/i }));
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
 
     expect(await screen.findByRole('menuitem', { name: /Copy link · Cloudflare Pages/i })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: /Copy link · Vercel/i })).toBeNull();
@@ -1146,7 +1181,7 @@ describe('FileViewer SVG artifacts', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /share/i }));
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: /save as template/i }));
 
     expect(screen.getByRole('dialog')).toBeTruthy();

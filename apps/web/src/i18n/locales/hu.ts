@@ -137,7 +137,7 @@ export const hu: Dict = {
   'settings.onboardingSkip': "Skip for now",
   'settings.kicker': 'Beállítások',
   'settings.title': 'Végrehajtási mód',
-  'settings.subtitle': 'Válassz helyi CLI és BYOK között. Az API-kulcs csak ebben a böngészőben tárolódik.',
+  'settings.subtitle': 'Válassz helyi CLI és BYOK között.',
   'settings.modeAria': 'Végrehajtási mód',
   'settings.protocolAria': 'API protokoll',
   'settings.modeDaemon': 'Helyi CLI',
@@ -183,6 +183,8 @@ export const hu: Dict = {
   'settings.agentInstall.stepSelect': 'Válaszd ki az ügynök kártyáját, amint telepítettként jelenik meg.',
   'settings.noAgentsDetected':
     'Még nincs észlelt ügynök. Telepítsd a Claude Code, Codex, Devin for Terminal, Gemini CLI, OpenCode, Cursor Agent, Qwen vagy GitHub Copilot CLI valamelyikét, majd kattints az Újraellenőrzésre.',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': 'Hitelesítés szükséges',
   'settings.agentAuthUnknown': 'A hitelesítési állapot ismeretlen',
   'settings.apiSection': 'Anthropic API',
@@ -198,6 +200,10 @@ export const hu: Dict = {
     'Ezek a protokollhoz javasolt modellek. A szolgáltatód más modelleket is támogathat.',
   'settings.baseUrl': 'Base URL',
   'settings.baseUrlInvalid': 'Adj meg egy érvényes nyilvános http:// vagy https:// URL-t. A localhost engedélyezett; a privát hálózati IP-k blokkolva vannak.',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': 'Deployment név',
   'settings.azureDeploymentModelHint':
     'Azure OpenAI esetén ez a mező a /openai/deployments/<model> deployment neveként szerepel. Add meg az Azure-ban létrehozott deployment nevét.',
@@ -223,14 +229,14 @@ export const hu: Dict = {
   'settings.agentModelHead': 'Modell ehhez:',
   'settings.modelPicker': 'Modell',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': 'Gondolkodási erőfeszítés',
   'settings.modelPickerHint':
     'A CLI-tól kérdezi le, ha az közzéteszi a `models` parancsot. Az „Alapértelmezett" a CLI saját konfigjára bízza a választást; az „Egyedi…" tetszőleges, a CLI által elfogadott modell-id-t enged megadni.',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',

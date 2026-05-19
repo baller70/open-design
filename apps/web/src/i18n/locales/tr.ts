@@ -137,7 +137,7 @@ export const tr: Dict = {
   'settings.onboardingSkip': "Skip for now",
   'settings.kicker': 'Ayarlar',
   'settings.title': 'Yürütme modu',
-  'settings.subtitle': 'Yerel CLI ile BYOK arasında seçim yapın. API anahtarınız yalnızca bu tarayıcıda saklanır.',
+  'settings.subtitle': 'Yerel CLI ile BYOK arasında seçim yapın.',
   'settings.modeAria': 'Çalıştırma modu',
   'settings.protocolAria': 'API protokolü',
   'settings.modeDaemon': 'Yerel CLI',
@@ -183,6 +183,8 @@ export const tr: Dict = {
   'settings.agentInstall.stepSelect': 'Ajan yüklü olarak göründüğünde kartını seç.',
   'settings.noAgentsDetected':
     'Hiçbir ajan tespit edilemedi. Claude Code, Codex, Devin for Terminal, Gemini CLI, OpenCode, Cursor Agent, Qwen, veya GitHub Copilot CLI’lardan birini kurun ve yeniden tarayın.',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': 'Kimlik doğrulama gerekli',
   'settings.agentAuthUnknown': 'Kimlik doğrulama durumu bilinmiyor',
   'settings.apiSection': 'Anthropic API',
@@ -198,6 +200,10 @@ export const tr: Dict = {
     'Bunlar bu protokol için önerilen modellerdir. Sağlayıcınız farklı modelleri destekleyebilir.',
   'settings.baseUrl': 'Temel URL',
   'settings.baseUrlInvalid': 'Geçerli bir genel http:// veya https:// URL girin. Localhost izinlidir; özel ağ IPleri engellenir.',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': 'Dağıtım adı',
   'settings.azureDeploymentModelHint':
     'Azure OpenAI icin bu alan /openai/deployments/<model> icindeki dagitim adi olarak kullanilir. Azureda olusturdugunuz dagitim adini girin.',
@@ -223,14 +229,14 @@ export const tr: Dict = {
   'settings.agentModelHead': 'Model için:',
   'settings.modelPicker': 'Model',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': 'Akıl yürütme eforu',
   'settings.modelPickerHint':
     'Bir `models` komutu açığa çıkaran CLI’lardan getirilir. "Varsayılan" seçimi CLI’ın kendi ayarına bırakır; "Özel…" CLI’ın kabul edeceği herhangi bir model kimliği seçmenize izin verir.',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.modelCustom': 'Özel (aşağıya yazın)…',
   'settings.modelCustomLabel': 'Özel model kimliği',
   'settings.modelCustomPlaceholder': 'örn. anthropic/claude-sonnet-4-6',

@@ -321,9 +321,23 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
     expect(screen.getByRole('tab', { name: 'OpenAI' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Azure OpenAI' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Google Gemini' })).toBeTruthy();
-    expect(screen.getByLabelText('Quick fill provider')).toBeTruthy();
+    expect(screen.queryByLabelText('Quick fill provider')).toBeNull();
     expect(screen.getByLabelText('Model')).toBeTruthy();
-    expect(screen.getByLabelText('Base URL')).toBeTruthy();
+    const baseUrlInput = screen.getByLabelText('Base URL') as HTMLInputElement;
+    expect(baseUrlInput.value).toBe('https://api.anthropic.com');
+    expect(baseUrlInput.readOnly).toBe(true);
+    expect(screen.getByText('Default endpoint. Usually no need to change this.')).toBeTruthy();
+    const memoryModelDetails = screen
+      .getAllByText('Memory model')
+      .find((node) => node.closest('summary'))
+      ?.closest('details');
+    expect(memoryModelDetails?.hasAttribute('open')).toBe(false);
+    expect(within(memoryModelDetails!).queryByLabelText('Base URL')).toBeNull();
+    expect(
+      screen
+        .getByRole('link', { name: 'Get your key at console.anthropic.com ↗' })
+        .getAttribute('href'),
+    ).toBe('https://console.anthropic.com/settings/keys');
 
     const apiKeyInput = screen.getByLabelText('API key') as HTMLInputElement;
     expect(apiKeyInput.type).toBe('password');
@@ -333,6 +347,31 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
     expect(apiKeyInput.type).toBe('password');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'OpenAI' }));
+    expect(screen.getByLabelText('Quick fill provider')).toBeTruthy();
+    expect(screen.getByLabelText('Base URL').closest('details')).toBeNull();
+    expect(
+      screen
+        .getByRole('link', { name: 'Get your key at platform.openai.com ↗' })
+        .getAttribute('href'),
+    ).toBe('https://platform.openai.com/api-keys');
+  });
+
+  it('lets Anthropic and Google users customize the default base URL', () => {
+    renderSettingsDialog();
+
+    expect((screen.getByLabelText('Base URL') as HTMLInputElement).readOnly).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
+    expect((screen.getByLabelText('Base URL') as HTMLInputElement).readOnly).toBe(false);
+
+    cleanup();
+    renderSettingsDialog();
+    fireEvent.click(screen.getByRole('tab', { name: 'Google Gemini' }));
+    expect((screen.getByLabelText('Base URL') as HTMLInputElement).value).toBe(
+      'https://generativelanguage.googleapis.com',
+    );
+    expect((screen.getByLabelText('Base URL') as HTMLInputElement).readOnly).toBe(true);
   });
 
   it('updates model and base URL when quick fill provider changes', () => {
@@ -364,6 +403,22 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
     );
   });
 
+  it('offers managed and self-hosted Ollama presets with editable base URLs', () => {
+    renderSettingsDialog();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Ollama Cloud' }));
+    const providerSelect = screen.getByLabelText('Quick fill provider') as HTMLSelectElement;
+    expect(providerSelect.options[0]?.textContent).toBe('Custom provider');
+    expect(providerSelect.options[1]?.textContent).toBe('Ollama Cloud (managed)');
+    expect(providerSelect.options[2]?.textContent).toBe('Ollama Self-hosted (local)');
+    expect((screen.getByLabelText('Base URL') as HTMLInputElement).readOnly).toBe(false);
+
+    fireEvent.change(providerSelect, { target: { value: '1' } });
+    expect((screen.getByLabelText('Base URL') as HTMLInputElement).value).toBe(
+      'http://localhost:11434',
+    );
+  });
+
   it('keeps protocol drafts isolated without leaking API keys between tabs', () => {
     renderSettingsDialog({ apiKey: 'anthropic-key' });
 
@@ -386,20 +441,19 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
   it('autosaves BYOK edits once required fields are valid', async () => {
     const { onPersist } = renderSettingsDialog();
 
-    const baseUrlInput = screen.getByLabelText('Base URL') as HTMLInputElement;
-
     fireEvent.change(screen.getByLabelText('API key'), {
       target: { value: 'sk-test' },
     });
 
-    fireEvent.change(baseUrlInput, {
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
+    fireEvent.change(screen.getByLabelText('Base URL'), {
       target: { value: 'http://10.0.0.5:11434/v1' },
     });
     expect(screen.getByRole('alert').textContent).toContain(
       'Enter a valid public http:// or https:// URL.',
     );
 
-    fireEvent.change(baseUrlInput, {
+    fireEvent.change(screen.getByLabelText('Base URL'), {
       target: { value: 'http://localhost:11434/v1' },
     });
 
@@ -479,6 +533,12 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
     expect(screen.getByRole('heading', { name: 'Azure OpenAI' })).toBeTruthy();
     expect(screen.getByLabelText('Deployment name')).toBeTruthy();
     expect(screen.getByLabelText('API version')).toBeTruthy();
+    expect((screen.getByLabelText('Base URL') as HTMLInputElement).placeholder).toBe(
+      'https://my-resource.openai.azure.com',
+    );
+    expect(
+      screen.getByText('Find this in Azure portal → your resource → Endpoint.'),
+    ).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('API key'), {
       target: { value: 'azure-key' },
@@ -511,7 +571,13 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
     );
   });
 
-  it('enables model fetching only for supported BYOK provider drafts', () => {
+  it('loads provider models automatically only after required fields are ready', async () => {
+    fetchProviderModelsMock.mockResolvedValueOnce({
+      ok: true,
+      kind: 'success',
+      latencyMs: 12,
+      models: [{ id: 'gpt-account', label: 'Account Model' }],
+    });
     renderSettingsDialog({
       apiProtocol: 'openai',
       baseUrl: 'https://api.openai.com/v1',
@@ -520,24 +586,49 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
     });
 
     fireEvent.click(screen.getByRole('tab', { name: 'OpenAI' }));
-    const fetchButton = screen.getByRole('button', { name: 'Fetch models' }) as HTMLButtonElement;
-    expect(fetchButton.disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Fetch models' })).toBeNull();
+    expect(fetchProviderModelsMock).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText('API key'), {
       target: { value: 'sk-openai' },
     });
-    expect(fetchButton.disabled).toBe(false);
+
+    expect(await screen.findByText('✓ Loaded 1 models from your account.')).toBeTruthy();
+    expect(fetchProviderModelsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protocol: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk-openai',
+      }),
+      expect.any(AbortSignal),
+    );
+    const select = screen.getByLabelText('Model') as HTMLSelectElement;
+    expect(Array.from(select.options).map((option) => option.value)).toEqual(
+      expect.arrayContaining(['gpt-account', 'gpt-4o', '__custom__']),
+    );
 
     fireEvent.click(screen.getByRole('tab', { name: 'Azure OpenAI' }));
-    expect((screen.getByRole('button', { name: 'Fetch models' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Fetch models' })).toBeNull();
     expect(screen.getByText(/Automatic deployment discovery is not available/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Ollama Cloud' }));
-    fireEvent.change(screen.getByLabelText('API key'), {
-      target: { value: 'ollama-key' },
-    });
-    expect((screen.getByRole('button', { name: 'Fetch models' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Fetch models' })).toBeNull();
     expect(screen.getByText('Model discovery is not available for this protocol.')).toBeTruthy();
+  });
+
+  it('does not show a BYOK Test button or nag when the API key is still missing', () => {
+    renderSettingsDialog({
+      apiProtocol: 'anthropic',
+      apiKey: '',
+      baseUrl: 'https://api.anthropic.com',
+      model: 'claude-sonnet-4-5',
+    });
+
+    expect(screen.queryByRole('button', { name: 'Test' })).toBeNull();
+
+    fireEvent.blur(screen.getByLabelText('API key'));
+
+    expect(screen.queryByText('Fill API key to test the connection.')).toBeNull();
   });
 
   it('fetches provider models, merges them into the picker, and preserves a custom current model', async () => {
@@ -561,9 +652,7 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'OpenAI' }));
     expect((screen.getByLabelText('Custom model id') as HTMLInputElement).value).toBe('custom-still-here');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Fetch models' }));
-
-    expect(await screen.findByText('Fetched 2 models.')).toBeTruthy();
+    expect(await screen.findByText('✓ Loaded 2 models from your account.')).toBeTruthy();
     expect(fetchProviderModelsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         protocol: 'openai',
@@ -580,9 +669,6 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
       Array.from(select.options).some((option) => option.textContent === 'Remote Alpha (remote-alpha)'),
     ).toBe(true);
     expect((screen.getByLabelText('Custom model id') as HTMLInputElement).value).toBe('custom-still-here');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Fetch models' }));
-    expect(fetchProviderModelsMock).toHaveBeenCalledTimes(1);
   });
 
   it('clears stale fetched-model status when provider fields change', async () => {
@@ -601,19 +687,18 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
     });
 
     fireEvent.click(screen.getByRole('tab', { name: 'OpenAI' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Fetch models' }));
-    expect(await screen.findByText('Fetched 1 models.')).toBeTruthy();
+    expect(await screen.findByText('✓ Loaded 1 models from your account.')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Base URL'), {
       target: { value: 'https://proxy.example.com/v1' },
     });
 
     await waitFor(() => {
-      expect(screen.queryByText('Fetched 1 models.')).toBeNull();
+      expect(screen.queryByText('✓ Loaded 1 models from your account.')).toBeNull();
     });
   });
 
-  it('renders provider model fetch failures inline', async () => {
+  it('renders automatic provider auth failures under the API key field', async () => {
     fetchProviderModelsMock.mockResolvedValueOnce({
       ok: false,
       kind: 'auth_failed',
@@ -630,9 +715,8 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
     });
 
     fireEvent.click(screen.getByRole('tab', { name: 'OpenAI' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Fetch models' }));
 
-    expect(await screen.findByText('Authentication failed. Check your API key.')).toBeTruthy();
+    expect(await screen.findByText('Invalid API key.')).toBeTruthy();
   });
 
   it('supports custom model entry in BYOK mode', async () => {
@@ -700,10 +784,9 @@ describe('SettingsDialog execution settings BYOK interactions', () => {
 
     renderSettingsDialog({ apiKey: 'sk-test-provider' });
 
-    const testButton = screen.getByRole('button', { name: 'Test' }) as HTMLButtonElement;
-    expect(testButton.disabled).toBe(false);
+    expect(screen.queryByRole('button', { name: 'Test' })).toBeNull();
 
-    fireEvent.click(testButton);
+    fireEvent.blur(screen.getByLabelText('API key'));
 
     await waitFor(() => {
       expect(screen.getByText('Testing connection…')).toBeTruthy();
@@ -744,8 +827,13 @@ describe('SettingsDialog execution settings Local CLI interactions', () => {
     const localCliTab = screen.getByRole('tab', { name: /Local CLI.*1 installed/i });
     fireEvent.click(localCliTab);
 
+    expect(screen.getByText('Your CLIs (1)')).toBeTruthy();
+    const installGroupSummary = screen.getByText('Available to install (1)');
+    expect(installGroupSummary.closest('details')?.hasAttribute('open')).toBe(false);
     const codexCard = screen.getByRole('button', { name: /Codex CLI/i }) as HTMLButtonElement;
+    fireEvent.click(installGroupSummary);
     const geminiGroup = screen.getByRole('group', { name: /Gemini CLI/i });
+    expect(within(geminiGroup).getByText('Google official CLI')).toBeTruthy();
     expect(
       (within(geminiGroup).getByRole('link', { name: en['settings.agentInstall.install'] }) as HTMLAnchorElement).getAttribute('href'),
     ).toBe(
@@ -760,6 +848,11 @@ describe('SettingsDialog execution settings Local CLI interactions', () => {
     expect(screen.getByText(en['settings.agentInstall.pathHint'])).toBeTruthy();
 
     fireEvent.click(codexCard);
+    const modelHead = screen.getByText(/Model for:/);
+    expect(
+      modelHead.compareDocumentPosition(installGroupSummary) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     await waitForPersist(
       onPersist,
       expect.objectContaining({
@@ -808,9 +901,9 @@ describe('SettingsDialog execution settings Local CLI interactions', () => {
     );
 
     fireEvent.click(screen.getByRole('tab', { name: /Local CLI/i }));
-    expect(screen.getByText('Fallback list')).toBeTruthy();
+    expect(screen.getByText('Built-in list')).toBeTruthy();
     expect(
-      screen.getByText(/installed CLI did not return live model metadata/i),
+      screen.getByText(/Showing built-in defaults/i),
     ).toBeTruthy();
   });
 
@@ -917,6 +1010,38 @@ describe('SettingsDialog execution settings Local CLI interactions', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Scan failed. Check the daemon and try again.')).toBeTruthy();
+    });
+  });
+
+  it('rescans automatically when returning after opening an install link', async () => {
+    const unavailable: AgentInfo = {
+      id: 'gemini',
+      name: 'Gemini CLI',
+      bin: 'gemini',
+      available: false,
+      version: null,
+      models: [],
+      installUrl: 'https://github.com/google-gemini/gemini-cli',
+    };
+    const onRefreshAgents = vi.fn(async () => availableAgents);
+
+    renderSettingsDialog(
+      { mode: 'daemon', agentId: 'codex' },
+      { agents: [availableAgents[0]!, unavailable], onRefreshAgents },
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Local CLI.*1 installed/i }));
+    fireEvent.click(screen.getByText('Available to install (1)'));
+    fireEvent.click(screen.getByRole('link', { name: en['settings.agentInstall.install'] }));
+    expect(onRefreshAgents).not.toHaveBeenCalled();
+
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await waitFor(() => {
+      expect(onRefreshAgents).toHaveBeenCalledWith({
+        throwOnError: true,
+        agentCliEnv: {},
+      });
     });
   });
 

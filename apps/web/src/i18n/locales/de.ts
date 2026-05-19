@@ -137,7 +137,7 @@ export const de: Dict = {
   'settings.onboardingSkip': "Skip for now",
   'settings.kicker': 'Einstellungen',
   'settings.title': 'Ausführungsmodus',
-  'settings.subtitle': 'Wählen Sie zwischen lokaler CLI und BYOK. Ihr API-Schlüssel wird nur in diesem Browser gespeichert.',
+  'settings.subtitle': 'Wählen Sie zwischen lokaler CLI und BYOK.',
   'settings.modeAria': 'Ausführungsmodus',
   'settings.protocolAria': 'API-Protokoll',
   'settings.modeDaemon': 'Lokale CLI',
@@ -183,6 +183,8 @@ export const de: Dict = {
   'settings.agentInstall.stepSelect': 'Waehlen Sie die Agent-Karte aus, sobald sie als installiert angezeigt wird.',
   'settings.noAgentsDetected':
     'Noch keine Agents erkannt. Installieren Sie Claude Code, Codex, Devin for Terminal, Gemini CLI, OpenCode, Cursor Agent, Qwen oder GitHub Copilot CLI und klicken Sie dann auf Neu scannen.',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': 'Authentifizierung erforderlich',
   'settings.agentAuthUnknown': 'Authentifizierungsstatus unbekannt',
   'settings.apiSection': 'Anthropic API',
@@ -198,6 +200,10 @@ export const de: Dict = {
     'Dies sind vorgeschlagene Modelle für dieses Protokoll. Ihr Anbieter kann andere Modelle unterstützen.',
   'settings.baseUrl': 'Base URL',
   'settings.baseUrlInvalid': 'Geben Sie eine gültige öffentliche http://- oder https://-URL ein. Localhost ist erlaubt; private Netzwerk-IPs werden blockiert.',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': 'Deployment-Name',
   'settings.azureDeploymentModelHint':
     'Fuer Azure OpenAI wird dieses Feld als Deployment-Name in /openai/deployments/<model> verwendet. Geben Sie den in Azure angelegten Deployment-Namen ein.',
@@ -223,14 +229,14 @@ export const de: Dict = {
   'settings.agentModelHead': 'Modell für:',
   'settings.modelPicker': 'Modell',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': 'Reasoning-Aufwand',
   'settings.modelPickerHint':
     'Wird aus der CLI geladen, wenn sie einen `models`-Befehl anbietet. „Standard“ überlässt die Auswahl der CLI-Konfiguration; mit „Benutzerdefiniert…“ können Sie jede von der CLI akzeptierte Modell-ID eingeben.',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',

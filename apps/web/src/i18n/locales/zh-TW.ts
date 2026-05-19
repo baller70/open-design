@@ -137,7 +137,7 @@ export const zhTW: Dict = {
   'settings.onboardingSkip': "先跳過",
   'settings.kicker': '設定',
   'settings.title': '執行模式',
-  'settings.subtitle': '在本機 CLI 與 BYOK 之間選擇。API Key 只儲存在目前瀏覽器中。',
+  'settings.subtitle': '在本機 CLI 與 BYOK 之間選擇。',
   'settings.modeAria': '執行模式',
   'settings.protocolAria': 'API 協定',
   'settings.modeDaemon': '本機 CLI',
@@ -148,7 +148,7 @@ export const zhTW: Dict = {
   'settings.modeApi': 'API 提供方',
   'settings.modeApiMeta': 'BYOK',
   'settings.codeAgent': '程式碼代理',
-  'settings.codeAgentHint': '透過掃描 PATH 自動偵測，選擇你希望使用的 CLI。',
+  'settings.codeAgentHint': '選擇用來執行提示詞的 CLI。',
   'settings.rescan': '↻ 重新掃描',
   'settings.rescanTitle': '重新掃描 PATH',
   'settings.rescanRunning': '掃描中...',
@@ -182,6 +182,8 @@ export const zhTW: Dict = {
   'settings.agentInstall.stepSelect': '當代理顯示為已安裝後，選擇該代理卡片。',
   'settings.noAgentsDetected':
     '尚未偵測到任何代理。請安裝 Claude Code、Codex、Gemini CLI、OpenCode、Cursor Agent 或 Qwen 其中之一，然後點擊「重新掃描」。',
+  'settings.agentInstalledGroup': 'Your CLIs ({count})',
+  'settings.agentInstallGroup': 'Available to install ({count})',
   'settings.agentAuthRequired': '需要認證',
   'settings.agentAuthUnknown': '認證狀態未知',
   'settings.apiSection': 'API 設定',
@@ -197,6 +199,10 @@ export const zhTW: Dict = {
     '這些是此協定的建議模型。你的提供方可能支援不同的模型。',
   'settings.baseUrl': 'Base URL',
   'settings.baseUrlInvalid': '請輸入有效的公網 http:// 或 https:// URL。允許 localhost；會阻止私有網路 IP。',
+  'settings.baseUrlCustomize': 'Customize',
+  'settings.baseUrlDefaultHint': 'Default endpoint. Usually no need to change this.',
+  'settings.azureBaseUrlPlaceholder': 'https://my-resource.openai.azure.com',
+  'settings.azureBaseUrlHint': 'Find this in Azure portal → your resource → Endpoint.',
   'settings.azureDeploymentModel': '部署名稱',
   'settings.azureDeploymentModelHint':
     '對於 Azure OpenAI，此欄位會作為 /openai/deployments/<model> 中的部署名稱使用。請填入你在 Azure 中建立的部署名稱。',
@@ -222,14 +228,14 @@ export const zhTW: Dict = {
   'settings.agentModelHead': '模型：',
   'settings.modelPicker': '模型',
   'settings.modelSourceLive': 'Live from CLI',
-  'settings.modelSourceFallback': 'Fallback list',
+  'settings.modelSourceFallback': 'Built-in list',
   'settings.reasoningPicker': '推理強度',
   'settings.modelPickerHint':
     '當 CLI 提供 `models` 命令時會自動拉取。選擇「預設」則沿用 CLI 自身的設定；選擇「自訂」可手動輸入任何 CLI 支援的模型 id。',
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Showing built-in defaults. Click Rescan to pull live models from the CLI.',
   'settings.cliEnvTitle': 'CLI 設定位置',
   'settings.cliEnvHint':
     '為打包版應用執行和 agent 偵測設定非敏感設定目錄。',
