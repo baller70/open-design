@@ -394,7 +394,11 @@ export interface HomeChatComposerClickProps {
     | 'chat_input'
     | 'send_button'
     | 'plugin_chip'
-    | 'action_chip';
+    | 'action_chip'
+    // Paperclip icon opening the file picker. Mirrors the chat_panel
+    // composer's `element: 'attachment'` so the same dashboard counts
+    // "user opened the file picker" across both surfaces.
+    | 'attachment';
   // For plugin / action chips, the specific id (e.g. `prototype`, `from_figma`).
   chip_id?: string;
 }
@@ -1166,16 +1170,19 @@ export interface UpdateApplyObservedProps {
   elapsed_bucket: TrackingUpdateApplyElapsedBucket;
 }
 
-export interface FileUploadResultProps {
-  page_name: 'file_manager';
-  area: 'file_manager';
+export type TrackingFileUploadSurface =
+  | { page_name: 'file_manager'; area: 'file_manager' }
+  | { page_name: 'chat_panel'; area: 'chat_composer' }
+  | { page_name: 'home'; area: 'chat_composer' };
+
+export type FileUploadResultProps = TrackingFileUploadSurface & {
   project_id: string;
   file_count: number;
   file_type: TrackingFileType;
   file_size_bucket: TrackingFileSizeBucket;
   result: TrackingRunResult;
   error_code?: string;
-}
+};
 
 export interface ArtifactExportResultProps {
   page_name: 'artifact';

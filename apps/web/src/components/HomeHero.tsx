@@ -33,6 +33,8 @@ import type {
 import type { SkillSummary } from '../types';
 import { Icon, type IconName } from './Icon';
 import { PluginInputsForm } from './PluginInputsForm';
+import { useAnalytics } from '../analytics/provider';
+import { trackHomeChatComposerClick } from '../analytics/events';
 import {
   chipsForGroup,
   type ChipGroup,
@@ -182,6 +184,7 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
   ref,
 ) {
   const { locale, t } = useI18n();
+  const analytics = useAnalytics();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mentionTab, setMentionTab] = useState<HomeMentionTab>('all');
   const [hoveredPlugin, setHoveredPlugin] = useState<InstalledPluginRecord | null>(null);
@@ -998,7 +1001,14 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
               type="button"
               className="home-hero__attach"
               data-testid="home-hero-attach"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                trackHomeChatComposerClick(analytics.track, {
+                  page_name: 'home',
+                  area: 'chat_composer',
+                  element: 'attachment',
+                });
+                fileInputRef.current?.click();
+              }}
               title={t('chat.attachAria')}
               aria-label={t('chat.attachAria')}
             >

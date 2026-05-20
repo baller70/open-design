@@ -13,7 +13,9 @@ import type { Dict } from '../i18n/types';
 import { useAnalytics } from '../analytics/provider';
 import {
   trackChatPanelClick,
+  trackFileUploadResult,
 } from '../analytics/events';
+import { deriveUploadCohort } from '../analytics/upload-tracking';
 import { IMAGE_MODELS } from "../media/models";
 import { projectRawUrl, uploadProjectFiles, openFolderDialog, fetchConnectors } from "../providers/registry";
 import { patchProject } from "../state/projects";
@@ -732,12 +734,18 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       if (!id) return;
       setUploading(true);
       setUploadError(null);
+      // Cohort math is identical to the Design Files Upload button; see
+      // `analytics/upload-tracking.ts`. v2 doc fires one
+      // file_upload_result per surface so this path reports
+      // `page_name='chat_panel'` / `area='chat_composer'`.
+      const cohort = deriveUploadCohort(files);
       try {
         const result = await uploadProjectFiles(id, files);
         if (result.uploaded.length > 0) {
           setStaged((s) => [...s, ...result.uploaded]);
         }
-        if (result.failed.length > 0) {
+        const partial = result.failed.length > 0;
+        if (partial) {
           const failedCount = result.failed.length;
           const uploadedCount = result.uploaded.length;
           const detail = result.error ? ` (${result.error})` : '';
@@ -748,6 +756,25 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
           );
           console.warn('Some attachments failed to upload', result.failed);
         }
+        trackFileUploadResult(analytics.track, {
+          page_name: 'chat_panel',
+          area: 'chat_composer',
+          project_id: id,
+          ...cohort,
+          result: partial ? 'failed' : 'success',
+          ...(partial && result.error ? { error_code: result.error } : {}),
+        });
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        setUploadError(`Attachment upload failed (${detail}).`);
+        trackFileUploadResult(analytics.track, {
+          page_name: 'chat_panel',
+          area: 'chat_composer',
+          project_id: id,
+          ...cohort,
+          result: 'failed',
+          error_code: detail,
+        });
       } finally {
         setUploading(false);
       }

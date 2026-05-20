@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { useAnalytics } from './analytics/provider';
-import { trackProjectCreateResult } from './analytics/events';
+import {
+  trackFileUploadResult,
+  trackProjectCreateResult,
+} from './analytics/events';
+import { deriveUploadCohort } from './analytics/upload-tracking';
 import { detectClientType } from './analytics/identity';
 import {
   deriveConfigureGlobals,
@@ -852,11 +856,28 @@ export function App() {
         : [];
       let firstMessageAttachments: ChatAttachment[] = [];
       if (pendingFiles.length > 0) {
+        // Home composer attaches stay client-side until submit lands a
+        // project; the actual upload happens here. v2 doc wants one
+        // file_upload_result per surface — `page_name='home'` /
+        // `area='chat_composer'` so it's distinguishable from the
+        // file_manager Upload button and the chat_panel composer.
+        const cohort = deriveUploadCohort(pendingFiles);
         const uploadResult = await uploadProjectFiles(result.project.id, pendingFiles);
         firstMessageAttachments = uploadResult.uploaded;
-        if (uploadResult.failed.length > 0) {
+        const partial = uploadResult.failed.length > 0;
+        if (partial) {
           console.warn('Some Home attachments failed to upload', uploadResult.failed);
         }
+        trackFileUploadResult(analytics.track, {
+          page_name: 'home',
+          area: 'chat_composer',
+          project_id: result.project.id,
+          ...cohort,
+          result: partial ? 'failed' : 'success',
+          ...(partial && uploadResult.error
+            ? { error_code: uploadResult.error }
+            : {}),
+        });
       }
       trackProjectCreateResult(
         analytics.track,
