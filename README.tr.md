@@ -1,15 +1,15 @@
-# Open Design
+# Open Design — [Claude Design][cd]'in resmi açık kaynak alternatifi
+
+> **Open Design, [Claude Design][cd]'in açık kaynak ve yerel öncelikli alternatifidir.** Web'e dağıtılabilir, her katmanda BYOK; `PATH` üzerinde otomatik algılanan **16 coding-agent CLI** (Claude Code, Codex, Devin for Terminal, Cursor Agent, Gemini CLI, OpenCode, Qwen, Qoder CLI, GitHub Copilot CLI, Hermes, Kimi, Pi, Kiro, Kilo, Mistral Vibe, DeepSeek TUI) tasarım motoruna dönüşür. Hepsi **31 birleştirilebilir Skill** ve **72 marka kalitesinde Design System** tarafından yönlendirilir. CLI yok mu? OpenAI uyumlu BYOK proxy aynı döngünün agent spawn olmadan çalışan halidir.
 
 > [!IMPORTANT]
 > ### 🔥 `0.8.0-preview` burada. Tasarımın eski dünyası burada bitiyor.
 >
-> Claude Design / Figma'ya açık kaynaklı, agent-native bir alternatif — iki haftada 40k stars bizi buraya getirdi. **Yolun geri kalanını birlikte yürüyelim.**
+> Claude Design / Figma'ya açık kaynaklı bir alternatif — iki haftada 40k stars bizi buraya getirdi. **Yolun geri kalanını birlikte yürüyelim.**
 >
 > **`main` üzerinde hızlı iterasyon** — 0.8.0 Open Design'in bir sonraki aşaması. Bir PR gönder, çılgın bir fikir at, bir bug bildir — sen ne getirirsen bu hareket o olur.
 >
 > → [**Duyuruyu oku · kurulum dosyasını indir · harekete katıl**](https://github.com/nexu-io/open-design/discussions/1727) · mevcut 0.7'nin yanına paralel kurulur.
-
-> **[Claude Design][cd] için açık kaynak alternatif.** Yerel öncelikli, web'e dağıtılabilir, her katmanda BYOK; `PATH` üzerinde otomatik algılanan **16 coding-agent CLI** (Claude Code, Codex, Devin for Terminal, Cursor Agent, Gemini CLI, OpenCode, Qwen, Qoder CLI, GitHub Copilot CLI, Hermes, Kimi, Pi, Kiro, Kilo, Mistral Vibe, DeepSeek TUI) tasarım motoruna dönüşür. Hepsi **31 birleştirilebilir Skill** ve **72 marka kalitesinde Design System** tarafından yönlendirilir. CLI yok mu? OpenAI uyumlu BYOK proxy aynı döngünün agent spawn olmadan çalışan halidir.
 
 <p align="center">
   <img src="docs/assets/banner.png" alt="Open Design — dizüstü bilgisayarındaki agent ile tasarım yapma editoryal kapağı" width="100%" />

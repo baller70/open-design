@@ -1,15 +1,15 @@
-# Open Design
+# Open Design —— [Claude Design][cd] 的官方開源替代品
+
+> **Open Design 是 [Claude Design][cd] 的開源、本地優先替代品。** 可部署到 Vercel、每一層都 BYOK —— **16 套 coding-agent CLI** 在 `PATH` 上自動檢測（Claude Code, Codex, Devin for Terminal, Cursor Agent, Gemini CLI, OpenCode, Qwen, Qoder CLI, GitHub Copilot CLI, Hermes, Kimi, Pi, Kiro, Kilo, Mistral Vibe, DeepSeek TUI）就是設計引擎，由 **31 個可組合 Skills** 和 **72 套品牌級 Design System** 驅動。一個都沒裝？還有 OpenAI 相容的 BYOK 代理 `/api/proxy/stream` 備援，同一條 loop，少一次 spawn 而已。
 
 > [!IMPORTANT]
 > ### 🔥 `0.8.0-preview` 已發佈。設計的舊世界，到此為止。
 >
-> 開源、agent-native 的 Claude Design / Figma 替代品 —— 上線兩週，40k stars 在身，且仍在加速。**剩下的路，需要你和我們一起推完。**
+> Claude Design / Figma 的開源替代品 —— 上線兩週，40k stars 在身，且仍在加速。**剩下的路，需要你和我們一起推完。**
 >
 > **正在 `main` 分支飛速迭代中** —— 0.8.0 是 Open Design 的下一階段。提一個 PR、扔一個想法、報一個 bug —— 你帶來的，就是這場運動接下來的樣子。
 >
 > → [**讀公告 · 下載安裝包 · 加入這場運動**](https://github.com/nexu-io/open-design/discussions/1727) · 可與你現有的 0.7 並行安裝。
-
-> **[Claude Design][cd] 的開源替代品。** 本地優先、可部署到 Vercel、每一層都 BYOK —— **16 套 coding-agent CLI** 在 `PATH` 上自動檢測（Claude Code, Codex, Devin for Terminal, Cursor Agent, Gemini CLI, OpenCode, Qwen, Qoder CLI, GitHub Copilot CLI, Hermes, Kimi, Pi, Kiro, Kilo, Mistral Vibe, DeepSeek TUI）就是設計引擎，由 **31 個可組合 Skills** 和 **72 套品牌級 Design System** 驅動。一個都沒裝？還有 OpenAI 相容的 BYOK 代理 `/api/proxy/stream` 備援，同一條 loop，少一次 spawn 而已。
 
 <p align="center">
   <img src="docs/assets/banner.png" alt="Open Design 封面：與本地 AI 智慧體共同設計" width="100%" />

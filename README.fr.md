@@ -1,15 +1,15 @@
-# Open Design
+# Open Design — l’alternative open source officielle à [Claude Design][cd]
+
+> **Open Design est l’alternative open source et local-first à [Claude Design][cd].** Déployable sur le web, BYOK à chaque couche : vos CLI de coding agents détectées automatiquement dans le `PATH` deviennent le design engine, piloté par les catalogues de **Skills** et de **Design Systems** du repo. Aucune CLI ? Le proxy BYOK multi-provider exécute la même boucle, sans spawn local.
 
 > [!IMPORTANT]
 > ### 🔥 `0.8.0-preview` est là. L'ancien monde du design s'arrête ici.
 >
-> Une alternative open source et agent-native à Claude Design / Figma — 40k étoiles en deux semaines nous ont menés jusqu'ici. **Nous avons besoin de toi pour faire le reste du chemin.**
+> Une alternative open source à Claude Design / Figma — 40k étoiles en deux semaines nous ont menés jusqu'ici. **Nous avons besoin de toi pour faire le reste du chemin.**
 >
 > **Itération rapide sur `main`** — 0.8.0 est la prochaine phase d'Open Design. Envoie une PR, balance une idée folle, signale un bug — ce que tu apportes, c'est ce que ce mouvement devient.
 >
 > → [**Lire l'annonce · télécharger l'installateur · rejoindre le mouvement**](https://github.com/nexu-io/open-design/discussions/1727) · s'installe à côté de votre 0.7 actuel.
-
-> **L’alternative open source à [Claude Design][cd].** Local-first, déployable sur le web, BYOK à chaque couche : vos CLI de coding agents détectées automatiquement dans le `PATH` deviennent le design engine, piloté par les catalogues de **Skills** et de **Design Systems** du repo. Aucune CLI ? Le proxy BYOK multi-provider exécute la même boucle, sans spawn local.
 
 <p align="center">
   <img src="docs/assets/banner.png" alt="Open Design : couverture éditoriale, design avec l’agent sur votre laptop" width="100%" />

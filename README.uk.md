@@ -1,15 +1,15 @@
-# Open Design
+# Open Design — офіційна open-source альтернатива [Claude Design][cd]
+
+> **Open Design — це альтернатива з відкритим кодом і локально-перший варіант [Claude Design][cd].** Розгортується в web, BYOK на кожному рівні — **16 CLI агентів для кодування** автоматично виявляються у вашому `PATH` (Claude Code, Codex, Devin for Terminal, Cursor Agent, Gemini CLI, OpenCode, Qwen, Qoder CLI, GitHub Copilot CLI, Hermes, Kimi, Pi, Kiro, Kilo, Mistral Vibe, DeepSeek TUI) стають механізмом дизайну, керуються **31 компонуваною навичкою** та **72 системами дизайну комерційного класу**. Немає CLI? OpenAI-сумісний BYOK проксі — це той же цикл без spawn.
 
 > [!IMPORTANT]
 > ### 🔥 `0.8.0-preview` уже тут. Старий світ дизайну закінчується тут.
 >
-> Open-source, agent-native альтернатива Claude Design / Figma — 40k зірок за два тижні привели нас сюди. **Далі — тільки з тобою.**
+> Open-source альтернатива Claude Design / Figma — 40k зірок за два тижні привели нас сюди. **Далі — тільки з тобою.**
 >
 > **Швидка ітерація на `main`** — 0.8.0 — наступна фаза Open Design. Кидай PR, кидай шалену ідею, заводь баг — те, що приносиш ти, тим стає цей рух.
 >
 > → [**Прочитати анонс · завантажити інсталятор · приєднатися до руху**](https://github.com/nexu-io/open-design/discussions/1727) · встановлюється паралельно з твоєю поточною 0.7.
-
-> **Альтернатива з відкритим кодом до [Claude Design][cd].** Локально-перший, розгортується в web, BYOK на кожному рівні — **16 CLI агентів для кодування** автоматично виявляються у вашому `PATH` (Claude Code, Codex, Devin for Terminal, Cursor Agent, Gemini CLI, OpenCode, Qwen, Qoder CLI, GitHub Copilot CLI, Hermes, Kimi, Pi, Kiro, Kilo, Mistral Vibe, DeepSeek TUI) стають механізмом дизайну, керуються **31 компонуваною навичкою** та **72 системами дизайну комерційного класу**. Немає CLI? OpenAI-сумісний BYOK проксі — це той же цикл без spawn.
 
 <p align="center">
   <img src="docs/assets/banner.png" alt="Open Design — editorial cover: design with the agent on your laptop" width="100%" />

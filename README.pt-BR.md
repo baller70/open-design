@@ -1,15 +1,15 @@
-# Open Design
+# Open Design — a alternativa open source oficial ao [Claude Design][cd]
+
+> **Open Design é a alternativa open source e local-first ao [Claude Design][cd].** Deployável via web, BYOK em toda camada — **16 CLIs de agentes de código** detectados automaticamente no seu `PATH` (Claude Code, Codex, Devin for Terminal, Cursor Agent, Gemini CLI, OpenCode, Qwen, Qoder CLI, GitHub Copilot CLI, Hermes, Kimi, Pi, Kiro, Kilo, Mistral Vibe, DeepSeek TUI) viram a engine de design, dirigidos por **31 Skills compositáveis** e **72 Design Systems de qualidade de marca**. Sem CLI? Um proxy BYOK compatível com OpenAI é o mesmo loop, só sem o spawn.
 
 > [!IMPORTANT]
 > ### 🔥 `0.8.0-preview` chegou. O velho mundo do design acaba aqui.
 >
-> Uma alternativa open source e agent-native ao Claude Design / Figma — 40k estrelas em duas semanas nos trouxeram até aqui. **Precisamos de você para nos levar o resto do caminho.**
+> Uma alternativa open source ao Claude Design / Figma — 40k estrelas em duas semanas nos trouxeram até aqui. **Precisamos de você para nos levar o resto do caminho.**
 >
 > **Iterando rápido na `main`** — 0.8.0 é a próxima fase do Open Design. Mande um PR, jogue uma ideia maluca, abra um bug — o que você traz é no que este movimento se transforma.
 >
 > → [**Leia o anúncio · baixe o instalador · junte-se ao movimento**](https://github.com/nexu-io/open-design/discussions/1727) · roda em paralelo com seu 0.7 atual.
-
-> **A alternativa open-source ao [Claude Design][cd].** Local-first, deployável via web, BYOK em toda camada — **16 CLIs de agentes de código** detectados automaticamente no seu `PATH` (Claude Code, Codex, Devin for Terminal, Cursor Agent, Gemini CLI, OpenCode, Qwen, Qoder CLI, GitHub Copilot CLI, Hermes, Kimi, Pi, Kiro, Kilo, Mistral Vibe, DeepSeek TUI) viram a engine de design, dirigidos por **31 Skills compositáveis** e **72 Design Systems de qualidade de marca**. Sem CLI? Um proxy BYOK compatível com OpenAI é o mesmo loop, só sem o spawn.
 
 <p align="center">
   <img src="docs/assets/banner.png" alt="Open Design — capa editorial: design com o agente no seu laptop" width="100%" />
