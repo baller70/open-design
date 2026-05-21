@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAnalytics } from '../analytics/provider';
 import { trackChatPanelClick } from '../analytics/events';
 import { useT } from '../i18n';
@@ -1246,10 +1246,19 @@ function UserMessage({
   const commentAttachments = message.commentAttachments ?? [];
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
+  const editInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (!editing) setDraft(message.content);
   }, [editing, message.content]);
+
+  useLayoutEffect(() => {
+    if (!editing) return;
+    const input = editInputRef.current;
+    if (!input) return;
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight}px`;
+  }, [draft, editing]);
 
   function cancelEdit() {
     setDraft(message.content);
@@ -1319,10 +1328,11 @@ function UserMessage({
       {editing ? (
         <div className="user-edit-wrap">
           <textarea
+            ref={editInputRef}
             className="user-edit-input"
             value={draft}
             autoFocus
-            rows={Math.min(8, Math.max(2, draft.split('\n').length))}
+            rows={1}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
