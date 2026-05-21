@@ -1162,7 +1162,7 @@ export const pl: Dict = {
   'assistant.unfinishedSummary': 'pozostało {n} zadań',
   'assistant.unfinishedMore': '+{n} więcej',
   'assistant.unfinishedLess': 'Pokaż mniej',
-  'assistant.continueRemaining': 'Kontynuuj pozostałe zadania',
+  'assistant.continueRemaining': 'Kontynuuj zadania',
   'assistant.outTokens': '{n} wysłano',
   'assistant.producedFiles': 'Pliki z tej tury',
   'assistant.openFile': 'Otwórz',

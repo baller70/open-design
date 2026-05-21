@@ -1049,7 +1049,7 @@ export const ja: Dict = {
   'assistant.unfinishedSummary': '{n} 件のタスクが残っています',
   'assistant.unfinishedMore': '+{n} 件',
   'assistant.unfinishedLess': '折りたたむ',
-  'assistant.continueRemaining': '残りのタスクを続ける',
+  'assistant.continueRemaining': 'タスクを続ける',
   'assistant.outTokens': '{n} 出力',
   'assistant.producedFiles': 'このターンのファイル',
   'assistant.openFile': '開く',

@@ -1050,7 +1050,7 @@ export const de: Dict = {
   'assistant.unfinishedSummary': '{n} Aufgabe(n) offen',
   'assistant.unfinishedMore': '+{n} weitere',
   'assistant.unfinishedLess': 'Weniger anzeigen',
-  'assistant.continueRemaining': 'Offene Aufgaben fortsetzen',
+  'assistant.continueRemaining': 'Aufgaben fortsetzen',
   'assistant.outTokens': '{n} ausgehend',
   'assistant.producedFiles': 'Dateien aus diesem Turn',
   'assistant.openFile': 'Öffnen',

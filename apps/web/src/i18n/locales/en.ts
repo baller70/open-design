@@ -1727,7 +1727,7 @@ export const en: Dict = {
   'assistant.unfinishedSummary': '{n} task(s) remain',
   'assistant.unfinishedMore': '+{n} more',
   'assistant.unfinishedLess': 'Show less',
-  'assistant.continueRemaining': 'Continue remaining tasks',
+  'assistant.continueRemaining': 'Continue tasks',
   'assistant.outTokens': '{n} out',
   'assistant.producedFiles': 'Files from this turn',
   'assistant.openFile': 'Open',

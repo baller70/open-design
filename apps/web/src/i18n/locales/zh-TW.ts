@@ -1257,7 +1257,7 @@ export const zhTW: Dict = {
   'assistant.unfinishedSummary': '剩餘 {n} 個任務',
   'assistant.unfinishedMore': '還有 {n} 個',
   'assistant.unfinishedLess': '收起',
-  'assistant.continueRemaining': '繼續剩餘任務',
+  'assistant.continueRemaining': '繼續任務',
   'assistant.thinking': '思考中',
   'assistant.systemReminder': '系統提示',
   'assistant.waitingFirstOutput': '等待首批輸出中',

@@ -1162,7 +1162,7 @@ export const hu: Dict = {
   'assistant.unfinishedSummary': '{n} feladat hátravan',
   'assistant.unfinishedMore': '+{n} további',
   'assistant.unfinishedLess': 'Kevesebb mutatása',
-  'assistant.continueRemaining': 'Hátralévő feladatok folytatása',
+  'assistant.continueRemaining': 'Feladatok folytatása',
   'assistant.outTokens': '{n} ki',
   'assistant.producedFiles': 'A körben létrehozott fájlok',
   'assistant.openFile': 'Megnyitás',

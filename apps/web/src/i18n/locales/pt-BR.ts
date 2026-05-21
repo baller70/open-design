@@ -1203,7 +1203,7 @@ export const ptBR: Dict = {
   'assistant.unfinishedSummary': '{n} tarefa(s) restante(s)',
   'assistant.unfinishedMore': '+{n} mais',
   'assistant.unfinishedLess': 'Mostrar menos',
-  'assistant.continueRemaining': 'Continuar tarefas restantes',
+  'assistant.continueRemaining': 'Continuar tarefas',
   'assistant.outTokens': '{n} saída',
   'assistant.producedFiles': 'Arquivos deste turno',
   'assistant.openFile': 'Abrir',

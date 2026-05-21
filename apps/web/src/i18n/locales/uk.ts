@@ -1204,7 +1204,7 @@ export const uk: Dict = {
   'assistant.unfinishedSummary': 'залишилось {n} завдання(нь)',
   'assistant.unfinishedMore': '+ще {n}',
   'assistant.unfinishedLess': 'Показати менше',
-  'assistant.continueRemaining': 'Продовжити залишкові завдання',
+  'assistant.continueRemaining': 'Продовжити завдання',
   'assistant.outTokens': '{n} вихід',
   'assistant.producedFiles': 'Файли з цієї черги',
   'assistant.openFile': 'Відкрити',

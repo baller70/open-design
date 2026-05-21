@@ -1049,7 +1049,7 @@ export const it: Dict = {
   'assistant.unfinishedSummary': '{n} attività rimanenti',
   'assistant.unfinishedMore': '+{n} in più',
   'assistant.unfinishedLess': 'Mostra meno',
-  'assistant.continueRemaining': 'Continua le attività rimanenti',
+  'assistant.continueRemaining': 'Continua attività',
   'assistant.outTokens': '{n} output',
   'assistant.producedFiles': 'File di questo turno',
   'assistant.openFile': 'Apri',

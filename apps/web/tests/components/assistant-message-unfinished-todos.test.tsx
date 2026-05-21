@@ -117,7 +117,7 @@ describe('AssistantMessage unfinished todo state', () => {
 
     expect(screen.getByText('Done')).toBeTruthy();
     expect(screen.queryByText('Stopped with unfinished work')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Continue remaining tasks' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Continue tasks' })).toBeNull();
   });
 
   it('uses persisted usage duration for completed messages that do not have endedAt', () => {
@@ -202,7 +202,7 @@ describe('AssistantMessage unfinished todo state', () => {
     const footerPosition = (footer as HTMLElement).compareDocumentPosition(remainingList as HTMLElement);
     expect(footerPosition & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Continue remaining tasks' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue tasks' }));
 
     expect(onContinue).toHaveBeenCalledWith([
       {
@@ -300,7 +300,7 @@ describe('AssistantMessage unfinished todo state', () => {
 
     expect(screen.getByText('Stopped with unfinished work')).toBeTruthy();
     expect(screen.getByText('1 task(s) remain')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Continue remaining tasks' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Continue tasks' })).toBeNull();
   });
 
   it('surfaces generated plugin next actions in the latest assistant turn', async () => {

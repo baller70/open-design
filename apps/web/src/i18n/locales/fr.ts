@@ -1162,7 +1162,7 @@ export const fr: Dict = {
   'assistant.unfinishedSummary': '{n} tâche(s) restante(s)',
   'assistant.unfinishedMore': '+{n} de plus',
   'assistant.unfinishedLess': 'Afficher moins',
-  'assistant.continueRemaining': 'Continuer les tâches restantes',
+  'assistant.continueRemaining': 'Continuer les tâches',
   'assistant.outTokens': '{n} sortie',
   'assistant.producedFiles': 'Fichiers de ce tour',
   'assistant.openFile': 'Ouvrir',
