@@ -1937,6 +1937,9 @@ a.avatar-item:visited {
   align-items: flex-end;
   max-width: min(78%, 560px);
 }
+.msg.user:has(.user-edit-wrap) {
+  width: min(78%, 560px);
+}
 .msg .role {
   display: flex;
   align-items: baseline;
@@ -2141,7 +2144,7 @@ a.avatar-item:visited {
 .user-edit-wrap {
   display: grid;
   gap: 8px;
-  width: min(520px, 100%);
+  width: 100%;
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: 14px 14px 4px 14px;
@@ -26428,6 +26431,9 @@ body.desktop-pet-shell .pet-task-item {
 .app .msg.user {
   width: fit-content;
   max-width: min(88%, 520px);
+}
+.app .msg.user:has(.user-edit-wrap) {
+  width: min(88%, 520px);
 }
 .app .msg.user .user-text-wrap {
   max-width: 100%;
