@@ -192,6 +192,7 @@ interface Props {
   onTouchProject: () => void;
   onProjectChange: (next: Project) => void;
   onProjectsRefresh: () => void;
+  onDeleteProject?: (id: string) => void;
 }
 
 let liveArtifactEventSequence = 0;
@@ -460,6 +461,7 @@ export function ProjectView({
   onTouchProject,
   onProjectChange,
   onProjectsRefresh,
+  onDeleteProject = () => {},
 }: Props) {
   const t = useT();
   const analytics = useAnalytics();
@@ -520,6 +522,10 @@ export function ProjectView({
   const [instructionsMode, setInstructionsMode] = useState<'closed' | 'review' | 'edit'>('closed');
   const [instructionsDraft, setInstructionsDraft] = useState(project.customInstructions ?? '');
   const [instructionsSaving, setInstructionsSaving] = useState(false);
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const projectSettingsWrapRef = useRef<HTMLDivElement | null>(null);
+  const projectSettingsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const projectTitleRef = useRef<HTMLSpanElement | null>(null);
   // Keep the draft in sync with the server value while the editor is not
   // open (e.g. after an external update or project switch). If the saved
   // value disappears while the review panel is showing, collapse the
@@ -531,6 +537,28 @@ export function ProjectView({
       setInstructionsMode('closed');
     }
   }, [project.customInstructions, instructionsMode]);
+
+  useEffect(() => {
+    if (!projectSettingsOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (!projectSettingsWrapRef.current) return;
+      if (!projectSettingsWrapRef.current.contains(e.target as Node)) {
+        setProjectSettingsOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setProjectSettingsOpen(false);
+        projectSettingsTriggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [projectSettingsOpen]);
   // PR #974 round 7 (mrcfps @ useDesignMdState.ts:131): counter that
   // bumps on file-changed SSE events, live_artifact* events, and the
   // chat streaming-completion edge so the staleness chip stays in sync
@@ -3024,6 +3052,22 @@ export function ProjectView({
     [project, onProjectChange],
   );
 
+  const focusProjectTitleForRename = useCallback(() => {
+    const el = projectTitleRef.current;
+    if (!el) return;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }, []);
+
+  const handleDeleteProjectFromHeader = useCallback(() => {
+    if (!confirm(t('designs.deleteConfirm', { name: project.name }))) return;
+    onDeleteProject(project.id);
+  }, [onDeleteProject, project.id, project.name, t]);
+
   const linkedDirs = project.metadata?.linkedDirs ?? [];
 
   const handleLinkFolder = useCallback(async () => {
@@ -3545,6 +3589,9 @@ export function ProjectView({
   // pipeline; this hook only governs whether the web layer renders the
   // resulting SSE stream.
   const critiqueTheaterEnabled = useCritiqueTheaterEnabled();
+  const projectInstructions = (project.customInstructions ?? '').trim();
+  const hasProjectInstructions = projectInstructions.length > 0;
+  const projectInstructionsPreview = compactInlinePreview(projectInstructions);
 
   return (
     <div className="app">
@@ -3557,22 +3604,128 @@ export function ProjectView({
         onBack={onBack}
         backLabel={t('project.backToProjects')}
         actions={(
-          <AvatarMenu
-            config={config}
-            agents={agents}
-            daemonLive={daemonLive}
-            onModeChange={onModeChange}
-            onAgentChange={onAgentChange}
-            onAgentModelChange={onAgentModelChange}
-            onOpenSettings={onOpenSettings}
-            onRefreshAgents={onRefreshAgents}
-            onBack={onBack}
-          />
+          <>
+            <div className="project-settings-menu" ref={projectSettingsWrapRef}>
+              <button
+                ref={projectSettingsTriggerRef}
+                type="button"
+                className="settings-icon-btn"
+                data-testid="project-settings-trigger"
+                title={t('settings.title')}
+                aria-label={t('settings.title')}
+                aria-haspopup="dialog"
+                aria-expanded={projectSettingsOpen}
+                onClick={() => setProjectSettingsOpen((open) => !open)}
+              >
+                <Icon name="settings" size={16} />
+              </button>
+              {projectSettingsOpen ? (
+                <div
+                  className="project-settings-popover"
+                  role="dialog"
+                  aria-label={t('settings.title')}
+                >
+                  <button
+                    type="button"
+                    className="project-settings-item"
+                    data-testid="project-settings-instructions"
+                    onClick={() => {
+                      setProjectSettingsOpen(false);
+                      setInstructionsDraft(project.customInstructions ?? '');
+                      setInstructionsMode(hasProjectInstructions ? 'review' : 'edit');
+                    }}
+                  >
+                    <span className="project-settings-item-icon" aria-hidden>
+                      <Icon name="sliders" size={14} />
+                    </span>
+                    <span className="project-settings-item-main">
+                      <span className="project-settings-item-label">{t('project.customInstructions')}</span>
+                      <span className="project-settings-item-meta">
+                        {hasProjectInstructions ? projectInstructionsPreview : t('project.customInstructionsPlaceholder')}
+                      </span>
+                    </span>
+                    <span className="project-settings-item-action">
+                      {t('common.edit')}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="project-settings-item"
+                    data-testid="project-settings-link-folder"
+                    onClick={() => {
+                      setProjectSettingsOpen(false);
+                      void handleLinkFolder();
+                    }}
+                  >
+                    <span className="project-settings-item-icon" aria-hidden>
+                      <Icon name="link" size={14} />
+                    </span>
+                    <span className="project-settings-item-main">
+                      <span className="project-settings-item-label">{t('chat.importFolder')}</span>
+                      <span className="project-settings-item-meta">
+                        {linkedDirs.length > 0
+                          ? linkedDirs.map((dir) => dir.split('/').pop() || dir).join(', ')
+                          : t('chat.importFolder')}
+                      </span>
+                    </span>
+                    <span className="project-settings-item-action">
+                      {linkedDirs.length > 0 ? t('common.edit') : t('chat.importFolder')}
+                    </span>
+                  </button>
+                  <div className="project-settings-separator" />
+                  <button
+                    type="button"
+                    className="project-settings-item"
+                    data-testid="project-settings-rename"
+                    onClick={() => {
+                      setProjectSettingsOpen(false);
+                      focusProjectTitleForRename();
+                    }}
+                  >
+                    <span className="project-settings-item-icon" aria-hidden>
+                      <Icon name="pencil" size={14} />
+                    </span>
+                    <span className="project-settings-item-main">
+                      <span className="project-settings-item-label">{t('common.rename')}</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="project-settings-item danger"
+                    data-testid="project-settings-delete"
+                    onClick={() => {
+                      setProjectSettingsOpen(false);
+                      handleDeleteProjectFromHeader();
+                    }}
+                  >
+                    <span className="project-settings-item-icon" aria-hidden>
+                      <Icon name="trash" size={14} />
+                    </span>
+                    <span className="project-settings-item-main">
+                      <span className="project-settings-item-label">{t('designs.menuDelete')}</span>
+                    </span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <AvatarMenu
+              config={config}
+              agents={agents}
+              daemonLive={daemonLive}
+              onModeChange={onModeChange}
+              onAgentChange={onAgentChange}
+              onAgentModelChange={onAgentModelChange}
+              onOpenSettings={onOpenSettings}
+              onRefreshAgents={onRefreshAgents}
+              onBack={onBack}
+            />
+          </>
         )}
       >
         <div className="app-project-title">
           <span className="app-project-title-line">
             <span
+              ref={projectTitleRef}
               className="title editable"
               data-testid="project-title"
               tabIndex={0}
@@ -3592,46 +3745,22 @@ export function ProjectView({
             {projectMeta !== t('project.metaFreeform') ? (
               <span className="meta" data-testid="project-meta">{projectMeta}</span>
             ) : null}
-            {(() => {
-              const hasProjectInstructions = (project.customInstructions ?? '').trim().length > 0;
-              return (
-                <button
-                  type="button"
-                  className={
-                    hasProjectInstructions
-                      ? `project-instructions-chip${instructionsMode !== 'closed' ? ' is-open' : ''}`
-                      : `project-title-icon-button${instructionsMode !== 'closed' ? ' is-open' : ''}`
-                  }
-                  data-testid={hasProjectInstructions ? 'project-instructions-chip' : 'project-instructions-add'}
-                  title={t('project.customInstructions')}
-                  aria-label={t('project.customInstructions')}
-                  aria-expanded={instructionsMode !== 'closed'}
-                  onClick={() => {
-                    if (hasProjectInstructions) {
-                      setInstructionsMode((m) => (m === 'closed' ? 'review' : 'closed'));
-                      return;
-                    }
-                    setInstructionsDraft('');
-                    setInstructionsMode((m) => (m === 'closed' ? 'edit' : 'closed'));
-                  }}
-                >
-                  <Icon name="sliders" size={hasProjectInstructions ? 11 : 13} />
-                  {hasProjectInstructions ? <span>{t('project.customInstructions')}</span> : null}
-                </button>
-              );
-            })()}
-            <button
-              type="button"
-              className="project-title-icon-button"
-              data-testid="project-link-folder"
-              title={t('chat.importFolder')}
-              aria-label={t('chat.importFolder')}
-              onClick={() => {
-                void handleLinkFolder();
-              }}
-            >
-              <Icon name="folder" size={13} />
-            </button>
+            {hasProjectInstructions ? (
+              <button
+                type="button"
+                className={`project-instructions-chip${instructionsMode !== 'closed' ? ' is-open' : ''}`}
+                data-testid="project-instructions-chip"
+                title={projectInstructions}
+                aria-label={t('project.customInstructions')}
+                aria-expanded={instructionsMode !== 'closed'}
+                onClick={() => {
+                  setInstructionsMode((m) => (m === 'closed' ? 'review' : 'closed'));
+                }}
+              >
+                <Icon name="sliders" size={11} />
+                <span>&quot;{projectInstructionsPreview}&quot;</span>
+              </button>
+            ) : null}
             {linkedDirs.length > 0 ? (
               <span className="project-linked-dirs" data-testid="project-linked-dirs">
                 {linkedDirs.map((dir) => (
@@ -3925,6 +4054,10 @@ function assistantAgentDisplayName(
 
 function isTerminalRunStatus(status: ChatMessage['runStatus']): boolean {
   return status === 'succeeded' || status === 'failed' || status === 'canceled';
+}
+
+function compactInlinePreview(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
 }
 
 function isActiveRunStatus(status: ChatMessage['runStatus']): boolean {

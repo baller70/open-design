@@ -85,7 +85,12 @@ vi.mock('../../src/state/projects', async () => {
 });
 
 vi.mock('../../src/components/AppChromeHeader', () => ({
-  AppChromeHeader: ({ children }: { children: ReactNode }) => <header>{children}</header>,
+  AppChromeHeader: ({ children, actions }: { children: ReactNode; actions?: ReactNode }) => (
+    <header>
+      {children}
+      {actions}
+    </header>
+  ),
 }));
 
 vi.mock('../../src/components/AvatarMenu', () => ({
@@ -161,6 +166,7 @@ function ProjectViewHarness({ initialProject }: { initialProject: Project }) {
       onTouchProject={vi.fn()}
       onProjectChange={setProject}
       onProjectsRefresh={vi.fn()}
+      onDeleteProject={vi.fn()}
     />
   );
 }
@@ -217,15 +223,15 @@ describe('ProjectView – saved Project instructions surface (#1822)', () => {
     expect(textarea.value).toBe(SAVED);
   });
 
-  it('offers an add affordance and opens an empty editor when no instructions are saved', async () => {
+  it('keeps empty project context actions inside the project settings menu', async () => {
     render(<ProjectViewHarness initialProject={baseProject} />);
 
-    const add = await screen.findByTestId('project-instructions-add');
     expect(screen.queryByTestId('project-instructions-chip')).toBeNull();
-    expect(add.textContent).toBe('');
-    expect(screen.getByTestId('project-link-folder').textContent).toBe('');
+    expect(screen.queryByTestId('project-instructions-add')).toBeNull();
+    expect(screen.queryByTestId('project-link-folder')).toBeNull();
 
-    fireEvent.click(add);
+    fireEvent.click(await screen.findByTestId('project-settings-trigger'));
+    fireEvent.click(screen.getByTestId('project-settings-instructions'));
 
     const textarea = screen.getByTestId('project-instructions-textarea') as HTMLTextAreaElement;
     expect(textarea.value).toBe('');
@@ -235,7 +241,8 @@ describe('ProjectView – saved Project instructions surface (#1822)', () => {
     mockedPatchProject.mockResolvedValue({ ...baseProject, customInstructions: SAVED });
     render(<ProjectViewHarness initialProject={baseProject} />);
 
-    fireEvent.click(await screen.findByTestId('project-instructions-add'));
+    fireEvent.click(await screen.findByTestId('project-settings-trigger'));
+    fireEvent.click(screen.getByTestId('project-settings-instructions'));
     fireEvent.change(screen.getByTestId('project-instructions-textarea'), {
       target: { value: SAVED },
     });
@@ -254,7 +261,8 @@ describe('ProjectView – saved Project instructions surface (#1822)', () => {
     mockedPatchProject.mockResolvedValue(null);
     render(<ProjectViewHarness initialProject={{ ...baseProject, metadata: { kind: 'prototype' } }} />);
 
-    fireEvent.click(await screen.findByTestId('project-link-folder'));
+    fireEvent.click(await screen.findByTestId('project-settings-trigger'));
+    fireEvent.click(screen.getByTestId('project-settings-link-folder'));
 
     await waitFor(() => {
       expect(mockedPatchProject).toHaveBeenCalledWith('project-1', {
