@@ -3,7 +3,6 @@ import { useAnalytics } from '../analytics/provider';
 import { trackChatPanelClick } from '../analytics/events';
 import { useT } from '../i18n';
 import type { Dict } from '../i18n/types';
-import { copyToClipboard } from '../lib/copy-to-clipboard';
 import { projectRawUrl } from '../providers/registry';
 import type { TodoItem } from '../runtime/todos';
 import type { AppliedPluginSnapshot } from '@open-design/contracts';
@@ -1245,32 +1244,12 @@ function UserMessage({
 }) {
   const attachments = message.attachments ?? [];
   const commentAttachments = message.commentAttachments ?? [];
-  const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>();
-
-  useEffect(() => {
-    return () => {
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     if (!editing) setDraft(message.content);
   }, [editing, message.content]);
-
-  async function handleCopy() {
-    if (!message.content) return;
-    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    const ok = await copyToClipboard(message.content);
-    if (!ok) return;
-    setCopied(true);
-    copyTimerRef.current = setTimeout(() => {
-      setCopied(false);
-      copyTimerRef.current = undefined;
-    }, 2000);
-  }
 
   function cancelEdit() {
     setDraft(message.content);
@@ -1391,27 +1370,19 @@ function UserMessage({
         </div>
       ) : message.content ? (
         <div className="user-text-wrap">
-          <div className="user-text user-bubble">{message.content}</div>
-          <button
-            type="button"
-            className="ghost user-copy-btn"
-            onClick={handleCopy}
-            aria-label={copied ? t('chat.copyDone') : t('chat.copyPrompt')}
-            title={copied ? t('chat.copyDone') : t('chat.copyPrompt')}
-          >
-            <Icon name={copied ? 'check' : 'copy'} size={12} />
-          </button>
           {onEditUserMessage ? (
             <button
               type="button"
-              className="ghost user-edit-btn"
+              className="user-text user-bubble user-edit-trigger"
               onClick={() => setEditing(true)}
               aria-label={t('chat.editAndResend')}
               title={t('chat.editAndResend')}
             >
-              <Icon name="edit" size={12} />
+              {message.content}
             </button>
-          ) : null}
+          ) : (
+            <div className="user-text user-bubble">{message.content}</div>
+          )}
         </div>
       ) : null}
     </div>

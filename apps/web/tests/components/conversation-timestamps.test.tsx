@@ -104,7 +104,9 @@ describe('conversation timestamps', () => {
     };
     renderChatPane([message], { onEditUserMessage });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit and resend' }));
+    expect(screen.queryByRole('button', { name: 'Copy prompt' })).toBeNull();
+
+    fireEvent.click(screen.getByText('Make a poster'));
     const input = screen.getByDisplayValue('Make a poster');
     fireEvent.change(input, { target: { value: 'Make a launch poster' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save and resend' }));
