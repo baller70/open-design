@@ -6,6 +6,7 @@
 // the renderer.
 
 import { useEffect, useState } from 'react';
+import type { OpenDesignGithubRepoResponse } from '@open-design/contracts';
 
 const API = '/api/github/open-design';
 const REPO = 'https://github.com/nexu-io/open-design';
@@ -78,7 +79,7 @@ export function useGithubStars(): number | null {
           signal: ctrl.signal,
         });
         if (!res.ok) return;
-        const data = (await res.json()) as { stargazers_count?: unknown };
+        const data = (await res.json()) as Partial<OpenDesignGithubRepoResponse>;
         if (typeof data.stargazers_count !== 'number') return;
         const next: CachedStars = {
           count: data.stargazers_count,

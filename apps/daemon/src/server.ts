@@ -13,6 +13,8 @@ import os from 'node:os';
 import net from 'node:net';
 import {
   defaultScenarioPluginIdForProjectMetadata,
+  type OpenDesignGithubLatestReleaseResponse,
+  type OpenDesignGithubRepoResponse,
   PLUGIN_SHARE_ACTION_PLUGIN_IDS,
 } from '@open-design/contracts';
 import {
@@ -3573,12 +3575,13 @@ export async function startServer({
   app.get('/api/github/open-design', async (_req, res) => {
     try {
       const stats = await readOpenDesignGithubRepoStats();
-      res.json({
+      const payload = /** @type {OpenDesignGithubRepoResponse} */ ({
         repo: 'nexu-io/open-design',
         stargazers_count: stats.stargazersCount,
         fetchedAt: stats.fetchedAt,
         stale: stats.stale,
       });
+      res.json(payload);
     } catch (error) {
       res.status(502).json({
         error: error instanceof Error ? error.message : String(error),
@@ -3589,13 +3592,14 @@ export async function startServer({
   app.get('/api/github/open-design/releases/latest', async (_req, res) => {
     try {
       const release = await readOpenDesignLatestReleaseInfo();
-      res.json({
+      const payload = /** @type {OpenDesignGithubLatestReleaseResponse} */ ({
         repo: 'nexu-io/open-design',
         tag_name: release.tagName,
         html_url: release.htmlUrl,
         fetchedAt: release.fetchedAt,
         stale: release.stale,
       });
+      res.json(payload);
     } catch (error) {
       res.status(502).json({
         error: error instanceof Error ? error.message : String(error),

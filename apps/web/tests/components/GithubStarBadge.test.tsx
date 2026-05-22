@@ -2,6 +2,7 @@
 
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { OpenDesignGithubRepoResponse } from '@open-design/contracts';
 
 const originalFetch = globalThis.fetch;
 
@@ -33,7 +34,12 @@ describe('GithubStarBadge', () => {
   it('renders the live star count returned by the daemon endpoint', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ stargazers_count: 42137 }),
+      json: async () => ({
+        repo: 'nexu-io/open-design',
+        stargazers_count: 42137,
+        fetchedAt: '2026-05-22T00:00:00.000Z',
+        stale: false,
+      } satisfies OpenDesignGithubRepoResponse),
     } satisfies Partial<Response>) as typeof fetch;
     const { GithubStarBadge } = await import('../../src/components/GithubStarBadge');
 

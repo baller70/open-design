@@ -8,6 +8,7 @@ import type {
   ConnectorStatusResponse,
   ImportGitHubDesignSystemRequest,
   ImportGitHubDesignSystemResponse,
+  OpenDesignGithubLatestReleaseResponse,
   ImportLocalDesignSystemRequest,
   ImportLocalDesignSystemResponse,
   ReplaceProjectWorkingDirResponse,
@@ -1057,11 +1058,7 @@ export async function fetchLatestGithubReleaseInfo(): Promise<LatestGithubReleas
   try {
     const resp = await fetch('/api/github/open-design/releases/latest');
     if (!resp.ok) return null;
-    const json = (await resp.json()) as Partial<{
-      tag_name: string;
-      html_url: string;
-      stale: boolean;
-    }>;
+    const json = (await resp.json()) as Partial<OpenDesignGithubLatestReleaseResponse>;
     if (typeof json.tag_name !== 'string' || typeof json.html_url !== 'string') return null;
     return {
       tagName: json.tag_name,
