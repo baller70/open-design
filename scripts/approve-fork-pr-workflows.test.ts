@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isDeniedChangedPath, isPendingApprovalRun, waitForPendingApprovalRuns } from "./approve-fork-pr-workflows.ts";
+import {
+  isDeniedChangedPath,
+  isPendingApprovalRun,
+  runTargetsPullRequest,
+  waitForPendingApprovalRuns,
+} from "./approve-fork-pr-workflows.ts";
 
 test("isPendingApprovalRun matches approval-gated fork PR runs from GitHub's captured payload shape", () => {
   const pull = {
@@ -82,6 +87,116 @@ test("isPendingApprovalRun rejects runs outside the allowlist or without action_
     ),
     false,
   );
+});
+
+test("runTargetsPullRequest accepts empty run.pull_requests only when the head SHA maps to this one open PR", () => {
+  const pull = {
+    number: 2683,
+    state: "open",
+    changed_files: 1,
+    head: {
+      sha: "734076155c44e569304856590019cea54506fdab",
+      repo: { full_name: "someone/open-design" },
+    },
+    base: {
+      ref: "main",
+      sha: "4cd93a5c7a7b0db1961c854e55f8e0e6b1b45542",
+      repo: { full_name: "nexu-io/open-design" },
+    },
+  };
+
+  const run = {
+    id: 26273463769,
+    name: "CI",
+    event: "pull_request",
+    status: "completed",
+    conclusion: "action_required",
+    head_sha: "734076155c44e569304856590019cea54506fdab",
+    path: ".github/workflows/ci.yml@main",
+    pull_requests: [],
+  };
+
+  assert.equal(runTargetsPullRequest(run, pull, [pull]), true);
+});
+
+test("runTargetsPullRequest rejects ambiguous empty run.pull_requests associations", () => {
+  const pull = {
+    number: 2683,
+    state: "open",
+    changed_files: 1,
+    head: {
+      sha: "734076155c44e569304856590019cea54506fdab",
+      repo: { full_name: "someone/open-design" },
+    },
+    base: {
+      ref: "main",
+      sha: "4cd93a5c7a7b0db1961c854e55f8e0e6b1b45542",
+      repo: { full_name: "nexu-io/open-design" },
+    },
+  };
+
+  const otherPull = {
+    ...pull,
+    number: 3001,
+    base: {
+      ref: "release",
+      sha: "8db117d728f967d108f6fdd64cb8d921d057f7f6",
+      repo: { full_name: "nexu-io/open-design" },
+    },
+  };
+
+  const run = {
+    id: 26273463769,
+    name: "CI",
+    event: "pull_request",
+    status: "completed",
+    conclusion: "action_required",
+    head_sha: "734076155c44e569304856590019cea54506fdab",
+    path: ".github/workflows/ci.yml@main",
+    pull_requests: [],
+  };
+
+  assert.equal(runTargetsPullRequest(run, pull, [pull, otherPull]), false);
+});
+
+test("runTargetsPullRequest rejects runs that GitHub already associates to a different PR", () => {
+  const pull = {
+    number: 2683,
+    state: "open",
+    changed_files: 1,
+    head: {
+      sha: "734076155c44e569304856590019cea54506fdab",
+      repo: { full_name: "someone/open-design" },
+    },
+    base: {
+      ref: "main",
+      sha: "4cd93a5c7a7b0db1961c854e55f8e0e6b1b45542",
+      repo: { full_name: "nexu-io/open-design" },
+    },
+  };
+
+  const run = {
+    id: 26273463769,
+    name: "CI",
+    event: "pull_request",
+    status: "completed",
+    conclusion: "action_required",
+    head_sha: "734076155c44e569304856590019cea54506fdab",
+    path: ".github/workflows/ci.yml@main",
+    pull_requests: [
+      {
+        number: 3001,
+        head: pull.head,
+        base: {
+          ref: "release",
+          sha: "8db117d728f967d108f6fdd64cb8d921d057f7f6",
+          repo: { full_name: "nexu-io/open-design" },
+        },
+      },
+    ],
+  };
+
+  assert.equal(runTargetsPullRequest(run, pull, [pull]), false);
 });
 
 test("isDeniedChangedPath blocks common tool config files under allowlisted source trees", () => {

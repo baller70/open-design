@@ -136,6 +136,35 @@ export function isPendingApprovalRun(run: WorkflowRun, pull: PullRequest): boole
   );
 }
 
+function isSamePullRequest(candidate: WorkflowRun["pull_requests"][number] | PullRequest, pull: PullRequest): boolean {
+  return (
+    candidate.number === pull.number &&
+    candidate.head.sha === pull.head.sha &&
+    candidate.head.repo?.full_name === pull.head.repo?.full_name &&
+    candidate.base.ref === pull.base.ref &&
+    candidate.base.sha === pull.base.sha &&
+    candidate.base.repo.full_name === pull.base.repo.full_name
+  );
+}
+
+export function runTargetsPullRequest(
+  run: WorkflowRun,
+  pull: PullRequest,
+  associatedPullsForHeadSha: PullRequest[],
+): boolean {
+  if (run.pull_requests.length > 0) {
+    if (run.pull_requests.length !== 1) return false;
+    const [associatedPull] = run.pull_requests;
+    if (!associatedPull) return false;
+    return isSamePullRequest(associatedPull, pull);
+  }
+
+  if (associatedPullsForHeadSha.length !== 1) return false;
+  const [associatedPull] = associatedPullsForHeadSha;
+  if (!associatedPull) return false;
+  return isSamePullRequest(associatedPull, pull);
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -197,12 +226,22 @@ async function approveRun(run: WorkflowRun): Promise<void> {
   console.log(`Approved workflow run ${run.id} (${run.name ?? run.path})`);
 }
 
+async function listPullRequestsForHeadSha(repo: string, headSha: string): Promise<PullRequest[]> {
+  return githubPaginated<PullRequest>(`/repos/${repo}/commits/${headSha}/pulls`);
+}
+
 async function listPendingApprovalRuns(repo: string, pull: PullRequest): Promise<WorkflowRun[]> {
   const runs = await github<WorkflowRunsResponse>(
     `/repos/${repo}/actions/runs?event=pull_request&head_sha=${pull.head.sha}&status=action_required&per_page=100`,
   );
 
-  return runs.workflow_runs.filter((run) => isPendingApprovalRun(run, pull));
+  const associatedPullsForHeadSha = (await listPullRequestsForHeadSha(repo, pull.head.sha)).filter(
+    (candidate) => candidate.state === "open",
+  );
+
+  return runs.workflow_runs.filter(
+    (run) => isPendingApprovalRun(run, pull) && runTargetsPullRequest(run, pull, associatedPullsForHeadSha),
+  );
 }
 
 async function main(): Promise<void> {
