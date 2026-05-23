@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-23T08:50:07.597Z",
+  "generatedAt": "2026-05-23T10:43:05.880Z",
   "contributors": {
     "1115052994": {
       "lastAnnouncedTier": "spark",
@@ -1530,6 +1530,13 @@
       "lastKnownScore": 2,
       "lastCheckedAt": "2026-05-23T08:50:07.597Z",
       "scoreVersion": "weighted-v1"
+    },
+    "alex-vertrauensfunnel": {
+      "lastAnnouncedTier": "spark",
+      "lastKnownScore": 5,
+      "lastCheckedAt": "2026-05-23T10:43:05.879Z",
+      "scoreVersion": "weighted-v1",
+      "lastAnnouncedAt": "2026-05-23T10:43:05.879Z"
     }
   }
 }
