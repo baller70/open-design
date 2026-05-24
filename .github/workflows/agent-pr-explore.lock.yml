@@ -79,19 +79,6 @@ concurrency:
 run-name: "PR Explore Agent — system prompt"
 
 jobs:
-  eligibility_debug:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Print eligibility context
-        run: |
-          echo "event_name=${{ github.event_name }}"
-          echo "repository=${{ github.repository }}"
-          echo "repository_id=${{ github.repository_id }}"
-          echo "event.repository.id=${{ github.event.repository.id }}"
-          echo "head.repo.full_name=${{ github.event.pull_request.head.repo.full_name }}"
-          echo "head.repo.id=${{ github.event.pull_request.head.repo.id }}"
-          echo "author_association=${{ github.event.pull_request.author_association }}"
-
   activation:
     needs: pre_activation
     if: >
