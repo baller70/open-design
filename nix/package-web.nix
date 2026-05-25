@@ -51,6 +51,7 @@ in
     buildPhase = ''
       runHook preBuild
       for target in \
+        packages/components \
         packages/contracts \
         packages/host \
         packages/sidecar-proto \

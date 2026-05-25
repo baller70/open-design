@@ -62,6 +62,7 @@
         "pnpm-workspace.yaml"
         "tsconfig.json"
         "apps/web"
+        "packages/components"
         "packages/contracts"
         "packages/host"
         "packages/platform"
