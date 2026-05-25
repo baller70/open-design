@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-25T05:36:40.285Z",
+  "generatedAt": "2026-05-25T05:40:54.446Z",
   "contributors": {
     "1115052994": {
       "lastAnnouncedTier": "spark",
@@ -1668,6 +1668,13 @@
       "lastCheckedAt": "2026-05-25T05:25:53.695Z",
       "scoreVersion": "weighted-v1",
       "lastAnnouncedAt": "2026-05-25T05:25:53.695Z"
+    },
+    "aenawi": {
+      "lastAnnouncedTier": "signal",
+      "lastKnownScore": 31,
+      "lastCheckedAt": "2026-05-25T05:40:54.446Z",
+      "scoreVersion": "weighted-v1",
+      "lastAnnouncedAt": "2026-05-25T05:40:54.446Z"
     }
   }
 }
