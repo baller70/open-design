@@ -127,7 +127,13 @@ describe("copyOptionalVelaCliBinary", () => {
 
     try {
       await mkdir(join(root, "source"), { recursive: true });
+      await mkdir(join(root, "source", "libexec", "opencode"), { recursive: true });
       await writeFile(source, "#!/bin/sh\nexit 0\n", "utf8");
+      await writeFile(
+        join(root, "source", "libexec", "opencode", "opencode"),
+        "#!/bin/sh\nexit 0\n",
+        "utf8",
+      );
 
       const copied = await copyOptionalVelaCliBinary({
         env: { OPEN_DESIGN_VELA_CLI_BIN: source },
@@ -138,6 +144,9 @@ describe("copyOptionalVelaCliBinary", () => {
 
       const target = join(resourceRoot, "bin", "vela");
       await expect(readFile(target, "utf8")).resolves.toBe("#!/bin/sh\nexit 0\n");
+      await expect(
+        readFile(join(resourceRoot, "bin", "libexec", "opencode", "opencode"), "utf8"),
+      ).resolves.toBe("#!/bin/sh\nexit 0\n");
       await expect(access(target, constants.X_OK)).resolves.toBeUndefined();
       expect(copied).toEqual({ source, target });
       expect((await stat(target)).mode & 0o111).not.toBe(0);
@@ -153,7 +162,13 @@ describe("copyOptionalVelaCliBinary", () => {
 
     try {
       await mkdir(join(root, "source"), { recursive: true });
+      await mkdir(join(root, "source", "libexec", "opencode"), { recursive: true });
       await writeFile(source, "fake exe\n", "utf8");
+      await writeFile(
+        join(root, "source", "libexec", "opencode", "opencode.exe"),
+        "fake opencode exe\n",
+        "utf8",
+      );
 
       const copied = await copyOptionalVelaCliBinary({
         env: { OPEN_DESIGN_VELA_CLI_BIN: source },
@@ -163,6 +178,9 @@ describe("copyOptionalVelaCliBinary", () => {
 
       const target = join(resourceRoot, "bin", "vela.exe");
       await expect(readFile(target, "utf8")).resolves.toBe("fake exe\n");
+      await expect(
+        readFile(join(resourceRoot, "bin", "libexec", "opencode", "opencode.exe"), "utf8"),
+      ).resolves.toBe("fake opencode exe\n");
       expect(copied).toEqual({ source, target });
     } finally {
       await rm(root, { force: true, recursive: true });
@@ -176,7 +194,13 @@ describe("copyOptionalVelaCliBinary", () => {
 
     try {
       await mkdir(join(root, "source"), { recursive: true });
+      await mkdir(join(root, "source", "libexec", "opencode"), { recursive: true });
       await writeFile(source, "#!/bin/sh\nexit 0\n", "utf8");
+      await writeFile(
+        join(root, "source", "libexec", "opencode", "opencode"),
+        "#!/bin/sh\necho opencode\n",
+        "utf8",
+      );
 
       const copied = await copyOptionalVelaCliBinary({
         env: {},
@@ -190,6 +214,9 @@ describe("copyOptionalVelaCliBinary", () => {
 
       const target = join(resourceRoot, "bin", "vela");
       await expect(readFile(target, "utf8")).resolves.toBe("#!/bin/sh\nexit 0\n");
+      await expect(
+        readFile(join(resourceRoot, "bin", "libexec", "opencode", "opencode"), "utf8"),
+      ).resolves.toBe("#!/bin/sh\necho opencode\n");
       await expect(access(target, constants.X_OK)).resolves.toBeUndefined();
       expect(copied).toEqual({ source, target });
     } finally {

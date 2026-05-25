@@ -106,7 +106,13 @@ describe("prepareResourceTree", () => {
     try {
       await createWorkspaceFixture(workspaceRoot);
       await mkdir(join(root, "source"), { recursive: true });
+      await mkdir(join(root, "source", "libexec", "opencode"), { recursive: true });
       await writeFile(source, "fake vela exe\n", "utf8");
+      await writeFile(
+        join(root, "source", "libexec", "opencode", "opencode.exe"),
+        "fake opencode exe\n",
+        "utf8",
+      );
       process.env.OPEN_DESIGN_VELA_CLI_BIN = source;
 
       await prepareResourceTree(config, paths, cache, { materialize: true });
@@ -114,6 +120,9 @@ describe("prepareResourceTree", () => {
       await expect(readFile(join(resourceRoot, "bin", "vela.exe"), "utf8")).resolves.toBe(
         "fake vela exe\n",
       );
+      await expect(
+        readFile(join(resourceRoot, "bin", "libexec", "opencode", "opencode.exe"), "utf8"),
+      ).resolves.toBe("fake opencode exe\n");
     } finally {
       if (originalVelaBin == null) delete process.env.OPEN_DESIGN_VELA_CLI_BIN;
       else process.env.OPEN_DESIGN_VELA_CLI_BIN = originalVelaBin;

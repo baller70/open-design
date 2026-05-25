@@ -1,4 +1,4 @@
-import { chmod, cp, mkdir } from "node:fs/promises";
+import { chmod, cp, mkdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 export const VELA_CLI_BIN_ENV = "OPEN_DESIGN_VELA_CLI_BIN";
@@ -47,10 +47,42 @@ export async function copyOptionalVelaCliBinary({
   const target = join(resourceRoot, "bin", targetBinaryName(platform));
   await mkdir(dirname(target), { recursive: true });
   await cp(source, target);
+  await copyAdjacentSupportTree({ source, target, supportTreeName: "libexec" });
   if (platform !== "win") {
     await chmod(target, 0o755);
   }
   return { source, target };
+}
+
+async function copyAdjacentSupportTree({
+  source,
+  target,
+  supportTreeName,
+}: {
+  source: string;
+  target: string;
+  supportTreeName: string;
+}): Promise<void> {
+  const sourceSupportTree = join(dirname(source), supportTreeName);
+  const targetSupportTree = join(dirname(target), supportTreeName);
+
+  try {
+    const sourceSupportTreeStat = await stat(sourceSupportTree);
+    if (!sourceSupportTreeStat.isDirectory()) return;
+  } catch (error) {
+    if (isNotFoundError(error)) return;
+    throw error;
+  }
+
+  await cp(sourceSupportTree, targetSupportTree, { recursive: true });
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
 }
 
 export async function resolveOptionalVelaCliBinary({
