@@ -2,6 +2,7 @@
 
 import { execFile, spawn, type ChildProcessByStdio } from 'node:child_process';
 import { access, mkdir, stat, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
@@ -260,7 +261,7 @@ macDescribe('packaged mac runtime smoke', () => {
       expect(updateStatus.update?.channel).toBe(updateScenario.channel);
       expect(updateStatus.update?.currentVersion).toBe(updateScenario.expectedCurrentVersion);
       expect(updateStatus.update?.availableVersion).toBe(updaterFixture.info.version);
-      expectPathInside(updateStatus.update?.downloadPath ?? '', join(runtimeNamespaceRoot, 'updates'));
+      expectPathInside(updateStatus.update?.downloadPath ?? '', packagedMacUpdateRoot());
 
       const clickInstall = await runToolsPackJson<MacInspectResult>('inspect', ['--expr', clickUpdaterInstallExpression]);
       const clickValue = assertUpdaterClickEvalValue(clickInstall.eval?.value);
@@ -268,7 +269,7 @@ macDescribe('packaged mac runtime smoke', () => {
       const updateInstall = await waitForUpdaterInstallerOpened();
       expect(updateInstall.update?.state).toBe('downloaded');
       expect(updateInstall.update?.installResult?.dryRun).toBe(true);
-      expectPathInside(updateInstall.update?.installResult?.path ?? '', join(runtimeNamespaceRoot, 'updates'));
+      expectPathInside(updateInstall.update?.installResult?.path ?? '', packagedMacUpdateRoot());
 
       await mkdir(dirname(screenshotPath), { recursive: true });
       const screenshot = await runToolsPackJson<MacInspectResult>('inspect', ['--path', screenshotPath]);
@@ -1875,9 +1876,32 @@ async function fileSizeBytes(filePath: string): Promise<number> {
 }
 
 async function seedPackagedOnboardingComplete(): Promise<void> {
-  const configPath = join(runtimeNamespaceRoot, 'data', 'app-config.json');
-  await mkdir(dirname(configPath), { recursive: true });
-  await writeFile(configPath, `${JSON.stringify({ onboardingCompleted: true }, null, 2)}\n`, 'utf8');
+  const payload = `${JSON.stringify({ onboardingCompleted: true }, null, 2)}\n`;
+  const configPaths = new Set([
+    join(runtimeNamespaceRoot, 'data', 'app-config.json'),
+    join(packagedMacUserDataRoot(), 'namespaces', namespace, 'data', 'app-config.json'),
+  ]);
+
+  for (const configPath of configPaths) {
+    await mkdir(dirname(configPath), { recursive: true });
+    await writeFile(configPath, payload, 'utf8');
+  }
+}
+
+function packagedMacUserDataRoot(): string {
+  return join(homedir(), 'Library', 'Application Support', packagedMacProductName());
+}
+
+function packagedMacUpdateRoot(): string {
+  return join(packagedMacUserDataRoot(), 'namespaces', namespace, 'updates');
+}
+
+function packagedMacProductName(): string {
+  const channelToken = `${releaseVersion ?? ''} ${namespace}`;
+  if (/(^|[-_.\s])beta($|[-_.\s])/i.test(channelToken)) return 'Open Design Beta';
+  if (/(^|[-_.\s])preview($|[-_.\s])/i.test(channelToken)) return 'Open Design Preview';
+  if (/(^|[-_.\s])nightly($|[-_.\s])/i.test(channelToken)) return 'Open Design Nightly';
+  return 'Open Design';
 }
 
 function resolveFromWorkspace(filePath: string): string {
