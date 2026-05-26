@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-26T07:40:09.837Z",
+  "generatedAt": "2026-05-26T07:42:12.501Z",
   "contributors": {
     "1115052994": {
       "lastAnnouncedTier": "spark",
@@ -1439,11 +1439,11 @@
       "lastAnnouncedAt": "2026-05-22T10:46:02.356Z"
     },
     "amyshang-alt": {
-      "lastAnnouncedTier": "signal",
-      "lastKnownScore": 145,
-      "lastCheckedAt": "2026-05-26T07:25:09.490Z",
+      "lastAnnouncedTier": "node",
+      "lastKnownScore": 150,
+      "lastCheckedAt": "2026-05-26T07:42:12.501Z",
       "scoreVersion": "weighted-v1",
-      "lastAnnouncedAt": "2026-05-25T06:41:14.272Z"
+      "lastAnnouncedAt": "2026-05-26T07:42:12.501Z"
     },
     "irfanfathan": {
       "lastAnnouncedTier": "spark",
