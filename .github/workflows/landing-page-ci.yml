@@ -101,9 +101,12 @@ jobs:
         run: pnpm --filter @open-design/landing-page previews
 
       # No PUBLIC_GA_MEASUREMENT_ID for PR/CI builds: the per-PR preview must
-      # not report into the production GA property. Only
-      # `landing-page-production` builds with GA enabled.
+      # not report into the production GA property. OD_LANDING_NOINDEX=1 keeps
+      # the PR preview (pr-<n>.open-design-landing-staging.pages.dev) out of
+      # search engines. Only `landing-page-production` builds without these.
       - name: Build landing page
+        env:
+          OD_LANDING_NOINDEX: '1'
         run: pnpm --filter @open-design/landing-page build:static
 
       - name: Lint changed blog SEO
