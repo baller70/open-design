@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-26T12:59:01.663Z",
-  "totalContributors": 1,
+  "generatedAt": "2026-05-26T13:04:26.766Z",
+  "totalContributors": 2,
   "contributors": {
     "ashleytheash": {
       "username": "ashleytheash",
@@ -18,6 +18,29 @@
         {
           "tier": "spark",
           "reachedAt": "2026-05-26T12:59:01.663Z"
+        }
+      ]
+    },
+    "lefarcen": {
+      "username": "lefarcen",
+      "avatarUrl": "https://avatars.githubusercontent.com/u/20859779?v=4",
+      "points": 30,
+      "tier": "signal",
+      "prsMerged": 1,
+      "reviews": 0,
+      "discussionsAnswered": 0,
+      "issuesAccepted": 0,
+      "streakWeeks": 0,
+      "lastActiveAt": "2026-05-26T13:04:26.766Z",
+      "founding": false,
+      "tierHistory": [
+        {
+          "tier": "spark",
+          "reachedAt": "2026-05-26T13:04:26.766Z"
+        },
+        {
+          "tier": "signal",
+          "reachedAt": "2026-05-26T13:04:26.766Z"
         }
       ]
     }
