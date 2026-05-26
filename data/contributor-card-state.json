@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-26T07:52:28.347Z",
+  "generatedAt": "2026-05-26T07:56:15.406Z",
   "contributors": {
     "1115052994": {
       "lastAnnouncedTier": "spark",
@@ -1823,8 +1823,8 @@
     },
     "cocodillaawallpapers": {
       "lastAnnouncedTier": "spark",
-      "lastKnownScore": 2,
-      "lastCheckedAt": "2026-05-26T07:48:17.926Z",
+      "lastKnownScore": 7,
+      "lastCheckedAt": "2026-05-26T07:56:15.406Z",
       "scoreVersion": "weighted-v1"
     }
   }
