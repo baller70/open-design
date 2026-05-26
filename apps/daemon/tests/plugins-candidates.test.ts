@@ -61,6 +61,26 @@ describe('skill plugin candidate detection', () => {
     expect(candidate.draftInput.contentExcerpt).toContain('Use this skill');
   });
 
+  it('deduplicates the same SKILL.md found through attachments and prompt mentions', async () => {
+    await writeFile(
+      path.join(tmpRoot, 'SKILL.md'),
+      `---\nname: launch-brief\ndescription: Reusable launch brief workflow.\n---\n# Launch Brief\n\nUse this skill when preparing launch copy.\n`,
+      'utf8',
+    );
+
+    const candidates = await detectSkillPluginCandidates({
+      projectRoot: tmpRoot,
+      attachments: ['SKILL.md'],
+      message: 'Use the uploaded SKILL.md.',
+    });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({
+      sourceRef: 'SKILL.md',
+      fingerprint: candidates[0]!.fingerprint,
+    });
+  });
+
   it('detects clearly reusable markdown skill docs and plugin-like repo links', async () => {
     await mkdir(path.join(tmpRoot, 'docs'), { recursive: true });
     await writeFile(
@@ -82,6 +102,22 @@ describe('skill plugin candidate detection', () => {
       .toBe('Research Agent');
     expect(candidates.find((candidate) => candidate.sourceKind === 'repo-link')?.draftInput.artifactKind)
       .toBe('repo-plugin');
+  });
+
+  it('deduplicates GitHub shorthand and URL spellings for the same repository artifact', async () => {
+    const candidates = await detectSkillPluginCandidates({
+      projectRoot: tmpRoot,
+      message: [
+        'github:nexu-io/open-design/blob/main/skills/foo/SKILL.md',
+        'https://github.com/nexu-io/open-design/blob/main/skills/foo/SKILL.md',
+      ].join('\n'),
+    });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({
+      sourceKind: 'repo-link',
+      sourceRef: 'https://github.com/nexu-io/open-design/blob/main/skills/foo/SKILL.md',
+    });
   });
 
   it('does not treat generic prompt heading blocks as candidates', async () => {
@@ -202,6 +238,52 @@ describe('skill plugin candidate persistence', () => {
         title: 'edited-skill',
         description: 'Edited reusable workflow.',
         fingerprint: firstCandidate!.fingerprint,
+      },
+    ]);
+  });
+
+  it('keeps a GitHub source dismissed across shorthand and URL spellings', async () => {
+    const [shorthandCandidate] = await detectSkillPluginCandidates({
+      projectRoot: tmpRoot,
+      message: 'github:nexu-io/open-design/blob/main/skills/foo/SKILL.md',
+    });
+    const [urlCandidate] = await detectSkillPluginCandidates({
+      projectRoot: tmpRoot,
+      message: 'https://github.com/nexu-io/open-design/blob/main/skills/foo/SKILL.md',
+    });
+    expect(shorthandCandidate).toBeTruthy();
+    expect(urlCandidate).toBeTruthy();
+    expect(urlCandidate!.fingerprint).toBe(shorthandCandidate!.fingerprint);
+
+    const [persisted] = persistSkillPluginCandidates(db, {
+      projectId: 'project-a',
+      runId: 'run-1',
+      candidates: [shorthandCandidate!],
+      now: 100,
+    });
+    expect(persisted).toBeTruthy();
+
+    dismissSkillPluginCandidate(db, {
+      projectId: 'project-a',
+      candidateId: persisted!.id,
+      now: 200,
+    });
+
+    const activeRows = persistSkillPluginCandidates(db, {
+      projectId: 'project-a',
+      runId: 'run-2',
+      candidates: [urlCandidate!],
+      now: 300,
+    });
+
+    expect(activeRows).toEqual([]);
+    expect(listSkillPluginCandidates(db, 'project-a')).toEqual([]);
+    expect(listSkillPluginCandidates(db, 'project-a', { includeDismissed: true })).toMatchObject([
+      {
+        id: persisted!.id,
+        status: 'dismissed',
+        sourceRef: 'https://github.com/nexu-io/open-design/blob/main/skills/foo/SKILL.md',
+        fingerprint: shorthandCandidate!.fingerprint,
       },
     ]);
   });

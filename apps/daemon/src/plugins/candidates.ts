@@ -55,16 +55,12 @@ function normalizeMarkdownText(value: string): string {
   return value.replace(/\r\n?/g, '\n');
 }
 
-function normalizeSourceRefForIdentity(sourceRef: string): string {
+function normalizeFileSourceRefForIdentity(sourceRef: string): string {
   return sourceRef.replace(/\\/g, '/').trim();
 }
 
-function candidateFingerprint(sourceKind: SkillPluginCandidateSourceKind, sourceRef: string): string {
-  return createHash('sha256')
-    .update(sourceKind)
-    .update('\0')
-    .update(normalizeSourceRefForIdentity(sourceRef))
-    .digest('hex');
+function candidateFingerprint(sourceRef: string): string {
+  return createHash('sha256').update(normalizeFileSourceRefForIdentity(sourceRef)).digest('hex');
 }
 
 function deriveTitle(markdown: string, fallback: string): string {
@@ -122,7 +118,7 @@ function markdownCandidate(
     confidence: explicitSkillMd ? 0.96 : 0.72,
     title,
     ...(description ? { description } : {}),
-    fingerprint: candidateFingerprint(sourceKind, sourceRef),
+    fingerprint: candidateFingerprint(sourceRef),
     draftInput: {
       artifactKind: explicitSkillMd ? 'skill-md' : 'markdown-skill-doc',
       source: sourceRef,
@@ -136,7 +132,11 @@ function markdownCandidate(
 
 function normalizeGithubRef(raw: string): string | null {
   const trimmed = raw.replace(/[.,;:!?]+$/g, '');
-  if (trimmed.startsWith('github:')) return trimmed;
+  if (trimmed.startsWith('github:')) {
+    const parts = trimmed.slice('github:'.length).split('/').filter(Boolean);
+    if (parts.length < 2) return null;
+    return `https://github.com/${parts.join('/')}`;
+  }
   try {
     const url = new URL(trimmed);
     if (url.hostname !== 'github.com') return null;
@@ -172,7 +172,7 @@ function repoCandidate(ref: string): SkillPluginCandidateInput | null {
     confidence: ref.toLowerCase().includes('skill.md') || ref.toLowerCase().includes('open-design.json') ? 0.84 : 0.68,
     title: repoTitle,
     description: 'Repository link contains plugin-like Open Design files.',
-    fingerprint: candidateFingerprint('repo-link', ref),
+    fingerprint: candidateFingerprint(ref),
     draftInput: {
       artifactKind: 'repo-plugin',
       source: ref,
@@ -218,6 +218,12 @@ export async function detectSkillPluginCandidates(
 ): Promise<SkillPluginCandidateInput[]> {
   const found = new Map<string, SkillPluginCandidateInput>();
   const root = typeof input.projectRoot === 'string' && input.projectRoot ? input.projectRoot : null;
+  const addCandidate = (candidate: SkillPluginCandidateInput): void => {
+    const existing = found.get(candidate.fingerprint);
+    if (!existing || candidate.confidence > existing.confidence) {
+      found.set(candidate.fingerprint, candidate);
+    }
+  };
 
   if (root && Array.isArray(input.attachments)) {
     for (const attachment of input.attachments) {
@@ -227,7 +233,7 @@ export async function detectSkillPluginCandidates(
       const body = await readMarkdownUnderProject(root, rel);
       if (!body) continue;
       const candidate = markdownCandidate('project-file', rel, body);
-      if (candidate) found.set(candidate.fingerprint, candidate);
+      if (candidate) addCandidate(candidate);
     }
   }
 
@@ -236,7 +242,7 @@ export async function detectSkillPluginCandidates(
     const ref = normalizeGithubRef(match[0]);
     if (!ref) continue;
     const candidate = repoCandidate(ref);
-    if (candidate) found.set(candidate.fingerprint, candidate);
+    if (candidate) addCandidate(candidate);
   }
 
   if (root) {
@@ -247,7 +253,7 @@ export async function detectSkillPluginCandidates(
       const body = await readMarkdownUnderProject(root, rel);
       if (!body) continue;
       const candidate = markdownCandidate('referenced-file', rel, body);
-      if (candidate) found.set(candidate.fingerprint, candidate);
+      if (candidate) addCandidate(candidate);
     }
   }
 
