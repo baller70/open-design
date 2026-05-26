@@ -206,7 +206,7 @@ macDescribe('packaged mac runtime smoke', () => {
       started = true;
 
       expect(start.namespace).toBe(namespace);
-      expect(start.source).toBe('installed');
+      expect(start.source).toBe('launcher-entry');
       expect(start.appPath).toBe(install.installedAppPath);
       expectPathInside(start.logPath, join(runtimeNamespaceRoot, 'logs', 'desktop'));
       expect(start.pid).toBeGreaterThan(0);
