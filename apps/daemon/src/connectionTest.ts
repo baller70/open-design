@@ -217,7 +217,8 @@ function agentTimeoutMs(): number {
   );
 }
 
-function mergeNoProxyWithLoopbackDefaults(noProxy: string | undefined): string | null {
+export function mergeNoProxyWithLoopbackDefaults(noProxy: string | undefined): string | null {
+  if (noProxy?.trim() === '*') return '*';
   const seen = new Set<string>();
   const values: string[] = [];
   for (const rawToken of [

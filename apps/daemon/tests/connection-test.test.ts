@@ -11,6 +11,7 @@ import * as platform from '@open-design/platform';
 import {
   createAgentSink,
   isSmokeOkReply,
+  mergeNoProxyWithLoopbackDefaults,
   redactSecrets,
   resolveConnectionTestTimeoutMs,
   testAgentConnection,
@@ -1533,6 +1534,10 @@ describe('POST /api/test/connection provider mode', () => {
     } finally {
       proxySpy.mockRestore();
     }
+  });
+
+  it('preserves a wildcard NO_PROXY when adding loopback defaults', () => {
+    expect(mergeNoProxyWithLoopbackDefaults('*')).toBe('*');
   });
 
   it('keeps loopback provider probes off the proxy when user NO_PROXY omits localhost', async () => {
