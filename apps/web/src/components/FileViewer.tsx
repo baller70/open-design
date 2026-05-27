@@ -5161,6 +5161,17 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
     return true;
   }
 
+  function cancelManualEditModeAndExit() {
+    cancelManualEditStyleDraft();
+    selectedManualEditTargetIdRef.current = null;
+    setSelectedManualEditTarget(null);
+    setManualEditPanelPosition(null);
+    setManualEditDraft(emptyManualEditDraft(sourceRef.current ?? ''));
+    setManualEditError(null);
+    setManualEditMode(false);
+    postSelectedManualEditTargetToIframe(null);
+  }
+
   async function selectManualEditTarget(target: ManualEditTarget) {
     if (manualEditPendingStyleRef.current?.id !== target.id) cancelManualEditStyleDraft();
     const base = sourceRef.current ?? '';
@@ -6253,10 +6264,10 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
         void exitManualEditModeAfterFlush();
       }}
       onCancelDraft={() => {
-        cancelManualEditStyleDraft();
+        cancelManualEditModeAndExit();
       }}
       onSaveDraft={() => {
-        void flushManualEditStyleSave();
+        void exitManualEditModeAfterFlush();
       }}
       onUndo={() => {
         void undoManualEdit();

@@ -201,6 +201,81 @@ describe('FileViewer manual edit regressions', () => {
       expect(screen.queryByText(/Could not save the edited file/)).toBeNull();
     });
   });
+
+  it('closes manual edit without saving when footer cancel is clicked', async () => {
+    const source = '<!doctype html><html><body><main data-od-id="hero">Hero</main></body></html>';
+    const fetchMock = vi.fn(async () =>
+      new Response(source, { status: 200, headers: { 'Content-Type': 'text/html' } }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <FileViewer projectId="project-1" projectKind="prototype" file={htmlPreviewFile()}
+        liveHtml={source}
+      />,
+    );
+
+    clickManualTool('manual-edit-mode-toggle');
+    const baseSizeInput = await waitFor(() => {
+      const input = Array.from(document.querySelectorAll('.cc-row'))
+        .find((row) => row.textContent?.includes('Base size'))
+        ?.querySelector('input') as HTMLInputElement | null;
+      if (!input) throw new Error('Base size input not found');
+      return input;
+    });
+
+    fireEvent.change(baseSizeInput, { target: { value: '18' } });
+    fireEvent.click(screen.getByText('Cancel'));
+
+    await waitFor(() => {
+      expect(document.querySelector('.manual-edit-right')).toBeNull();
+    });
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/projects/project-1/files',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('closes manual edit after footer save succeeds', async () => {
+    const source = '<!doctype html><html><body><main data-od-id="hero">Hero</main></body></html>';
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+      if (url.includes('/api/projects/project-1/files') && init?.method === 'POST') {
+        return new Response(JSON.stringify({ file: htmlPreviewFile() }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(source, { status: 200, headers: { 'Content-Type': 'text/html' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <FileViewer projectId="project-1" projectKind="prototype" file={htmlPreviewFile()}
+        liveHtml={source}
+      />,
+    );
+
+    clickManualTool('manual-edit-mode-toggle');
+    const baseSizeInput = await waitFor(() => {
+      const input = Array.from(document.querySelectorAll('.cc-row'))
+        .find((row) => row.textContent?.includes('Base size'))
+        ?.querySelector('input') as HTMLInputElement | null;
+      if (!input) throw new Error('Base size input not found');
+      return input;
+    });
+
+    fireEvent.change(baseSizeInput, { target: { value: '18' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/projects/project-1/files',
+        expect.objectContaining({ method: 'POST' }),
+      );
+      expect(document.querySelector('.manual-edit-right')).toBeNull();
+    });
+  });
 });
 
 function htmlPreviewFile(): ProjectFile {
