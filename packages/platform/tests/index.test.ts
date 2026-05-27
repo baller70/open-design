@@ -187,6 +187,31 @@ describe("system proxy env resolution", () => {
     });
   });
 
+  it("brackets IPv6 system proxy hosts before composing proxy URLs", () => {
+    const env = parseMacosScutilProxyOutput(`
+<dictionary> {
+  HTTPEnable : 1
+  HTTPPort : 7890
+  HTTPProxy : ::1
+  HTTPSEnable : 1
+  HTTPSPort : 7891
+  HTTPSProxy : 2001:db8::10
+  SOCKSEnable : 1
+  SOCKSPort : 1080
+  SOCKSProxy : fe80::1
+}
+`);
+
+    expect(env).toMatchObject({
+      HTTP_PROXY: "http://[::1]:7890",
+      HTTPS_PROXY: "http://[2001:db8::10]:7891",
+      ALL_PROXY: "socks5://[fe80::1]:1080",
+      http_proxy: "http://[::1]:7890",
+      https_proxy: "http://[2001:db8::10]:7891",
+      all_proxy: "socks5://[fe80::1]:1080",
+    });
+  });
+
   it("parses Windows Internet Settings proxy registry values", () => {
     const env = parseWindowsInternetSettingsProxyOutput({
       proxyEnable: `

@@ -235,7 +235,11 @@ function normalizeHostPortProxyUrl(
   const trimmedHost = host?.trim() ?? "";
   const trimmedPort = port?.trim() ?? "";
   if (!trimmedHost || !trimmedPort) return null;
-  return normalizeProxyUrl(`${trimmedHost}:${trimmedPort}`, scheme);
+  const normalizedHost =
+    trimmedHost.includes(":") && !trimmedHost.startsWith("[") && !trimmedHost.endsWith("]")
+      ? `[${trimmedHost}]`
+      : trimmedHost;
+  return normalizeProxyUrl(`${normalizedHost}:${trimmedPort}`, scheme);
 }
 
 function finalizeSystemProxyEnv(
