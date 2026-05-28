@@ -321,6 +321,20 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settin
     expect(env.no_proxy).toBe("*");
   });
 
+  it("adds <local> to the macOS bypass list when simple hostnames are excluded", () => {
+    const env = parseMacosScutilProxyOutput(`
+<dictionary> {
+  ExcludeSimpleHostnames : 1
+  HTTPEnable : 1
+  HTTPPort : 7890
+  HTTPProxy : 127.0.0.1
+}
+`);
+
+    expect(env.NO_PROXY).toBe("<local>,localhost,127.0.0.1,[::1],.local");
+    expect(env.no_proxy).toBe("<local>,localhost,127.0.0.1,[::1],.local");
+  });
+
   it("preserves a wildcard Windows bypass list", () => {
     const env = parseWindowsInternetSettingsProxyOutput({
       proxyEnable: `

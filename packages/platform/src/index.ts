@@ -314,7 +314,10 @@ export function parseMacosScutilProxyOutput(
       allProxy,
       httpProxy,
       httpsProxy,
-      noProxy: buildNoProxyValue(exceptions),
+      noProxy: buildNoProxyValue([
+        ...exceptions,
+        ...(scalars.get("ExcludeSimpleHostnames") === "1" ? ["<local>"] : []),
+      ]),
     },
     platform,
   );
