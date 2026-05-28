@@ -262,8 +262,12 @@ function Write-IndexAndSummary([string]$Status) {
   if ($artifactSummary -ne $null) {
     $summary += ""
     $summary += "### Artifacts"
-    $summary += "- installer: ``$($artifactSummary.installerPath)``"
-    $summary += "- portableZip: ``$($artifactSummary.portableZipPath)``"
+    if ($artifactSummary.installerPath -ne $null) {
+      $summary += "- installer: ``$($artifactSummary.installerPath)``"
+    }
+    if ($artifactSummary.portableZipPath -ne $null) {
+      $summary += "- portableZip: ``$($artifactSummary.portableZipPath)``"
+    }
   }
 
   if ($script:timings.Count -gt 0) {

@@ -18,7 +18,11 @@ import {
   readPackagedVersion,
 } from "./manifest.js";
 import { resolveWinPaths } from "./paths.js";
-import { collectWinSizeReport } from "./report.js";
+import {
+  collectWinSizeReport,
+  shouldBuildWinNsisInstaller,
+  shouldBuildWinPortableZip,
+} from "./report.js";
 import { copyWinIcon, prepareResourceTree } from "./resources.js";
 import type { WinPackResult, WinPackTiming, WinPaths } from "./types.js";
 
@@ -86,12 +90,14 @@ export async function packWin(config: ToolPackConfig): Promise<WinPackResult> {
   });
   const builtApp = await readBuiltAppManifest(paths);
   const sizeReport = await runPhase("size-report", async () => collectWinSizeReport(config, paths, builtApp));
+  const hasNsisTarget = shouldBuildWinNsisInstaller(config.to);
+  const hasZipTarget = shouldBuildWinPortableZip(config.to);
   return {
     blockmapPath: (await pathExists(paths.blockmapPath)) ? paths.blockmapPath : null,
-    installerPath: (await pathExists(paths.setupPath)) ? paths.setupPath : null,
-    latestYmlPath: (await pathExists(paths.latestYmlPath)) ? paths.latestYmlPath : null,
+    installerPath: hasNsisTarget && await pathExists(paths.setupPath) ? paths.setupPath : null,
+    latestYmlPath: hasNsisTarget && await pathExists(paths.latestYmlPath) ? paths.latestYmlPath : null,
     outputRoot: config.roots.output.namespaceRoot,
-    portableZipPath: (await pathExists(paths.setupZipPath)) ? paths.setupZipPath : null,
+    portableZipPath: hasZipTarget && await pathExists(paths.setupZipPath) ? paths.setupZipPath : null,
     resourceRoot: builtApp == null ? paths.resourceRoot : join(builtApp.unpackedRoot, "resources", "open-design"),
     runtimeNamespaceRoot: config.roots.runtime.namespaceRoot,
     cacheReport: cache.report(),
