@@ -349,6 +349,7 @@ try {
   Measure-Step "write index" {
     Write-IndexAndSummary "success"
   }
+  Write-IndexAndSummary "success"
 
   Write-Host "release-beta-s index: $indexPath"
 } catch {

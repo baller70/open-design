@@ -29,7 +29,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  windows_probe:
+  build_win:
     name: Build Windows beta candidate
     if: ${{ inputs.enable_win }}
     runs-on: [self-hosted, Windows, X64, nexu-win, release-beta]
@@ -41,6 +41,13 @@ jobs:
           clean: false
           fetch-depth: 1
           lfs: false
+
+      - name: Validate publish mode
+        if: ${{ inputs.publish }}
+        shell: cmd
+        run: |
+          @echo on
+          powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "throw 'release-beta-s publish mode is not wired yet; keep publish=false until the internal publisher is added'"
 
       - name: Build beta candidate
         shell: cmd
