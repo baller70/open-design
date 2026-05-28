@@ -13,6 +13,7 @@ import {
   trackArtifactExportResult,
   trackArtifactHeaderClick,
   trackArtifactToolbarClick,
+  trackCommentPopoverClick,
   trackPageView,
   trackPresentPopoverClick,
   trackShareOptionPopoverClick,
@@ -3783,6 +3784,17 @@ function HtmlViewer({
       artifact_kind: artifactKindToTracking({ fileKind: file.kind ?? null }),
     });
   };
+  const fireCommentPopoverClick = (
+    element: 'save_comment' | 'send_to_chat' | 'add_note',
+  ) => {
+    trackCommentPopoverClick(analytics.track, {
+      page_name: 'artifact',
+      area: 'comment_popover',
+      element,
+      artifact_id: anonymizeArtifactId({ projectId, fileName: file.name }),
+      artifact_kind: artifactKindToTracking({ fileKind: file.kind ?? null }),
+    });
+  };
   const [mode, setMode] = useState<'preview' | 'source'>('preview');
   const [source, setSource] = useState<string | null>(liveHtml ?? null);
   const [inlinedSource, setInlinedSource] = useState<string | null>(null);
@@ -4350,13 +4362,9 @@ function HtmlViewer({
     [previewSource, effectiveDeck, projectId, file.name, previewStateKey, manualEditMode],
   );
   const lazySrcDocTransport = useMemo(() => buildLazySrcdocTransport(), []);
-  const [hasLazySrcDocTransport, setHasLazySrcDocTransport] = useState(useUrlLoadPreview);
   const [srcDocTransportResetKey, setSrcDocTransportResetKey] = useState(0);
   const [srcDocShellReady, setSrcDocShellReady] = useState(false);
   const wasUrlLoadPreviewRef = useRef(useUrlLoadPreview);
-  useEffect(() => {
-    if (useUrlLoadPreview) setHasLazySrcDocTransport(true);
-  }, [useUrlLoadPreview]);
   // Reset the shell-ready latch whenever the srcDoc iframe re-mounts. The
   // next shell will post `od:srcdoc-transport-ready` (or fire onLoad) and
   // flip this back to true. See #2253.
@@ -4378,7 +4386,11 @@ function HtmlViewer({
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, []);
-  const useLazySrcDocTransport = !manualEditMode && (useUrlLoadPreview || hasLazySrcDocTransport);
+  // Lazy transport preloads an empty shell only while URL-load is the active
+  // transport. Once srcdoc becomes active (sandbox shim, Draw, Tweaks, etc.),
+  // mount the real artifact HTML directly so we do not depend on a postMessage
+  // activation that can race (#2253) and strand the iframe blank (#2361, #2791).
+  const useLazySrcDocTransport = !manualEditMode && useUrlLoadPreview;
   const srcDocTransportContent = useLazySrcDocTransport ? lazySrcDocTransport : srcDoc;
   const urlTransportSrc = useUrlLoadPreview ? activePreviewSrcUrl : 'about:blank';
   const activateSrcDocTransport = useCallback((target: HTMLIFrameElement | null = srcDocPreviewIframeRef.current) => {
@@ -4435,6 +4447,10 @@ function HtmlViewer({
       }
       wasUrlLoadPreviewRef.current = true;
       return;
+    }
+    if (wasUrlLoadPreviewRef.current) {
+      setSrcDocTransportResetKey((key) => key + 1);
+      activatedSrcDocTransportHtmlRef.current = null;
     }
     wasUrlLoadPreviewRef.current = false;
     activateSrcDocTransport();
@@ -6116,8 +6132,8 @@ function HtmlViewer({
         setQueuedBoardNotes((current) => current.filter((_, currentIndex) => currentIndex !== index))
       }
       onClose={clearBoardComposer}
-      onSaveComment={savePersistentComment}
-      onSendBatch={sendBoardBatch}
+      onSaveComment={() => { fireCommentPopoverClick('save_comment'); return savePersistentComment(); }}
+      onSendBatch={() => { fireCommentPopoverClick('send_to_chat'); return sendBoardBatch(); }}
       onRemoveMember={(elementId) => {
         setActiveCommentTarget((current) => {
           const { next, shouldClose } = applyPodMemberRemoval(current, elementId);
@@ -6189,6 +6205,7 @@ function HtmlViewer({
           (comment) => selectedSideCommentIds.has(comment.id),
         );
         if (selected.length === 0) return;
+        fireCommentPopoverClick('send_to_chat');
         setSendingBoardBatch(true);
         try {
           await onSendBoardCommentAttachments(commentsToAttachments(selected));

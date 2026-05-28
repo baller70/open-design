@@ -1906,7 +1906,7 @@ function StagedAttachments({
           );
         })}
       </div>
-      {preview && previewUrl ? (
+      {preview && previewUrl ? createPortal(
         <div
           className="staged-preview-modal"
           role="dialog"
@@ -1931,7 +1931,8 @@ function StagedAttachments({
             </div>
             <img src={previewUrl} alt={preview.name} />
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );
