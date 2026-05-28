@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
+import type { CSSProperties } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { JSDOM } from 'jsdom';
@@ -27,6 +28,8 @@ type OnInvalidStyle = (id: string, keys: Array<keyof ManualEditStyles>) => void;
 type OnApplyPatch = (patch: ManualEditPatch, label: string) => void;
 type OnError = (message: string) => void;
 type OnClearSelection = () => void;
+type OnSaveDraft = () => void;
+type OnCancelDraft = () => void;
 
 describe('ManualEditPanel', () => {
   let dom: JSDOM;
@@ -59,6 +62,30 @@ describe('ManualEditPanel', () => {
     expect(host.textContent).not.toContain('Advanced');
   });
 
+  it('shows a readable selected element name in the titlebar', () => {
+    renderPanel({
+      selectedTarget: {
+        ...target,
+        id: 'path-0-0',
+        kind: 'container',
+        label: 'div.container.hero-split',
+        className: 'container hero-split',
+        text: 'Turn a brand brief into an editorial collage system.',
+        attributes: { 'data-od-source-path': 'path-0-0' },
+      },
+    });
+
+    expect(host.querySelector('.manual-edit-titlebar')?.textContent).toContain('Hero split');
+    expect(host.querySelector('.manual-edit-titlebar')?.textContent).not.toContain('div.container');
+  });
+
+  it('shows a drag handle for floating edit panels', () => {
+    renderPanel({ floatingStyle: { left: 20, top: 24, width: 320, height: 380 } });
+
+    expect(host.querySelector('.manual-edit-drag-handle')).not.toBeNull();
+    expect(host.querySelector('.manual-edit-drag-handle')?.getAttribute('aria-label')).toBe('Move edit panel');
+  });
+
   it('allows returning from an element inspector to the page inspector', () => {
     const onClearSelection = vi.fn();
     renderPanel({ onClearSelection });
@@ -71,6 +98,39 @@ describe('ManualEditPanel', () => {
     });
 
     expect(onClearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps inspector controls scrollable separately from footer actions', () => {
+    renderPanel();
+
+    const scrollRegion = host.querySelector('.manual-edit-scroll');
+    const footer = host.querySelector('.manual-edit-footer');
+    const deleteButton = host.querySelector('button[aria-label="Delete element"]');
+
+    expect(scrollRegion?.textContent).toContain('TYPOGRAPHY');
+    expect(scrollRegion?.contains(deleteButton)).toBe(false);
+    expect(footer?.contains(deleteButton)).toBe(true);
+    expect(footer?.textContent).toContain('Cancel');
+    expect(footer?.textContent).toContain('Save');
+  });
+
+  it('routes footer cancel and save actions', () => {
+    const onCancelDraft = vi.fn<OnCancelDraft>();
+    const onSaveDraft = vi.fn<OnSaveDraft>();
+    renderPanel({ onCancelDraft, onSaveDraft });
+
+    const footerButtons = Array.from(host.querySelectorAll('.manual-edit-footer button'));
+    const cancel = footerButtons.find((button) => button.textContent === 'Cancel') as HTMLButtonElement | undefined;
+    const save = footerButtons.find((button) => button.textContent === 'Save') as HTMLButtonElement | undefined;
+    if (!cancel || !save) throw new Error('Footer action buttons not found');
+
+    act(() => {
+      cancel.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      save.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onCancelDraft).toHaveBeenCalledTimes(1);
+    expect(onSaveDraft).toHaveBeenCalledTimes(1);
   });
 
   it('normalizes font stacks and writes a usable font-family value', () => {
@@ -438,10 +498,14 @@ describe('ManualEditPanel', () => {
     onStyleChange = vi.fn<OnStyleChange>(),
     onInvalidStyle = vi.fn<OnInvalidStyle>(),
     onClearSelection = vi.fn<OnClearSelection>(),
+    onCancelDraft = vi.fn<OnCancelDraft>(),
+    onSaveDraft = vi.fn<OnSaveDraft>(),
     attributesText = '{}',
     selectedTarget = target,
     styles = emptyManualEditStyles(),
     pageStylesEnabled = true,
+    floatingStyle,
+    onFloatingPositionChange,
   }: {
     onDraftChange?: OnDraftChange;
     onApplyPatch?: OnApplyPatch;
@@ -449,10 +513,14 @@ describe('ManualEditPanel', () => {
     onStyleChange?: OnStyleChange;
     onInvalidStyle?: OnInvalidStyle;
     onClearSelection?: OnClearSelection;
+    onCancelDraft?: OnCancelDraft;
+    onSaveDraft?: OnSaveDraft;
     attributesText?: string;
     selectedTarget?: ManualEditTarget | null;
     styles?: ReturnType<typeof emptyManualEditStyles>;
     pageStylesEnabled?: boolean;
+    floatingStyle?: CSSProperties;
+    onFloatingPositionChange?: (position: { left: number; top: number }) => void;
   } = {}) {
     const draft = {
       ...emptyManualEditDraft('<html></html>'),
@@ -479,9 +547,12 @@ describe('ManualEditPanel', () => {
           onApplyPatch={onApplyPatch}
           onError={onError}
           onClearSelection={onClearSelection}
-          onCancelDraft={vi.fn<() => void>()}
+          onCancelDraft={onCancelDraft}
+          onSaveDraft={onSaveDraft}
           onUndo={vi.fn<() => void>()}
           onRedo={vi.fn<() => void>()}
+          floatingStyle={floatingStyle}
+          onFloatingPositionChange={onFloatingPositionChange}
         />,
       );
     });

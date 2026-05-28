@@ -1562,6 +1562,57 @@ describe('FileViewer tweaks toolbar', () => {
     expect(screen.queryByText('Already sent to Claude')).toBeNull();
   });
 
+  it('shows the open comment count beside the comments icon', () => {
+    const openComment: PreviewComment = {
+      id: 'comment-open',
+      projectId: 'project-1',
+      conversationId: 'conversation-1',
+      filePath: 'preview.html',
+      elementId: 'pin-open',
+      selector: '[data-od-pin="pin-open"]',
+      label: 'pin-open',
+      text: '',
+      htmlHint: '',
+      position: { x: 24, y: 32, width: 18, height: 18 },
+      note: 'Open comment',
+      status: 'open',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    const otherFileComment: PreviewComment = {
+      ...openComment,
+      id: 'comment-other',
+      filePath: 'other.html',
+    };
+    const resolvedComment: PreviewComment = {
+      ...openComment,
+      id: 'comment-resolved',
+      status: 'applying',
+    };
+
+    render(
+      <FileViewer
+        projectId="project-1"
+        projectKind="prototype"
+        file={htmlPreviewFile()}
+        liveHtml='<html><body><main data-od-id="hero">Hero</main></body></html>'
+        previewComments={[openComment, otherFileComment, resolvedComment]}
+      />,
+    );
+
+    const commentsButton = screen.getByTestId('comment-panel-toggle');
+    expect(commentsButton.textContent).toContain('1');
+    expect(commentsButton.getAttribute('aria-label')).toBe('Comments (1)');
+    expect(
+      screen.getByTestId('board-mode-toggle').compareDocumentPosition(screen.getByTestId('manual-edit-mode-toggle')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId('screenshot-capture-toggle').compareDocumentPosition(commentsButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('keeps comments and annotation picker mutually exclusive', () => {
     const { container } = render(
       <FileViewer

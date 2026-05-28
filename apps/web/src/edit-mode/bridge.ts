@@ -78,12 +78,6 @@ export function buildManualEditBridge(enabled: boolean): string {
   function isDiscoveryTarget(el){
     return !!(el && el.matches && el.matches(discoverySelector));
   }
-  function isPrimaryTarget(el){
-    if (!el || !el.hasAttribute) return false;
-    if (el.hasAttribute('data-od-id') || el.hasAttribute('data-od-edit')) return true;
-    var tag = el.tagName ? el.tagName.toLowerCase() : '';
-    return tag === 'a' || tag === 'button';
-  }
   function inferKind(el){
     var explicit = el.getAttribute('data-od-edit');
     if (explicit) return explicit;
@@ -205,15 +199,13 @@ export function buildManualEditBridge(enabled: boolean): string {
   }
   function closestTarget(event){
     var el = event.target;
-    var fallback = null;
     while (el && el !== document.documentElement) {
       if (el !== document.body && el !== document.documentElement && isSourceMappable(el) && isDiscoveryTarget(el)) {
-        if (isPrimaryTarget(el)) return el;
-        if (!fallback) fallback = el;
+        return el;
       }
       el = el.parentElement;
     }
-    return fallback;
+    return null;
   }
   function caretRangeFromClick(clickEvent){
     try {
@@ -378,9 +370,11 @@ export function buildManualEditBridgeStyle(): string {
   return `<style data-od-edit-bridge-style>
 html[data-od-edit-mode] body * { cursor: pointer !important; }
 html[data-od-edit-mode] [data-od-id],
-html[data-od-edit-mode] [data-od-runtime-id] { outline: 1px dashed rgba(37, 99, 235, 0.35); outline-offset: 3px; }
+html[data-od-edit-mode] [data-od-runtime-id],
+html[data-od-edit-mode] [data-od-source-path] { outline: 1px dashed rgba(37, 99, 235, 0.35); outline-offset: 3px; }
 html[data-od-edit-mode] [data-od-id]:hover,
-html[data-od-edit-mode] [data-od-runtime-id]:hover { outline: 2px solid #2563eb; }
+html[data-od-edit-mode] [data-od-runtime-id]:hover,
+html[data-od-edit-mode] [data-od-source-path]:hover { outline: 2px solid #2563eb; }
 html[data-od-edit-mode] [data-od-edit-selected] {
   outline: 2px solid #2563eb !important;
   outline-offset: 4px;

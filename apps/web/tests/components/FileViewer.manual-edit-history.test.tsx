@@ -36,6 +36,21 @@ function clickAgentTool(testId: string) {
   fireEvent.click(screen.getByTestId(testId));
 }
 
+async function hoverManualEditTarget(target = heroTarget()) {
+  const frame = await waitFor(() => {
+    const node = screen.getByTestId('artifact-preview-frame') as HTMLIFrameElement;
+    if (!node.contentWindow) throw new Error('Preview frame not ready');
+    return node;
+  });
+  act(() => {
+    window.dispatchEvent(new MessageEvent('message', {
+      data: { type: 'od-edit-hover', target },
+      source: frame.contentWindow,
+    }));
+  });
+  await waitFor(() => expect(panelState.props).not.toBeNull());
+}
+
 afterEach(() => {
   cleanup();
   panelState.props = null;
@@ -78,7 +93,7 @@ describe('FileViewer manual edit history regressions', () => {
     );
 
     clickManualTool('manual-edit-mode-toggle');
-    await waitFor(() => expect(panelState.props).not.toBeNull());
+    await hoverManualEditTarget();
 
     act(() => {
       panelState.props?.onStyleChange?.('hero', { color: '#ef4444' }, 'Style: Hero');
@@ -170,7 +185,7 @@ describe('FileViewer manual edit history regressions', () => {
     );
 
     clickManualTool('manual-edit-mode-toggle');
-    await waitFor(() => expect(panelState.props).not.toBeNull());
+    await hoverManualEditTarget();
 
     act(() => {
       panelState.props?.onApplyPatch(
@@ -232,7 +247,7 @@ describe('FileViewer manual edit history regressions', () => {
     );
 
     fireEvent.click(screen.getByTestId('manual-edit-mode-toggle'));
-    await waitFor(() => expect(panelState.props).not.toBeNull());
+    await hoverManualEditTarget();
     const getActivePreviewFrame = () => screen.getByTestId('artifact-preview-frame') as HTMLIFrameElement;
 
     await waitFor(() => {
@@ -290,13 +305,10 @@ describe('FileViewer manual edit history regressions', () => {
     );
 
     fireEvent.click(screen.getByTestId('manual-edit-mode-toggle'));
-    await waitFor(() => expect(panelState.props).not.toBeNull());
+    await hoverManualEditTarget();
     const frame = screen.getByTestId('artifact-preview-frame') as HTMLIFrameElement;
     const postMessageSpy = vi.spyOn(frame.contentWindow!, 'postMessage');
 
-    await act(async () => {
-      await panelState.props?.onSelectTarget(heroTarget());
-    });
     await waitFor(() => expect(panelState.props?.selectedTarget?.id).toBe('hero'));
     expect(panelState.props?.draft.text).toBe('Hero');
 
@@ -310,9 +322,7 @@ describe('FileViewer manual edit history regressions', () => {
     await waitFor(() => expect(savedSources).toHaveLength(1));
     expect(savedSources[0]).not.toContain('data-od-id="hero"');
     expect(savedSources[0]).toContain('data-od-id="body"');
-    await waitFor(() => expect(panelState.props?.selectedTarget).toBeNull());
-    expect(panelState.props?.draft.text).toBe('');
-    expect(panelState.props?.draft.fullSource).not.toContain('data-od-id="hero"');
+    await waitFor(() => expect(screen.queryByTestId('mock-manual-edit-panel')).toBeNull());
     expect(postMessageSpy).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'od-edit-selected-target', id: null }),
       '*',

@@ -611,10 +611,11 @@ function manualEditFloatingPanelStyle(
 ): CSSProperties {
   const scale = Number.isFinite(previewScale) && previewScale > 0 ? previewScale : 1;
   const panelWidth = 320;
-  const panelHeight = target.kind === 'text' || target.kind === 'link' ? 280 : 520;
+  const preferredPanelHeight = 380;
   const pad = 12;
   const canvasWidth = canvasSize?.width ?? 1200;
   const canvasHeight = canvasSize?.height ?? 800;
+  const panelHeight = Math.min(preferredPanelHeight, Math.max(260, canvasHeight - pad * 2));
   const targetLeft = target.rect.x * scale;
   const targetTop = target.rect.y * scale;
   const targetRight = (target.rect.x + target.rect.width) * scale;
@@ -630,7 +631,8 @@ function manualEditFloatingPanelStyle(
     left,
     top,
     width: panelWidth,
-    maxHeight: `min(${panelHeight}px, calc(100% - ${pad * 2}px))`,
+    height: panelHeight,
+    maxHeight: `calc(100% - ${pad * 2}px)`,
   };
 }
 
@@ -4114,8 +4116,9 @@ function HtmlViewer({
       });
     });
   }, []);
-  const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([]);
+const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([]);
   const [selectedManualEditTarget, setSelectedManualEditTarget] = useState<ManualEditTarget | null>(null);
+  const [manualEditPanelPosition, setManualEditPanelPosition] = useState<{ left: number; top: number } | null>(null);
   const selectedManualEditTargetIdRef = useRef<string | null>(null);
   const [manualEditDraft, setManualEditDraft] = useState<ManualEditDraft>(() => emptyManualEditDraft());
   const [manualEditHistory, setManualEditHistory] = useState<ManualEditHistoryEntry[]>([]);
@@ -4814,6 +4817,7 @@ function HtmlViewer({
     setManualEditViewportWidth(null);
     setManualEditTargets([]);
     setSelectedManualEditTarget(null);
+    setManualEditPanelPosition(null);
     selectedManualEditTargetIdRef.current = null;
     setManualEditDraft(emptyManualEditDraft());
     setManualEditHistory([]);
@@ -5006,6 +5010,7 @@ function HtmlViewer({
     if (!manualEditMode) {
       setManualEditTargets([]);
       setSelectedManualEditTarget(null);
+      setManualEditPanelPosition(null);
       setManualEditError(null);
       manualEditPendingStyleRef.current = null;
       if (manualEditStyleTimerRef.current) {
@@ -5096,14 +5101,6 @@ function HtmlViewer({
     setManualEditError('Saved styles differed from the active preview. Reconciled the selected target from source.');
   }
 
-  function scheduleManualEditStyleSave() {
-    if (manualEditStyleTimerRef.current) clearTimeout(manualEditStyleTimerRef.current);
-    manualEditStyleTimerRef.current = setTimeout(() => {
-      manualEditStyleTimerRef.current = null;
-      void flushManualEditStyleSave();
-    }, 1000);
-  }
-
   function clearManualEditStyleTimer() {
     if (!manualEditStyleTimerRef.current) return;
     clearTimeout(manualEditStyleTimerRef.current);
@@ -5130,29 +5127,66 @@ function HtmlViewer({
     manualEditPendingStyleRef.current = pending;
     setManualEditError(null);
     previewStyleToIframe(id, styles, version);
-    scheduleManualEditStyleSave();
   }
 
   async function flushManualEditStyleSave(): Promise<boolean> {
     const pending = manualEditPendingStyleRef.current;
     if (!pending) return true;
-    if (manualEditSavingRef.current) {
-      scheduleManualEditStyleSave();
-      return false;
-    }
+    if (manualEditSavingRef.current) return false;
     manualEditPendingStyleRef.current = null;
     return applyManualEdit({ id: pending.id, kind: 'set-style', styles: pending.styles }, pending.label);
+  }
+
+  function cancelManualEditStyleDraft() {
+    const pending = manualEditPendingStyleRef.current;
+    if (!pending) return;
+    clearManualEditStyleTimer();
+    manualEditPendingStyleRef.current = null;
+    const base = sourceRef.current ?? '';
+    const target = pending.id === '__body__'
+      ? null
+      : selectedManualEditTarget?.id === pending.id
+        ? selectedManualEditTarget
+        : manualEditTargets.find((item) => item.id === pending.id) ?? null;
+    const sourceStyles = target
+      ? inspectorManualEditStyles(target, base)
+      : readManualEditStyles(base, pending.id);
+    const resetStyles = MANUAL_EDIT_STYLE_PROPS.reduce<Partial<ManualEditStyles>>((acc, key) => {
+      acc[key] = sourceStyles[key] ?? '';
+      return acc;
+    }, {});
+    previewStyleToIframe(pending.id, resetStyles, nextManualEditPreviewVersion());
+    if (!target || target.id === selectedManualEditTarget?.id) {
+      setManualEditDraft((current) => ({
+        ...current,
+        styles: target ? sourceStyles : current.styles,
+        fullSource: base,
+      }));
+    }
+    setManualEditError(null);
   }
 
   async function exitManualEditModeAfterFlush(): Promise<boolean> {
     const ok = await flushManualEditStyleSave();
     if (!ok) return false;
+    setManualEditPanelPosition(null);
     setManualEditMode(false);
     return true;
   }
 
+  function cancelManualEditModeAndExit() {
+    cancelManualEditStyleDraft();
+    selectedManualEditTargetIdRef.current = null;
+    setSelectedManualEditTarget(null);
+    setManualEditPanelPosition(null);
+    setManualEditDraft(emptyManualEditDraft(sourceRef.current ?? ''));
+    setManualEditError(null);
+    setManualEditMode(false);
+    postSelectedManualEditTargetToIframe(null);
+  }
+
   async function selectManualEditTarget(target: ManualEditTarget) {
-    if (!(await flushManualEditStyleSave())) return;
+    if (manualEditPendingStyleRef.current?.id !== target.id) cancelManualEditStyleDraft();
     const base = sourceRef.current ?? '';
     const fields = readManualEditFields(base, target.id);
     setSelectedManualEditTarget(target);
@@ -5170,8 +5204,9 @@ function HtmlViewer({
   }
 
   async function clearManualEditTargetSelection() {
-    if (!(await flushManualEditStyleSave())) return;
+    cancelManualEditStyleDraft();
     setSelectedManualEditTarget(null);
+    setManualEditPanelPosition(null);
     setManualEditDraft(emptyManualEditDraft(sourceRef.current ?? ''));
     setManualEditError(null);
   }
@@ -5245,7 +5280,6 @@ function HtmlViewer({
     } finally {
       manualEditSavingRef.current = false;
       setManualEditSaving(false);
-      if (manualEditPendingStyleRef.current) scheduleManualEditStyleSave();
     }
   }
 
@@ -6212,7 +6246,7 @@ function HtmlViewer({
   };
   const boardAvailable = mode === 'preview' && source !== null;
   const showPreviewToolbarControls = mode === 'preview';
-  const manualEditPanel = manualEditMode ? (
+  const manualEditPanel = manualEditMode && selectedManualEditTarget ? (
     <ManualEditPanel
       targets={manualEditTargets}
       selectedTarget={selectedManualEditTarget}
@@ -6240,7 +6274,10 @@ function HtmlViewer({
         void exitManualEditModeAfterFlush();
       }}
       onCancelDraft={() => {
-        if (selectedManualEditTarget) selectManualEditTarget(selectedManualEditTarget);
+        cancelManualEditModeAndExit();
+      }}
+      onSaveDraft={() => {
+        void exitManualEditModeAfterFlush();
       }}
       onUndo={() => {
         void undoManualEdit();
@@ -6249,12 +6286,16 @@ function HtmlViewer({
         void redoManualEdit();
       }}
       floatingStyle={selectedManualEditTarget
-        ? manualEditFloatingPanelStyle(
-            selectedManualEditTarget,
-            overlayPreviewScale,
-            previewBodySize,
-          )
+        ? {
+            ...manualEditFloatingPanelStyle(
+              selectedManualEditTarget,
+              overlayPreviewScale,
+              previewBodySize,
+            ),
+            ...(manualEditPanelPosition ?? {}),
+          }
         : undefined}
+      onFloatingPositionChange={setManualEditPanelPosition}
       onPickImage={async (pickedFile) => {
         const result = await uploadProjectFiles(projectId, [pickedFile]);
         const uploaded = result.uploaded[0];
@@ -6457,19 +6498,6 @@ function HtmlViewer({
                 </button>
               </div>
               <button
-                type="button"
-                className={`viewer-action viewer-action-icon viewer-comment-toggle${boardMode && commentCreateMode ? ' active' : ''}`}
-                data-testid="comment-panel-toggle"
-                data-tooltip={t('chat.tabComments')}
-                title={t('chat.tabComments')}
-                aria-label={t('chat.tabComments')}
-                aria-pressed={boardMode && commentCreateMode}
-                onClick={activateCommentCreateTool}
-              >
-                <RemixIcon name="message-3-line" size={15} />
-                {boardMode && commentCreateMode ? <span className="viewer-action-active-dot" aria-hidden /> : null}
-              </button>
-              <button
                 className={`viewer-action viewer-action-icon${manualEditMode ? ' active' : ''}`}
                 type="button"
                 data-testid="manual-edit-mode-toggle"
@@ -6504,6 +6532,21 @@ function HtmlViewer({
                 onClick={activateScreenshotTool}
               >
                 <RemixIcon name="screenshot-2-line" size={15} />
+              </button>
+              <span className="viewer-toolbar-tool-divider" aria-hidden />
+              <button
+                type="button"
+                className={`viewer-action viewer-comment-count-trigger viewer-comment-toggle${boardMode && commentCreateMode ? ' active' : ''}`}
+                data-testid="comment-panel-toggle"
+                data-tooltip={t('chat.tabComments')}
+                title={t('chat.tabComments')}
+                aria-label={`${t('chat.tabComments')} (${visibleSideComments.length})`}
+                aria-pressed={boardMode && commentCreateMode}
+                onClick={activateCommentCreateTool}
+              >
+                <RemixIcon name="message-3-line" size={15} />
+                <span className="viewer-comment-count" aria-hidden>{visibleSideComments.length}</span>
+                {boardMode && commentCreateMode ? <span className="viewer-action-active-dot" aria-hidden /> : null}
               </button>
               {source !== null && mode === 'preview' ? (
                 <div className="zoom-menu viewer-toolbar-zoom" ref={zoomMenuRef}>

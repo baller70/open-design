@@ -20,6 +20,12 @@
 }
 .viewer-toolbar-left { display: inline-flex; align-items: center; gap: 8px; }
 .viewer-toolbar-actions { display: inline-flex; gap: 2px; align-items: center; }
+.viewer-toolbar-tool-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 5px;
+  background: var(--border);
+}
 .viewer-toolbar .icon-only,
 .viewer-toolbar-actions .icon-only {
   width: 28px;
@@ -140,6 +146,23 @@
   width: 30px;
   height: 30px;
   padding: 0;
+}
+.viewer-comment-count-trigger {
+  position: relative;
+  justify-content: center;
+  min-width: 42px;
+  height: 30px;
+  padding: 0 8px;
+  gap: 5px;
+}
+.viewer-comment-count {
+  min-width: 12px;
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: left;
 }
 .viewer-action-icon[data-tooltip]::after {
   content: attr(data-tooltip);
