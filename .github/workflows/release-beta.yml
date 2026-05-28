@@ -122,32 +122,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Ensure Electron dist for mac packaging
-        run: |
-          set -euo pipefail
-          electron_dist="$(node -e 'const path = require("node:path"); const { createRequire } = require("node:module"); const requireFromDesktop = createRequire(path.join(process.cwd(), "apps/desktop/package.json")); const electron = requireFromDesktop.resolve("electron"); process.stdout.write(path.join(path.dirname(electron), "dist"));')"
-          framework="$electron_dist/Electron.app/Contents/Frameworks/Electron Framework.framework"
-          needs_rebuild=0
-          if [ ! -d "$framework" ]; then
-            needs_rebuild=1
-          else
-            for link in \
-              "$framework/Electron Framework" \
-              "$framework/Helpers" \
-              "$framework/Libraries" \
-              "$framework/Resources" \
-              "$framework/Versions/Current"; do
-              if [ ! -L "$link" ]; then
-                needs_rebuild=1
-                break
-              fi
-            done
-          fi
-          if [ "$needs_rebuild" -eq 1 ]; then
-            echo "Electron dist missing or malformed after pnpm install; rebuilding electron to materialize the packaged runtime."
-            pnpm --filter @open-design/desktop rebuild electron
-          fi
-
       - name: Verify mac Electron framework symlinks
         run: |
           set -euo pipefail
