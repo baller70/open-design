@@ -2094,6 +2094,30 @@ function reconcileAssistantMessageOnRunEnd(db, runs, run) {
     });
 }
 
+
+function isPluginAuthoringIntent(input) {
+  const text = [input?.message, input?.currentPrompt]
+    .filter((value) => typeof value === 'string' && value.trim().length > 0)
+    .join('\n');
+  if (!text) return false;
+  return /Create an Open Design plugin for:/i.test(text)
+    && /generated-plugin/i.test(text);
+}
+
+async function hasGeneratedPluginArtifacts(projectRoot) {
+  if (!projectRoot || typeof projectRoot !== 'string') return false;
+  const required = [
+    path.join(projectRoot, 'generated-plugin', 'open-design.json'),
+    path.join(projectRoot, 'generated-plugin', 'SKILL.md'),
+  ];
+  try {
+    await Promise.all(required.map((file) => fs.promises.access(file, fs.constants.F_OK)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function detectSkillPluginCandidateOnRunSuccess(db, runs, run, input, projectRoot) {
   if (!run.projectId || !run.conversationId) return;
   void runs
@@ -11838,7 +11862,7 @@ export async function startServer({
       send('error', createSseErrorPayload('AGENT_EXECUTION_FAILED', err.message));
       design.runs.finish(run, 'failed', 1, null);
     });
-    child.on('close', (code, signal) => {
+    child.on('close', async (code, signal) => {
       clearInactivityWatchdog();
       revokeToolToken('child_exit');
       unregisterChatAgentEventSink();
@@ -11892,6 +11916,19 @@ export async function startServer({
         send('error', createSseErrorPayload(
           'AGENT_EXECUTION_FAILED',
           'Agent completed without producing any output. The model or provider may have returned an empty response — check the agent logs for upstream errors.',
+          { retryable: true },
+        ));
+        return design.runs.finish(run, 'failed', code, signal);
+      }
+      if (
+        code === 0 &&
+        !run.cancelRequested &&
+        isPluginAuthoringIntent({ message, currentPrompt }) &&
+        !(await hasGeneratedPluginArtifacts(cwd))
+      ) {
+        send('error', createSseErrorPayload(
+          'AGENT_EXECUTION_FAILED',
+          'Plugin authoring ended before generating the required generated-plugin artifacts.',
           { retryable: true },
         ));
         return design.runs.finish(run, 'failed', code, signal);

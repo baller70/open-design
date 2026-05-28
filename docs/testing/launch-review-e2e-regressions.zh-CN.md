@@ -272,3 +272,105 @@ pnpm exec playwright test -c playwright.config.ts ui/design-systems-manager.test
    - 真实 run、打包态、导出与系统集成问题放这层
 
 这样 Playwright 不会膨胀成一套难维护的全能回归集。
+
+## 新增 daemon 契约回归
+
+这批 launch review 补测不只停留在 Playwright。对于前端 E2E 无法替代的契约层问题，当前已补 5 条 daemon 定向回归。
+
+### 1. Diagnostics 导出路径与缺失日志清单
+
+文件：
+- [apps/daemon/tests/diagnostics-export.test.ts](/Users/mac/open-design/open-design-amr-runtime-acp/apps/daemon/tests/diagnostics-export.test.ts)
+
+新增用例：
+
+1. `reports missing packaged log files under logical log paths without duplicating runtime segments`
+   - 覆盖 packaged runtime 下 manifest 仍使用逻辑路径：
+     - `logs/daemon/latest.log`
+     - `logs/web/latest.log`
+     - `logs/desktop/latest.log`
+   - 防止路径回退成错误的 `runtime/<namespace>/logs/...`
+   - 覆盖缺失日志时 manifest 会留下结构化 `error`
+
+### 2. nested raw HTML route 契约
+
+文件：
+- [apps/daemon/tests/projects-routes.test.ts](/Users/mac/open-design/open-design-amr-runtime-acp/apps/daemon/tests/projects-routes.test.ts)
+
+新增用例：
+
+1. `serves nested project html files through the raw route and allows Origin: null`
+   - 覆盖 `nested/demo/index.html` 这类深层项目文件
+   - 覆盖 `/api/projects/:id/raw/*` 路由对 HTML 的 `content-type`
+   - 覆盖 sandboxed iframe 场景下 `Origin: null` 的允许策略
+   - 当前实现的 `Access-Control-Allow-Origin` 真实契约是 `*`
+
+### 3. run 终态幂等
+
+文件：
+- [apps/daemon/tests/runs.test.ts](/Users/mac/open-design/open-design-amr-runtime-acp/apps/daemon/tests/runs.test.ts)
+
+新增用例：
+
+1. `ignores subsequent finish attempts after the run reaches a terminal state`
+   - 覆盖 run 一旦进入 terminal state，就不会再被后续 `finish()` 覆盖
+   - 覆盖 terminal `end` 事件只会发一次
+   - 防止失败/取消/成功之间被重复收尾导致状态漂移
+
+
+### 4. AMR model id 归一化回归
+
+文件：
+- [apps/daemon/tests/amr-acp-integration.test.ts](/Users/mac/open-design/open-design-amr-runtime-acp/apps/daemon/tests/amr-acp-integration.test.ts)
+- [apps/daemon/src/runtimes/defs/amr.ts](/Users/mac/open-design/open-design-amr-runtime-acp/apps/daemon/src/runtimes/defs/amr.ts)
+
+新增覆盖：
+
+1. `deepseek-v3-2` / `vela/deepseek-v3-2` 会被归一化成 `deepseek-v3.2`
+   - 直接对应最近 beta 包里出现的：
+     - `Model not found: vela/deepseek-v3-2`
+   - 防止 daemon 把展示值或旧值错误地下发到 ACP `session/set_model`
+
+
+### 5. Plugin authoring 完成性判定
+
+文件：
+- [apps/daemon/tests/chat-route.test.ts](/Users/mac/open-design/open-design-amr-runtime-acp/apps/daemon/tests/chat-route.test.ts)
+- [apps/daemon/src/server.ts](/Users/mac/open-design/open-design-amr-runtime-acp/apps/daemon/src/server.ts)
+
+新增覆盖：
+
+1. `does not report plugin authoring as succeeded when the agent only emits planning text without artifacts`
+   - 覆盖 `Plugin authoring` 这类必须落地产物的任务不能只凭一条计划文本成功收尾
+   - 当 agent 退出码为 `0`，但项目目录里缺少：
+     - `generated-plugin/open-design.json`
+     - `generated-plugin/SKILL.md`
+   - daemon 会把本轮转成 `failed`，而不是错误地保留 `succeeded`
+
+### daemon 定向运行命令
+
+仓库根目录：
+
+```bash
+cd /Users/mac/open-design/open-design-amr-runtime-acp/apps/daemon
+```
+
+```bash
+pnpm exec vitest run tests/chat-route.test.ts tests/diagnostics-export.test.ts tests/projects-routes.test.ts tests/runs.test.ts tests/amr-acp-integration.test.ts tests/runtimes/env-and-detection.test.ts tests/runtimes/resolve-model.test.ts
+```
+
+## 这批 daemon 补测当前没有覆盖的点
+
+下面这些仍然值得继续补，但这轮没有为了追求数量硬塞进去：
+
+1. AMR / agent 运行结束态收敛
+   - 例如“工作完成但没有 terminal event，最后被 watchdog 打成 failed”
+   - 例如“有有效产物但收尾阶段卡住”的 terminal-state 修正
+
+2. AMR auth / model discovery 的更完整契约
+   - 例如 auth probe 与真实 launch path / env 必须同源
+   - 例如 live models 成功时不能回退到假默认模型
+
+3. queued / retry 的持久化语义
+   - 前端行为已覆盖
+   - daemon 侧仍可继续锁住 message 关联和队列启动顺序
