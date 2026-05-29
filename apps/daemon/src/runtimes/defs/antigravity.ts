@@ -4,6 +4,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'node:fs';
+import { readFile as fsReadFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -63,6 +64,82 @@ export function writeAntigravityModelSelection(
   existing.model = label;
   mkdirSync(dirname(settingsPath), { recursive: true });
   writeFileSync(settingsPath, `${JSON.stringify(existing, null, 2)}\n`);
+}
+
+// Per-process serialization for write-settings → spawn → agy-reads
+// cycles on antigravity. `~/.gemini/antigravity-cli/settings.json` is
+// process-global, so two OD runs that both pick concrete (non-default)
+// models can race: run A writes model A, spawn A starts, run B writes
+// model B before A's agy has read settings.json — A then executes on
+// model B. The daemon serialises non-default antigravity spawns
+// through this chain: each acquire awaits the previous release, and
+// each release fires only after the spawned agy actually emits
+// `Propagating selected model override to backend: label="<X>"` in
+// its `--log-file` (which is the upstream signal that settings.json
+// has been read).
+let antigravityLockChain: Promise<void> = Promise.resolve();
+
+export async function acquireAntigravityModelLock(): Promise<() => void> {
+  const previous = antigravityLockChain;
+  let release: () => void = () => {};
+  antigravityLockChain = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  return release;
+}
+
+// Visible for tests. Resets the module-level lock chain so a test that
+// installed a hanging acquirer can release it without leaking state to
+// subsequent test cases. Production code never calls this.
+export function _resetAntigravityModelLockForTests(): void {
+  antigravityLockChain = Promise.resolve();
+}
+
+export interface WaitForAgyModelOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+  // Override for tests; production reads the daemon-owned log file path.
+  readFile?: (path: string) => Promise<string>;
+  // Override `Date.now` for tests; production uses the wall clock.
+  now?: () => number;
+}
+
+// Polls agy's `--log-file` for the line
+//   `Propagating selected model override to backend: label="<expectedModel>"`
+// which `model_config_manager.go` emits once agy has finished reading
+// `~/.gemini/antigravity-cli/settings.json` and sent the model
+// override to the upstream backend. Returns true on observed signal,
+// false on timeout. Never throws — a missing log file is treated as
+// "not yet seen" so the polling loop keeps retrying until the deadline.
+export async function waitForAgyToReadModel(
+  logFilePath: string,
+  expectedModel: string,
+  options: WaitForAgyModelOptions = {},
+): Promise<boolean> {
+  const timeoutMs = options.timeoutMs ?? 15_000;
+  const pollIntervalMs = options.pollIntervalMs ?? 250;
+  const readFile =
+    options.readFile ?? ((path: string) => fsReadFile(path, 'utf8'));
+  const now = options.now ?? Date.now;
+  const escaped = expectedModel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(
+    `Propagating selected model override to backend: label="${escaped}"`,
+  );
+  const deadline = now() + timeoutMs;
+  while (now() < deadline) {
+    try {
+      const content = await readFile(logFilePath);
+      if (pattern.test(content)) return true;
+    } catch {
+      // Log file may not have appeared yet; keep polling.
+    }
+    if (now() >= deadline) break;
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, pollIntervalMs),
+    );
+  }
+  return false;
 }
 
 export const antigravityAgentDef = {

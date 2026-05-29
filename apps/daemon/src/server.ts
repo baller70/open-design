@@ -11212,6 +11212,28 @@ export async function startServer({
         ? path.join(os.tmpdir(), `od-agy-${run.id}.log`)
         : undefined;
 
+    // Serialize antigravity spawns whose buildArgs writes a concrete
+    // model into settings.json. Two concurrent runs with different
+    // models would otherwise race the file: A writes model A, B writes
+    // model B, then A's agy reads model B. The lock is acquired BEFORE
+    // buildArgs (which performs the write) and released asynchronously
+    // AFTER agy's --log-file confirms the model was propagated. See
+    // `antigravity.ts` for the chain implementation.
+    let antigravityModelLockRelease: (() => void) | null = null;
+    const antigravityConcreteModel =
+      def.id === 'antigravity'
+      && typeof agentOptions.model === 'string'
+      && agentOptions.model.length > 0
+      && agentOptions.model !== 'default'
+        ? agentOptions.model
+        : null;
+    if (antigravityConcreteModel) {
+      const { acquireAntigravityModelLock } = await import(
+        './runtimes/defs/antigravity.js'
+      );
+      antigravityModelLockRelease = await acquireAntigravityModelLock();
+    }
+
     const args = def.buildArgs(
       composed,
       safeImages,
@@ -11532,6 +11554,36 @@ export async function startServer({
         windowsVerbatimArguments: invocation.windowsVerbatimArguments,
       });
       run.child = child;
+      // Schedule release of the antigravity model lock once agy's
+      // --log-file confirms the chosen model was propagated to the
+      // backend (the upstream signal that settings.json was read).
+      // Fire-and-forget — the next antigravity spawn awaits this same
+      // chain via acquireAntigravityModelLock. We also release on
+      // child exit so a stuck/crashed agy never starves the queue.
+      if (
+        antigravityModelLockRelease
+        && antigravityConcreteModel
+        && agentLogFilePath
+      ) {
+        const releaseOnce = (() => {
+          let fired = false;
+          return () => {
+            if (fired) return;
+            fired = true;
+            antigravityModelLockRelease?.();
+          };
+        })();
+        const { waitForAgyToReadModel } = await import(
+          './runtimes/defs/antigravity.js'
+        );
+        void waitForAgyToReadModel(
+          agentLogFilePath,
+          antigravityConcreteModel,
+        )
+          .catch(() => undefined)
+          .finally(releaseOnce);
+        child.once('exit', releaseOnce);
+      }
       if (def.promptViaStdin && child.stdin && def.streamFormat !== 'pi-rpc') {
         // EPIPE from a fast-exiting CLI (bad auth, missing model, exit on
         // launch) would otherwise surface as an unhandled stream error and
