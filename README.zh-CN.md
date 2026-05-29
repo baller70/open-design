@@ -1,10 +1,6 @@
 <h1 align="center">Open Design</h1>
 
-### 🔥 Open Design 0.8.0 已发布
-
-全新插件市场基础设施上线，400+ 官方插件开箱即用。支持设计方案交付、Figma 迁移、代码库品牌刷新、媒体批量生成等场景。欢迎社区贡献插件——详见 [插件规范](plugins/spec/SPEC.md)。
-
-→ [**更新日志**](https://github.com/nexu-io/open-design/discussions/1727) · [**0.8.0 Release**](https://github.com/nexu-io/open-design/releases)
+> 🔥 Open Design 0.8.0 已发布。这一版重点上线两件事：Plugin 体系，让模板和工作流像文件夹一样添加、复制、分享；Design System，支持导入品牌规范并沉淀为可复用的 [`DESIGN.md`](design-systems/)。[下载 0.8.0](https://github.com/nexu-io/open-design/releases) · [参与讨论](https://github.com/nexu-io/open-design/discussions/1727)
 
 <p align="center">
   <img src="docs/assets/banner-zh.png" alt="Open Design — The open-source Claude Design alternative · 129 Design Systems · 116 Plugins · 16 Coding Agents · 14 Media Providers" width="100%" />
