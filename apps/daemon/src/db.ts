@@ -265,6 +265,9 @@ function migrate(db: SqliteDb): void {
   if (!previewCommentCols.some((c: DbRow) => c.name === 'style_json')) {
     db.exec(`ALTER TABLE preview_comments ADD COLUMN style_json TEXT`);
   }
+  if (!previewCommentCols.some((c: DbRow) => c.name === 'slide_index')) {
+    db.exec(`ALTER TABLE preview_comments ADD COLUMN slide_index INTEGER`);
+  }
   const deploymentCols = db.prepare(`PRAGMA table_info(deployments)`).all() as DbRow[];
   if (!deploymentCols.some((c: DbRow) => c.name === 'status')) {
     db.exec(`ALTER TABLE deployments ADD COLUMN status TEXT NOT NULL DEFAULT 'ready'`);
@@ -1072,6 +1075,7 @@ export function listPreviewComments(db: SqliteDb, projectId: string, conversatio
               text, position_json AS positionJson, html_hint AS htmlHint,
               selection_kind AS selectionKind, member_count AS memberCount,
               pod_members_json AS podMembersJson, style_json AS styleJson,
+              slide_index AS slideIndex,
               note, status, created_at AS createdAt, updated_at AS updatedAt
          FROM preview_comments
         WHERE project_id = ? AND conversation_id = ?
@@ -1102,6 +1106,7 @@ export function upsertPreviewComment(db: SqliteDb, projectId: string, conversati
           ? Math.max(0, Math.round(target.memberCount))
           : 0)
     : 0;
+  const slideIndex = Number.isFinite(target.slideIndex) ? Math.max(0, Math.round(target.slideIndex)) : null;
   const now = Date.now();
   const existing = db
     .prepare(
@@ -1116,8 +1121,8 @@ export function upsertPreviewComment(db: SqliteDb, projectId: string, conversati
     `INSERT INTO preview_comments
        (id, project_id, conversation_id, file_path, element_id, selector, label,
         text, position_json, html_hint, selection_kind, member_count, pod_members_json,
-        style_json, note, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        style_json, slide_index, note, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(project_id, conversation_id, file_path, element_id) DO UPDATE SET
        selector = excluded.selector,
        label = excluded.label,
@@ -1128,6 +1133,7 @@ export function upsertPreviewComment(db: SqliteDb, projectId: string, conversati
        member_count = excluded.member_count,
        pod_members_json = excluded.pod_members_json,
        style_json = excluded.style_json,
+       slide_index = excluded.slide_index,
        note = excluded.note,
        status = 'open',
        updated_at = excluded.updated_at`,
@@ -1146,6 +1152,7 @@ export function upsertPreviewComment(db: SqliteDb, projectId: string, conversati
     selectionKind === 'pod' ? memberCount : null,
     selectionKind === 'pod' ? JSON.stringify(podMembers) : null,
     style ? JSON.stringify(style) : null,
+    slideIndex,
     note,
     'open',
     createdAt,
@@ -1183,6 +1190,7 @@ function getPreviewComment(db: SqliteDb, projectId: string, conversationId: stri
               text, position_json AS positionJson, html_hint AS htmlHint,
               selection_kind AS selectionKind, member_count AS memberCount,
               pod_members_json AS podMembersJson, style_json AS styleJson,
+              slide_index AS slideIndex,
               note, status, created_at AS createdAt, updated_at AS updatedAt
          FROM preview_comments
         WHERE id = ? AND project_id = ? AND conversation_id = ?`,
@@ -1214,6 +1222,7 @@ function normalizePreviewComment(row: DbRow) {
           ? row.memberCount
           : undefined,
     podMembers: normalizedPodMembers,
+    slideIndex: Number.isFinite(row.slideIndex) ? row.slideIndex : undefined,
     note: row.note,
     status: row.status,
     createdAt: row.createdAt,

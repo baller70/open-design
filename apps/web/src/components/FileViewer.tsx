@@ -94,7 +94,9 @@ import { PreviewDrawOverlay } from './PreviewDrawOverlay';
 import {
   buildBoardCommentAttachments,
   commentTargetDisplayName,
+  commentVisibleOnDeckSlide,
   commentsToAttachments,
+  isValidCommentOverlayPosition,
   liveSnapshotForComment,
   overlayBoundsFromSnapshot,
   selectionKindLabel,
@@ -711,6 +713,8 @@ interface Props {
   isDeck?: boolean;
   onExportAsPptx?: ((fileName: string) => void) | undefined;
   streaming?: boolean;
+  commentQueueOnSend?: boolean;
+  commentSendDisabled?: boolean;
   previewComments?: PreviewComment[];
   onSavePreviewComment?: (target: PreviewCommentTarget, note: string, attachAfterSave: boolean) => Promise<PreviewComment | null>;
   onRemovePreviewComment?: (commentId: string) => Promise<void>;
@@ -733,6 +737,8 @@ export function FileViewer({
   isDeck,
   onExportAsPptx,
   streaming,
+  commentQueueOnSend = false,
+  commentSendDisabled = false,
   previewComments = [],
   onSavePreviewComment,
   onRemovePreviewComment,
@@ -773,6 +779,8 @@ export function FileViewer({
         isDeck={rendererMatch.renderer.id === 'deck-html'}
         onExportAsPptx={onExportAsPptx}
         streaming={Boolean(streaming)}
+        commentQueueOnSend={commentQueueOnSend}
+        commentSendDisabled={commentSendDisabled}
         previewComments={previewComments}
         onSavePreviewComment={onSavePreviewComment}
         onRemovePreviewComment={onRemovePreviewComment}
@@ -2094,6 +2102,8 @@ export function CommentSidePanel({
   onSendSelected,
   onCreateComment,
   sending,
+  queueOnSend = false,
+  sendDisabled = false,
   t,
   composer,
 }: {
@@ -2110,6 +2120,8 @@ export function CommentSidePanel({
   onSendSelected: () => void | Promise<void>;
   onCreateComment?: (note: string) => boolean | Promise<boolean>;
   sending: boolean;
+  queueOnSend?: boolean;
+  sendDisabled?: boolean;
   t: TranslateFn;
   composer?: ReactNode;
 }) {
@@ -2119,7 +2131,7 @@ export function CommentSidePanel({
   const selectedCount = visibleSelectedIds.size;
   const allSelected = comments.length > 0 && selectedCount === comments.length;
   const commentsLabel = t('chat.tabComments');
-  const canCreateComment = Boolean(onCreateComment) && newCommentDraft.trim().length > 0 && !sending;
+  const canCreateComment = Boolean(onCreateComment) && newCommentDraft.trim().length > 0 && !sending && !sendDisabled;
   const submitNewComment = async () => {
     if (!onCreateComment || !newCommentDraft.trim()) return;
     const saved = await onCreateComment(newCommentDraft.trim());
@@ -2228,10 +2240,14 @@ export function CommentSidePanel({
             type="button"
             className="primary"
             data-testid="comment-side-send-claude"
-            disabled={sending}
+            disabled={sending || sendDisabled}
             onClick={() => void onSendSelected()}
           >
-            {sending ? t('chat.comments.sending') : t('chat.comments.sendToChat')}
+            {sending
+              ? t('chat.comments.sending')
+              : queueOnSend
+                ? t('chat.annotationQueue')
+                : t('chat.comments.sendToChat')}
           </button>
         </div>
       ) : null}
@@ -3015,6 +3031,7 @@ function CommentPreviewOverlays({
   offsetX,
   offsetY,
   strokePoints,
+  activeSlideIndex = null,
   onOpenComment,
 }: {
   comments: PreviewComment[];
@@ -3028,10 +3045,12 @@ function CommentPreviewOverlays({
   offsetX: number;
   offsetY: number;
   strokePoints: StrokePoint[];
+  activeSlideIndex?: number | null;
   onOpenComment: (comment: PreviewComment, snapshot: PreviewCommentSnapshot) => void;
 }) {
   const overlayOffset = { x: offsetX, y: offsetY };
   const visibleComments = comments
+    .filter((comment) => commentVisibleOnDeckSlide(comment, activeSlideIndex))
     .map((comment, index) => ({
       comment,
       index,
@@ -3868,6 +3887,8 @@ function HtmlViewer({
   isDeck,
   onExportAsPptx,
   streaming,
+  commentQueueOnSend = false,
+  commentSendDisabled = false,
   previewComments = [],
   onSavePreviewComment,
   onRemovePreviewComment,
@@ -3884,6 +3905,8 @@ function HtmlViewer({
   isDeck: boolean;
   onExportAsPptx?: ((fileName: string) => void) | undefined;
   streaming: boolean;
+  commentQueueOnSend?: boolean;
+  commentSendDisabled?: boolean;
   previewComments?: PreviewComment[];
   onSavePreviewComment?: (target: PreviewCommentTarget, note: string, attachAfterSave: boolean) => Promise<PreviewComment | null>;
   onRemovePreviewComment?: (commentId: string) => Promise<void>;
@@ -4928,22 +4951,25 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
       data.targets.forEach((item) => {
         const elementId = String(item?.elementId || '');
         if (!elementId) return;
+        const position = {
+          x: clampBridgeCoordinate(item?.position?.x),
+          y: clampBridgeCoordinate(item?.position?.y),
+          width: clampBridgeCoordinate(item?.position?.width),
+          height: clampBridgeCoordinate(item?.position?.height),
+        };
+        if (!isValidCommentOverlayPosition(position)) return;
         next.set(elementId, {
           filePath: file.name,
           elementId,
           selector: String(item?.selector || ''),
           label: String(item?.label || ''),
           text: String(item?.text || ''),
-          position: {
-            x: clampBridgeCoordinate(item?.position?.x),
-            y: clampBridgeCoordinate(item?.position?.y),
-            width: clampBridgeCoordinate(item?.position?.width),
-            height: clampBridgeCoordinate(item?.position?.height),
-          },
+          position,
           htmlHint: String(item?.htmlHint || ''),
           style: normalizeAnnotationStyle(item?.style),
           selectionKind: 'element',
           memberCount: undefined,
+          ...(typeof item?.slideIndex === 'number' ? { slideIndex: item.slideIndex } : {}),
         });
       });
       setLiveCommentTargets(next);
@@ -5053,6 +5079,7 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
       selectionKind: data.selectionKind === 'pod' ? 'pod' : 'element',
       memberCount: finiteBridgeInteger(data.memberCount),
       podMembers: Array.isArray(data.podMembers) ? data.podMembers : undefined,
+      ...(typeof data.slideIndex === 'number' ? { slideIndex: data.slideIndex } : {}),
     });
     function onMessage(ev: MessageEvent) {
       if (!isOurPreviewIframeSource(ev.source)) return;
@@ -5066,28 +5093,29 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
         const next = new Map<string, PreviewCommentSnapshot>();
         data.targets.forEach((item) => {
           const snapshot = snapshotFromData(item);
-          if (snapshot.elementId) next.set(snapshot.elementId, snapshot);
+          if (!snapshot.elementId || !isValidCommentOverlayPosition(snapshot.position)) return;
+          next.set(snapshot.elementId, snapshot);
         });
         setLiveCommentTargets(next);
-        setActiveCommentTarget((current) => (
-          current
-            ? current.selectionKind === 'pod'
-              ? current
-              : next.get(current.elementId) ?? current
-            : null
-        ));
-        setHoveredCommentTarget((current) => (
-          current
-            ? current.selectionKind === 'pod'
-              ? current
-              : next.get(current.elementId) ?? null
-            : null
-        ));
+        setActiveCommentTarget((current) => {
+          if (!current) return null;
+          if (current.selectionKind === 'pod') return current;
+          const updated = next.get(current.elementId);
+          if (updated && isValidCommentOverlayPosition(updated.position)) return updated;
+          return null;
+        });
+        setHoveredCommentTarget((current) => {
+          if (!current) return null;
+          if (current.selectionKind === 'pod') return current;
+          const updated = next.get(current.elementId);
+          if (updated && isValidCommentOverlayPosition(updated.position)) return updated;
+          return null;
+        });
         return;
       }
       if (data.type === 'od:comment-active-target-update') {
         const snapshot = snapshotFromData(data);
-        if (!snapshot.elementId) return;
+        if (!snapshot.elementId || !isValidCommentOverlayPosition(snapshot.position)) return;
         setLiveCommentTargets((current) => new Map(current).set(snapshot.elementId, snapshot));
         setActiveCommentTarget((current) => (
           current && current.elementId === snapshot.elementId ? snapshot : current
@@ -5103,14 +5131,14 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
       }
       if (data.type === 'od:comment-hover') {
         const snapshot = snapshotFromData(data);
-        if (!snapshot.elementId) return;
+        if (!snapshot.elementId || !isValidCommentOverlayPosition(snapshot.position)) return;
         setHoveredCommentTarget(snapshot);
         setLiveCommentTargets((current) => new Map(current).set(snapshot.elementId, snapshot));
         return;
       }
       if (data.type === 'od:comment-target') {
         const snapshot = snapshotFromData(data);
-        if (!snapshot.elementId) return;
+        if (!snapshot.elementId || !isValidCommentOverlayPosition(snapshot.position)) return;
         const shouldOpenComposer = boardMode || commentCreateMode;
         setActiveCommentTarget((current) => (shouldOpenComposer ? snapshot : current));
         setHoveredCommentTarget(snapshot);
@@ -6167,6 +6195,12 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
     setCommentDraft('');
   }
 
+  function withDeckSlideIndex(target: PreviewCommentTarget): PreviewCommentTarget {
+    if (!effectiveDeck || typeof slideState?.active !== 'number') return target;
+    if (typeof target.slideIndex === 'number') return target;
+    return { ...target, slideIndex: slideState.active };
+  }
+
   async function sendBoardBatch() {
     if (!activeCommentTarget || !onSendBoardCommentAttachments) return;
     const nextNotes = [...queuedBoardNotes];
@@ -6176,7 +6210,7 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
     try {
       await onSendBoardCommentAttachments(
         buildBoardCommentAttachments({
-          target: targetFromSnapshot(activeCommentTarget),
+          target: withDeckSlideIndex(targetFromSnapshot(activeCommentTarget)),
           notes: nextNotes,
         }),
       );
@@ -6191,8 +6225,9 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
     const isFreePin = activeCommentTarget.elementId.startsWith('pin-');
     setSendingBoardBatch(true);
     try {
+      const target = withDeckSlideIndex(targetFromSnapshot(activeCommentTarget));
       const saved = await onSavePreviewComment(
-        targetFromSnapshot(activeCommentTarget),
+        target,
         commentDraft.trim(),
         false,
       );
@@ -6383,6 +6418,14 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
     const stillOpen = visibleSideComments.some((comment) => comment.id === activePreviewCommentId);
     if (!stillOpen) clearBoardComposer();
   }, [activePreviewCommentId, boardMode, visibleSideComments]);
+  useEffect(() => {
+    if (!effectiveDeck || slideState == null || !boardMode) return;
+    if (!activePreviewCommentId) return;
+    const activeComment = visibleSideComments.find((comment) => comment.id === activePreviewCommentId);
+    if (activeComment && !commentVisibleOnDeckSlide(activeComment, slideState.active)) {
+      clearBoardComposer();
+    }
+  }, [activePreviewCommentId, boardMode, effectiveDeck, slideState?.active, visibleSideComments]);
   const activeDeployment = deployResult || deployment;
   const activeDeployedUrl = activeDeployment?.url?.trim() || '';
   const activeDeploymentDelayed = activeDeployment?.status === 'link-delayed';
@@ -6578,7 +6621,9 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
         });
         setActivePreviewCommentId((current) => (current === commentId ? null : current));
       } : undefined}
-      sending={sendingBoardBatch || streaming}
+      sending={sendingBoardBatch}
+      queueOnSend={commentQueueOnSend}
+      sendDisabled={commentSendDisabled}
       t={t}
       scale={overlayPreviewScale}
       offset={{ x: overlayPreviewTransform.offsetX, y: overlayPreviewTransform.offsetY }}
@@ -6656,7 +6701,9 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
         }
       }}
       onCreateComment={savePanelComment}
-      sending={sendingBoardBatch || streaming}
+      sending={sendingBoardBatch}
+      queueOnSend={commentQueueOnSend}
+      sendDisabled={commentSendDisabled}
       t={t}
       composer={null}
     />
@@ -7253,6 +7300,7 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
                 offsetX={overlayPreviewTransform.offsetX}
                 offsetY={overlayPreviewTransform.offsetY}
                 strokePoints={strokePoints}
+                activeSlideIndex={effectiveDeck ? slideState?.active ?? null : null}
                 onOpenComment={(comment, snapshot) => {
                   setCommentPanelOpen(true);
                   setCommentSidePanelCollapsed(false);

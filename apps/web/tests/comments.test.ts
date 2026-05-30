@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildBoardCommentAttachments,
   buildVisualAnnotationAttachment,
+  commentVisibleOnDeckSlide,
   commentsToAttachments,
   historyWithCommentAttachmentContext,
   liveSnapshotForComment,
@@ -239,6 +240,29 @@ describe('preview comment attachment helpers', () => {
       label: 'pin',
       position: { x: 88, y: 144, width: 24, height: 24 },
     });
+  });
+
+  it('ignores collapsed live snapshots so deck slide changes do not jump markers to 0,0', () => {
+    const saved = comment({ filePath: 'index.html', elementId: 'hero-title' });
+    const snapshots = new Map([
+      ['hero-title', {
+        filePath: 'index.html',
+        elementId: 'hero-title',
+        selector: '[data-od-id="hero-title"]',
+        label: 'h1.hero-title',
+        text: '',
+        htmlHint: '',
+        position: { x: 0, y: 0, width: 0, height: 0 },
+      }],
+    ]);
+
+    expect(liveSnapshotForComment(saved, snapshots)).toBeNull();
+  });
+
+  it('shows deck comments only on their saved slide index', () => {
+    expect(commentVisibleOnDeckSlide({ slideIndex: 2 }, 2)).toBe(true);
+    expect(commentVisibleOnDeckSlide({ slideIndex: 2 }, 1)).toBe(false);
+    expect(commentVisibleOnDeckSlide({}, 1)).toBe(true);
   });
 
   it('serializes selected comments into API-mode prompt context without visible input', () => {

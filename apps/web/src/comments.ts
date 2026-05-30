@@ -23,6 +23,7 @@ export interface PreviewCommentSnapshot {
   selectionKind?: PreviewCommentSelectionKind;
   memberCount?: number;
   podMembers?: PreviewCommentMember[];
+  slideIndex?: number;
 }
 
 export interface CommentOverlayBounds {
@@ -95,7 +96,32 @@ export function targetFromSnapshot(snapshot: PreviewCommentSnapshot): PreviewCom
               : 0)
         : undefined,
     podMembers: podMembers.length > 0 ? podMembers : undefined,
+    ...(snapshot.slideIndex === undefined ? {} : { slideIndex: snapshot.slideIndex }),
   };
+}
+
+export function isValidCommentOverlayPosition(
+  position: { x: number; y: number; width: number; height: number } | undefined | null,
+): boolean {
+  if (!position) return false;
+  const normalized = normalizePosition(position);
+  return (
+    Number.isFinite(normalized.x)
+    && Number.isFinite(normalized.y)
+    && Number.isFinite(normalized.width)
+    && Number.isFinite(normalized.height)
+    && normalized.width > 0
+    && normalized.height > 0
+  );
+}
+
+export function commentVisibleOnDeckSlide(
+  comment: Pick<PreviewComment, 'slideIndex'>,
+  activeSlideIndex: number | null | undefined,
+): boolean {
+  if (activeSlideIndex == null) return true;
+  if (typeof comment.slideIndex !== 'number') return true;
+  return comment.slideIndex === activeSlideIndex;
 }
 
 export function overlayBoundsFromSnapshot(
@@ -118,8 +144,11 @@ export function liveSnapshotForComment(
   snapshots: Map<string, PreviewCommentSnapshot>,
 ): PreviewCommentSnapshot | null {
   const snapshot = snapshots.get(comment.elementId);
-  if (snapshot && snapshot.filePath === comment.filePath) return snapshot;
+  if (snapshot && snapshot.filePath === comment.filePath && isValidCommentOverlayPosition(snapshot.position)) {
+    return snapshot;
+  }
   if (!comment.elementId.startsWith('pin-')) return null;
+  if (!isValidCommentOverlayPosition(comment.position)) return null;
   return {
     filePath: comment.filePath,
     elementId: comment.elementId,
@@ -132,6 +161,7 @@ export function liveSnapshotForComment(
     selectionKind: comment.selectionKind === 'pod' ? 'pod' : 'element',
     memberCount: comment.memberCount,
     podMembers: normalizeMembers(comment.podMembers),
+    slideIndex: comment.slideIndex,
   };
 }
 

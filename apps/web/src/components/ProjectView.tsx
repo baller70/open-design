@@ -3064,13 +3064,15 @@ export function ProjectView({
 
   const handleSendBoardCommentAttachments = useCallback(
     async (commentAttachments: ChatCommentAttachment[]) => {
-      if (currentConversationActionDisabled || commentAttachments.length === 0) return;
+      // Match ChatComposer: while a run is in flight we queue instead of blocking.
+      if (currentConversationSendDisabled || commentAttachments.length === 0) return;
       setWorkspaceFocused(false);
       setCommentInspectorActive(false);
       await handleSend('', [], commentAttachments);
     },
-    [handleSend, currentConversationActionDisabled],
+    [handleSend, currentConversationSendDisabled],
   );
+  const commentQueueOnSend = currentConversationBusy && !currentConversationSendDisabled;
 
   const handleContinueRemainingTasks = useCallback(
     (_assistantMessage: ChatMessage, todos: TodoItem[]) => {
@@ -4556,6 +4558,8 @@ export function ProjectView({
           isDeck={isDeck}
           onExportAsPptx={handleExportAsPptx}
           streaming={currentConversationActionDisabled}
+          commentQueueOnSend={commentQueueOnSend}
+          commentSendDisabled={currentConversationSendDisabled}
           openRequest={openRequest}
           liveArtifactEvents={liveArtifactEvents}
           designSystemActivityEvents={designSystemActivityEvents}
