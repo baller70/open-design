@@ -18,6 +18,9 @@ import { AgentIcon } from './AgentIcon';
 
 const PREFERRED_EDITOR_KEY = 'open-design:preferred-editor';
 const PREFERRED_FRAMEWORK_KEY = 'open-design:handoff-framework';
+const AMR_WEBSITE_URL = 'https://open-design.ai/amr';
+
+type HandoffTab = 'editor' | 'cli';
 
 interface FrameworkTarget {
   id: string;
@@ -49,6 +52,7 @@ interface CliTarget {
 }
 
 const CLI_ORDER = [
+  'amr',
   'claude',
   'codex',
   'opencode',
@@ -67,13 +71,13 @@ const CLI_ORDER = [
   'vibe',
   'antigravity',
   'aider',
-  'amr',
   'trae-cli',
   'pi',
   'reasonix',
 ];
 
 const FALLBACK_CLI_TARGETS: CliTarget[] = [
+  { id: 'amr', name: 'Open Design AMR', bin: 'vela', available: false },
   { id: 'claude', name: 'Claude Code', bin: 'claude', available: false },
   { id: 'codex', name: 'Codex CLI', bin: 'codex', available: false },
   { id: 'opencode', name: 'OpenCode', bin: 'opencode-cli', available: false },
@@ -92,7 +96,6 @@ const FALLBACK_CLI_TARGETS: CliTarget[] = [
   { id: 'vibe', name: 'Mistral Vibe CLI', bin: 'vibe-acp', available: false },
   { id: 'antigravity', name: 'Antigravity', bin: 'agy', available: false },
   { id: 'aider', name: 'Aider', bin: 'aider', available: false },
-  { id: 'amr', name: 'Open Design AMR', bin: 'vela', available: false },
   { id: 'trae-cli', name: 'Trae CLI', bin: 'traecli', available: false },
   { id: 'pi', name: 'Pi', bin: 'pi', available: false },
   { id: 'reasonix', name: 'DeepSeek Reasonix', bin: 'reasonix', available: false },
@@ -182,7 +185,11 @@ function uiCopy(locale: string) {
     return {
       editorSection: '透過編輯器開啟',
       cliSection: '複製給 CLI',
+      installed: '已安裝',
+      unavailable: '未安裝',
+      clickOpen: '點擊開啟',
       framework: '目標框架',
+      amrWebsite: '開啟 AMR 官網',
       copyPrompt: '複製提示詞',
       copied: '已複製',
       notInstalled: '未安裝',
@@ -203,7 +210,11 @@ function uiCopy(locale: string) {
     return {
       editorSection: '通过编辑器打开',
       cliSection: '复制给 CLI',
+      installed: '已安装',
+      unavailable: '未安装',
+      clickOpen: '点击打开',
       framework: '目标框架',
+      amrWebsite: '打开 AMR 官网',
       copyPrompt: '复制提示词',
       copied: '已复制',
       notInstalled: '未安装',
@@ -223,7 +234,11 @@ function uiCopy(locale: string) {
   return {
     editorSection: 'Open with editor',
     cliSection: 'Copy for CLI',
+    installed: 'Installed',
+    unavailable: 'Not installed',
+    clickOpen: 'Click to open',
     framework: 'Target stack',
+    amrWebsite: 'Open AMR website',
     copyPrompt: 'Copy prompt',
     copied: 'Copied',
     notInstalled: 'Not installed',
@@ -304,6 +319,7 @@ export function HandoffButton({
   const [copyBusy, setCopyBusy] = useState<string | null>(null);
   const [copiedCliId, setCopiedCliId] = useState<string | null>(null);
   const [frameworkId, setFrameworkId] = useState(readPreferredFramework);
+  const [activeTab, setActiveTab] = useState<HandoffTab>('editor');
   const [error, setError] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
@@ -360,8 +376,9 @@ export function HandoffButton({
   const primaryTitle = primary
     ? t('handoff.openInTarget', { target: primary.label })
     : t('handoff.action');
-  const editorTargets = [...available, ...unavailable];
   const cliTargets = useMemo(() => mergeCliTargets(agents), [agents]);
+  const availableCliTargets = cliTargets.filter((cli) => cli.available);
+  const unavailableCliTargets = cliTargets.filter((cli) => !cli.available);
   const selectedFramework =
     FRAMEWORKS.find((framework) => framework.id === frameworkId) ?? DEFAULT_FRAMEWORK;
 
@@ -373,13 +390,15 @@ export function HandoffButton({
     }
     setError(null);
     setBusy(editor.id);
-    setOpen(false);
     writePreferred(editor.id);
     try {
       await openProjectInEditor(projectId, editor.id);
+      setOpen(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
+      setOpen(true);
+      setActiveTab('editor');
       // Fallback: if Finder is the user's pick and the daemon spawn
       // failed, try the renderer-side reveal-in-finder bridge.
       if (editor.id === 'finder' && onRequestRevealInFinder) {
@@ -530,91 +549,173 @@ export function HandoffButton({
         </button>
       </div>
       {open ? (
-        <div className="handoff-menu" role="menu" data-testid="handoff-menu">
-          <section className="handoff-menu-block">
-            <div className="handoff-menu-title">{labels.editorSection}</div>
-            <div className="handoff-target-rail handoff-editor-rail">
-              {editorTargets.map((editor) => (
-                <button
-                  key={editor.id}
-                  type="button"
-                  className={[
-                    'handoff-menu-item',
-                    'handoff-target-card',
-                    editor.id === preferred ? 'active' : '',
-                    editor.available ? '' : 'dim',
-                  ].filter(Boolean).join(' ')}
-                  role="menuitem"
-                  data-testid={`handoff-menu-item-${editor.id}`}
-                  onClick={() => void launch(editor)}
-                  disabled={busy === editor.id}
-                  title={
-                    editor.available
-                      ? t('handoff.openInTarget', { target: editor.label })
-                      : t('handoff.notDetectedTitle', { target: editor.label })
-                  }
-                >
-                  <EditorIcon editorId={editor.id} size={24} />
-                  <span className="handoff-target-label">{editor.label}</span>
-                  {!editor.available ? (
-                    <span className="handoff-target-meta">{t('handoff.notInstalled')}</span>
-                  ) : null}
-                  {editor.id === preferred ? (
-                    <Icon name="check" size={12} />
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          </section>
-          <section className="handoff-menu-block">
-            <div className="handoff-menu-title">{labels.cliSection}</div>
-            <div className="handoff-framework-row" role="group" aria-label={labels.framework}>
-              <span className="handoff-framework-label">{labels.framework}</span>
-              {FRAMEWORKS.map((framework) => (
-                <button
-                  key={framework.id}
-                  type="button"
-                  className={`handoff-framework-chip${framework.id === selectedFramework.id ? ' active' : ''}`}
-                  aria-pressed={framework.id === selectedFramework.id}
-                  onClick={() => {
-                    setFrameworkId(framework.id);
-                    writePreferredFramework(framework.id);
-                  }}
-                >
-                  {framework.label}
-                </button>
-              ))}
-            </div>
-            <div className="handoff-target-rail handoff-cli-rail">
-              {cliTargets.map((cli) => {
-                const copied = copiedCliId === cli.id;
-                return (
+        <div className="handoff-menu" role="dialog" aria-label="Handoff options" data-testid="handoff-menu">
+          <div className="handoff-menu-tabs" role="tablist" aria-label="Handoff options">
+            <button
+              type="button"
+              className={`handoff-menu-tab${activeTab === 'editor' ? ' active' : ''}`}
+              role="tab"
+              aria-selected={activeTab === 'editor'}
+              onClick={() => setActiveTab('editor')}
+            >
+              {labels.editorSection}
+            </button>
+            <button
+              type="button"
+              className={`handoff-menu-tab${activeTab === 'cli' ? ' active' : ''}`}
+              role="tab"
+              aria-selected={activeTab === 'cli'}
+              onClick={() => setActiveTab('cli')}
+            >
+              {labels.cliSection}
+            </button>
+          </div>
+          {activeTab === 'editor' ? (
+            <section className="handoff-menu-block" role="tabpanel">
+              <div className="handoff-target-group">
+                <div className="handoff-target-group-title">{labels.installed}</div>
+                <div className="handoff-target-rail handoff-editor-rail">
+                  {available.map((editor) => (
+                    <button
+                      key={editor.id}
+                      type="button"
+                      className={[
+                        'handoff-menu-item',
+                        'handoff-target-card',
+                        editor.id === preferred ? 'active' : '',
+                      ].filter(Boolean).join(' ')}
+                      data-testid={`handoff-menu-item-${editor.id}`}
+                      onClick={() => void launch(editor)}
+                      disabled={busy === editor.id}
+                      title={t('handoff.openInTarget', { target: editor.label })}
+                    >
+                      <EditorIcon editorId={editor.id} size={24} />
+                      <span className="handoff-target-label">{editor.label}</span>
+                      <span className="handoff-target-meta">{labels.clickOpen}</span>
+                      {editor.id === preferred ? (
+                        <Icon name="check" size={12} />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {unavailable.length > 0 ? (
+                <div className="handoff-target-group">
+                  <div className="handoff-target-group-title">{labels.unavailable}</div>
+                  <div className="handoff-target-rail handoff-editor-rail handoff-target-rail--unavailable">
+                    {unavailable.map((editor) => (
+                      <button
+                        key={editor.id}
+                        type="button"
+                        className="handoff-menu-item handoff-target-card dim"
+                        data-testid={`handoff-menu-item-${editor.id}`}
+                        onClick={() => void launch(editor)}
+                        disabled={busy === editor.id}
+                        title={t('handoff.notDetectedTitle', { target: editor.label })}
+                      >
+                        <EditorIcon editorId={editor.id} size={24} />
+                        <span className="handoff-target-label">{editor.label}</span>
+                        <span className="handoff-target-meta">{t('handoff.notInstalled')}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : (
+            <section className="handoff-menu-block" role="tabpanel">
+              <a
+                className="handoff-amr-link"
+                href={AMR_WEBSITE_URL}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <AgentIcon id="amr" size={18} />
+                <span>{labels.amrWebsite}</span>
+                <Icon name="external-link" size={12} />
+              </a>
+              <div className="handoff-framework-row" role="group" aria-label={labels.framework}>
+                <span className="handoff-framework-label">{labels.framework}</span>
+                {FRAMEWORKS.map((framework) => (
                   <button
-                    key={cli.id}
+                    key={framework.id}
                     type="button"
-                    className={[
-                      'handoff-menu-item',
-                      'handoff-target-card',
-                      'handoff-cli-card',
-                      cli.available ? '' : 'dim',
-                      copied ? 'copied' : '',
-                    ].filter(Boolean).join(' ')}
-                    role="menuitem"
-                    data-testid={`handoff-cli-item-${cli.id}`}
-                    onClick={() => void copyCliPrompt(cli)}
-                    disabled={copyBusy === cli.id}
-                    title={`${labels.copyPrompt}: ${cliDisplayName(cli)}`}
+                    className={`handoff-framework-chip${framework.id === selectedFramework.id ? ' active' : ''}`}
+                    aria-pressed={framework.id === selectedFramework.id}
+                    onClick={() => {
+                      setFrameworkId(framework.id);
+                      writePreferredFramework(framework.id);
+                    }}
                   >
-                    <AgentIcon id={cli.id} size={24} />
-                    <span className="handoff-target-label">{cliDisplayName(cli)}</span>
-                    <span className="handoff-target-meta">
-                      {copied ? labels.copied : cli.available ? labels.copyPrompt : labels.notInstalled}
-                    </span>
+                    {framework.label}
                   </button>
-                );
-              })}
-            </div>
-          </section>
+                ))}
+              </div>
+              {availableCliTargets.length > 0 ? (
+                <div className="handoff-target-group">
+                  <div className="handoff-target-group-title">{labels.installed}</div>
+                  <div className="handoff-target-rail handoff-cli-rail">
+                    {availableCliTargets.map((cli) => {
+                      const copied = copiedCliId === cli.id;
+                      return (
+                        <button
+                          key={cli.id}
+                          type="button"
+                          className={[
+                            'handoff-menu-item',
+                            'handoff-target-card',
+                            'handoff-cli-card',
+                            copied ? 'copied' : '',
+                          ].filter(Boolean).join(' ')}
+                          data-testid={`handoff-cli-item-${cli.id}`}
+                          onClick={() => void copyCliPrompt(cli)}
+                          disabled={copyBusy === cli.id}
+                          title={`${labels.copyPrompt}: ${cliDisplayName(cli)}`}
+                        >
+                          <AgentIcon id={cli.id} size={24} />
+                          <span className="handoff-target-label">{cliDisplayName(cli)}</span>
+                          <span className="handoff-target-meta">
+                            {copied ? labels.copied : labels.copyPrompt}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              <div className="handoff-target-group">
+                <div className="handoff-target-group-title">{labels.unavailable}</div>
+                <div className="handoff-target-rail handoff-cli-rail handoff-target-rail--unavailable">
+                  {unavailableCliTargets.map((cli) => {
+                    const copied = copiedCliId === cli.id;
+                    return (
+                      <button
+                        key={cli.id}
+                        type="button"
+                        className={[
+                          'handoff-menu-item',
+                          'handoff-target-card',
+                          'handoff-cli-card',
+                          'dim',
+                          copied ? 'copied' : '',
+                        ].filter(Boolean).join(' ')}
+                        data-testid={`handoff-cli-item-${cli.id}`}
+                        onClick={() => void copyCliPrompt(cli)}
+                        disabled={copyBusy === cli.id}
+                        title={`${labels.copyPrompt}: ${cliDisplayName(cli)}`}
+                      >
+                        <AgentIcon id={cli.id} size={24} />
+                        <span className="handoff-target-label">{cliDisplayName(cli)}</span>
+                        <span className="handoff-target-meta">
+                          {copied ? labels.copied : labels.notInstalled}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          )}
           {error ? (
             <>
               <div className="handoff-menu-divider" />

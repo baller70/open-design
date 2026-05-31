@@ -36,11 +36,13 @@ interface CatalogueEntry {
   icon: string;
   // CLI shim name to probe on $PATH. Mutually exclusive with `macOpenBundle`.
   command?: string;
+  commandArgs?: (resolvedDir: string) => string[];
   // macOS-only fallback: when the CLI shim is missing, look for an app
   // bundle by name and launch it via `open -a "<name>"`. Lets us list
   // Xcode / Qoder / Antigravity / Warp / IntelliJ without forcing users
   // to also install their CLI shim.
-  macOpenBundle?: string;
+  macOpenBundle?: string | readonly string[];
+  macOpenArgs?: (bundleName: string, resolvedDir: string) => string[];
   platforms?: RealPlatform[];
   excludedPlatforms?: RealPlatform[];
 }
@@ -53,8 +55,8 @@ const CATALOGUE: ReadonlyArray<CatalogueEntry> = [
   { id: 'vscode', label: 'VS Code', icon: 'file-code', command: 'code', macOpenBundle: 'Visual Studio Code' },
   { id: 'windsurf', label: 'Windsurf', icon: 'sparkles', command: 'windsurf', macOpenBundle: 'Windsurf' },
   { id: 'zed', label: 'Zed', icon: 'edit', command: 'zed', macOpenBundle: 'Zed' },
-  { id: 'qoder', label: 'Qoder', icon: 'sparkles', command: 'qoder', macOpenBundle: 'Qoder' },
-  { id: 'antigravity', label: 'Antigravity', icon: 'orbit', command: 'antigravity', macOpenBundle: 'Antigravity' },
+  { id: 'qoder', label: 'Qoder', icon: 'sparkles', command: 'qoder', macOpenBundle: ['Qoder', 'QoderWork'] },
+  { id: 'antigravity', label: 'Antigravity', icon: 'orbit', command: 'antigravity', macOpenBundle: ['Antigravity', 'Google Antigravity'] },
   { id: 'webstorm', label: 'WebStorm', icon: 'edit', command: 'webstorm', macOpenBundle: 'WebStorm' },
   { id: 'idea', label: 'IntelliJ IDEA', icon: 'edit', command: 'idea', macOpenBundle: 'IntelliJ IDEA' },
   { id: 'xcode', label: 'Xcode', icon: 'file-code', command: 'xed', macOpenBundle: 'Xcode', platforms: ['darwin'] },
@@ -62,7 +64,7 @@ const CATALOGUE: ReadonlyArray<CatalogueEntry> = [
   { id: 'explorer', label: 'Explorer', icon: 'folder', command: 'explorer', platforms: ['win32'] },
   { id: 'file-manager', label: 'File Manager', icon: 'folder', command: 'xdg-open', platforms: ['linux'] },
   { id: 'terminal', label: 'Terminal', icon: 'sliders', macOpenBundle: 'Terminal', platforms: ['darwin'] },
-  { id: 'warp', label: 'Warp', icon: 'sliders', command: 'warp-cli', macOpenBundle: 'Warp' },
+  { id: 'warp', label: 'Warp', icon: 'sliders', macOpenBundle: 'Warp' },
 ];
 
 function currentPlatform(): Platform {
@@ -111,18 +113,22 @@ async function probeCommandOnPath(command: string): Promise<string | null> {
   return null;
 }
 
-async function probeMacBundle(name: string): Promise<string | null> {
+async function probeMacBundle(name: string | readonly string[]): Promise<{ name: string; path: string } | null> {
   if (process.platform !== 'darwin') return null;
+  const names = Array.isArray(name) ? name : [name];
   const candidates = [
-    `/Applications/${name}.app`,
-    `${process.env.HOME ?? ''}/Applications/${name}.app`,
+    (bundleName: string) => `/Applications/${bundleName}.app`,
+    (bundleName: string) => `${process.env.HOME ?? ''}/Applications/${bundleName}.app`,
   ];
-  for (const path of candidates) {
-    try {
-      await access(path, fsConstants.R_OK);
-      return path;
-    } catch {
-      // not here
+  for (const bundleName of names) {
+    for (const candidate of candidates) {
+      const path = candidate(bundleName);
+      try {
+        await access(path, fsConstants.R_OK);
+        return { name: bundleName, path };
+      } catch {
+        // not here
+      }
     }
   }
   return null;
@@ -131,12 +137,16 @@ async function probeMacBundle(name: string): Promise<string | null> {
 async function resolveEntry(entry: CatalogueEntry): Promise<{
   available: boolean;
   resolvedPath?: string;
-  launch?: { command: string; args: string[] };
+  launch?: { command: string; argsForDir: (resolvedDir: string) => string[] };
 }> {
   if (entry.command) {
     const resolved = await probeCommandOnPath(entry.command);
     if (resolved) {
-      return { available: true, resolvedPath: resolved, launch: { command: resolved, args: [] } };
+      return {
+        available: true,
+        resolvedPath: resolved,
+        launch: { command: resolved, argsForDir: entry.commandArgs ?? ((resolvedDir) => [resolvedDir]) },
+      };
     }
   }
   if (entry.macOpenBundle && process.platform === 'darwin') {
@@ -144,8 +154,13 @@ async function resolveEntry(entry: CatalogueEntry): Promise<{
     if (bundle) {
       return {
         available: true,
-        resolvedPath: bundle,
-        launch: { command: 'open', args: ['-a', entry.macOpenBundle] },
+        resolvedPath: bundle.path,
+        launch: {
+          command: 'open',
+          argsForDir: entry.macOpenArgs
+            ? ((resolvedDir) => entry.macOpenArgs?.(bundle.name, resolvedDir) ?? ['-a', bundle.name, resolvedDir])
+            : ((resolvedDir) => ['-a', bundle.name, resolvedDir]),
+        },
       };
     }
   }
@@ -215,11 +230,10 @@ export function registerHostToolsRoutes(app: Express, ctx: RegisterHostToolsRout
         return sendApiError(res, 409, 'EDITOR_NOT_AVAILABLE', `${entry.label} is not installed`);
       }
       // Detached spawn so the daemon doesn't keep the child alive; same
-      // shape paseo uses. We append the project's resolved directory as
-      // the last positional argument — every entry in the catalogue
-      // accepts "<exe> <dir>" semantics (open -a Foo /path, cursor
-      // /path, code /path, explorer C:\path, xdg-open /path).
-      const child = spawn(probe.launch.command, [...probe.launch.args, resolvedDir], {
+      // shape paseo uses. Each catalogue entry turns the project dir into
+      // the native argument shape it expects (CLI shim, `open -a`, Explorer,
+      // xdg-open, etc.).
+      const child = spawn(probe.launch.command, probe.launch.argsForDir(resolvedDir), {
         detached: true,
         stdio: 'ignore',
         shell: process.platform === 'win32',

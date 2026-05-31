@@ -612,6 +612,17 @@ export function ProjectView({
       setInstructionsMode('closed');
     }
   }, [project.customInstructions, instructionsMode]);
+  useEffect(() => {
+    if (instructionsMode === 'closed') return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setInstructionsDraft(project.customInstructions ?? '');
+        setInstructionsMode('closed');
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [instructionsMode, project.customInstructions]);
 
   // PR #974 round 7 (mrcfps @ useDesignMdState.ts:131): counter that
   // bumps on file-changed SSE events, live_artifact* events, and the
@@ -4362,64 +4373,98 @@ export function ProjectView({
           </span>
         </div>
       </AppChromeHeader>
-      {instructionsMode === 'review' && (
-        <div className="project-instructions-bar project-instructions-review">
-          <div className="project-instructions-bar-head">
-            <label className="project-instructions-label">{t('project.customInstructions')}</label>
-            <span className="project-instructions-status">
-              <Icon name="check" size={11} />
-              {t('project.instructionsActive')}
-            </span>
-          </div>
-          <div className="project-instructions-preview" data-testid="project-instructions-preview">
-            {project.customInstructions}
-          </div>
-          <div className="project-instructions-actions">
-            <button
-              type="button"
-              className="btn-sm"
-              onClick={() => setInstructionsMode('closed')}
-            >
-              {t('common.close')}
-            </button>
-            <button
-              type="button"
-              className="btn-sm btn-primary"
-              data-testid="project-instructions-edit"
-              onClick={() => {
-                setInstructionsDraft(project.customInstructions ?? '');
-                setInstructionsMode('edit');
-              }}
-            >
-              {t('common.edit')}
-            </button>
-          </div>
-        </div>
-      )}
-      {instructionsMode === 'edit' && (
-        <div className="project-instructions-bar">
-          <label className="project-instructions-label">{t('project.customInstructions')}</label>
-          <textarea
-            className="project-instructions-input"
-            data-testid="project-instructions-textarea"
-            rows={3}
-            maxLength={5000}
-            placeholder={t('project.customInstructionsPlaceholder')}
-            value={instructionsDraft}
-            onChange={(e) => setInstructionsDraft(e.target.value)}
-            disabled={instructionsSaving}
-            autoFocus
-          />
-          <div className="project-instructions-actions">
-            <button type="button" className="btn-sm" disabled={instructionsSaving} onClick={() => {
-              setInstructionsDraft(project.customInstructions ?? '');
-              setInstructionsMode((project.customInstructions ?? '').trim() ? 'review' : 'closed');
-            }}>
-              {t('common.cancel')}
-            </button>
-            <button type="button" className="btn-sm btn-primary" data-testid="project-instructions-save" disabled={instructionsSaving} onClick={handleSaveInstructions}>
-              {t('common.save')}
-            </button>
+      {instructionsMode !== 'closed' && (
+        <div
+          className="project-instructions-modal-backdrop"
+          data-testid="project-instructions-modal"
+          onMouseDown={(event) => {
+            if (event.target !== event.currentTarget) return;
+            setInstructionsDraft(project.customInstructions ?? '');
+            setInstructionsMode('closed');
+          }}
+        >
+          <div
+            className={`project-instructions-modal${instructionsMode === 'review' ? ' project-instructions-review' : ''}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="project-instructions-modal-title"
+          >
+            <div className="project-instructions-modal-head">
+              <div className="project-instructions-modal-title-wrap">
+                <h2 id="project-instructions-modal-title" className="project-instructions-modal-title">
+                  {t('project.customInstructions')}
+                </h2>
+                {instructionsMode === 'review' ? (
+                  <span className="project-instructions-status">
+                    <Icon name="check" size={11} />
+                    {t('project.instructionsActive')}
+                  </span>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                className="project-instructions-modal-close"
+                aria-label={t('common.close')}
+                onClick={() => {
+                  setInstructionsDraft(project.customInstructions ?? '');
+                  setInstructionsMode('closed');
+                }}
+              >
+                <Icon name="close" size={14} />
+              </button>
+            </div>
+            {instructionsMode === 'review' ? (
+              <>
+                <div className="project-instructions-preview" data-testid="project-instructions-preview">
+                  {project.customInstructions}
+                </div>
+                <div className="project-instructions-actions">
+                  <button
+                    type="button"
+                    className="btn-sm"
+                    onClick={() => setInstructionsMode('closed')}
+                  >
+                    {t('common.close')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-sm btn-primary"
+                    data-testid="project-instructions-edit"
+                    onClick={() => {
+                      setInstructionsDraft(project.customInstructions ?? '');
+                      setInstructionsMode('edit');
+                    }}
+                  >
+                    {t('common.edit')}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <textarea
+                  className="project-instructions-input"
+                  data-testid="project-instructions-textarea"
+                  rows={6}
+                  maxLength={5000}
+                  placeholder={t('project.customInstructionsPlaceholder')}
+                  value={instructionsDraft}
+                  onChange={(e) => setInstructionsDraft(e.target.value)}
+                  disabled={instructionsSaving}
+                  autoFocus
+                />
+                <div className="project-instructions-actions">
+                  <button type="button" className="btn-sm" disabled={instructionsSaving} onClick={() => {
+                    setInstructionsDraft(project.customInstructions ?? '');
+                    setInstructionsMode((project.customInstructions ?? '').trim() ? 'review' : 'closed');
+                  }}>
+                    {t('common.cancel')}
+                  </button>
+                  <button type="button" className="btn-sm btn-primary" data-testid="project-instructions-save" disabled={instructionsSaving} onClick={handleSaveInstructions}>
+                    {t('common.save')}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
