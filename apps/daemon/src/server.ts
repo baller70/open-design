@@ -5733,6 +5733,7 @@ export async function startServer({
     events: projectEventDeps,
     ids: idDeps,
     telemetry: { reportFinalizedMessage },
+    appConfig: appConfigDeps,
     validation: validationDeps,
   });
   registerImportRoutes(app, {
