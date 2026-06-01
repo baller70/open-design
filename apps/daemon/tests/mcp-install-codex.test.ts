@@ -1,8 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   installCodexMcp,
   probeCodexInstall,
+  runCodexCli,
   setCodexRunner,
   uninstallCodexMcp,
   type CodexRunner,
@@ -36,6 +40,26 @@ afterEach(() => {
   setCodexRunner(null);
   vi.restoreAllMocks();
 });
+
+function writeFakeCodex(): { dir: string; bin: string } {
+  const dir = mkdtempSync(path.join(tmpdir(), 'od-codex-cli-'));
+  const bin = path.join(dir, 'fake-codex.mjs');
+  writeFileSync(
+    bin,
+    [
+      '#!/usr/bin/env node',
+      'const args = process.argv.slice(2);',
+      'if (args[0] === "--version") { console.log("codex-cli fake"); process.exit(0); }',
+      'if (args[0] === "mcp" && args[1] === "get") { console.log("open-design\\n  enabled: true"); process.exit(0); }',
+      'if (args[0] === "mcp" && (args[1] === "add" || args[1] === "remove")) { console.log("ok"); process.exit(0); }',
+      'console.error("unexpected args", JSON.stringify(args));',
+      'process.exit(1);',
+    ].join('\n'),
+    'utf8',
+  );
+  chmodSync(bin, 0o755);
+  return { dir, bin };
+}
 
 describe('codex-cli probe', () => {
   it('reports available:false when the codex binary is missing (ENOENT)', async () => {
@@ -74,6 +98,22 @@ describe('codex-cli probe', () => {
 
     const status = await probeCodexInstall('open-design');
     expect(status).toEqual({ available: true, installed: true });
+  });
+
+  it('launches codex through the bounded launcher contract when the child PATH is stripped', async () => {
+    const { dir, bin } = writeFakeCodex();
+    try {
+      const result = await runCodexCli(['mcp', 'get', 'open-design'], {
+        env: {
+          PATH: '',
+          CODEX_BIN: bin,
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('open-design');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

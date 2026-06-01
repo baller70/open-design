@@ -23,6 +23,7 @@ function writeDelayedSuccessProbe(delayMs: number): { dir: string; bin: string }
   writeFileSync(
     bin,
     [
+      '#!/usr/bin/env node',
       'process.stdin.setEncoding("utf8");',
       'let buffer = "";',
       'process.stdin.on("data", (chunk) => {',
@@ -119,6 +120,22 @@ test('detectAcpModels treats OD_ACP_TIMEOUT_MS=0 as disabling the ACP probe time
       args: [bin],
       env: { OD_ACP_TIMEOUT_MS: '0' },
       timeoutMs: 50,
+    });
+
+    assert.deepEqual(models, [{ id: 'default', label: 'Default (CLI config)' }]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('detectAcpModels launches Node-based wrappers successfully even when the child PATH is stripped', async () => {
+  const { dir, bin } = writeDelayedSuccessProbe(0);
+  try {
+    const models = await detectAcpModels({
+      bin,
+      args: [],
+      env: { PATH: '' },
+      timeoutMs: 500,
     });
 
     assert.deepEqual(models, [{ id: 'default', label: 'Default (CLI config)' }]);

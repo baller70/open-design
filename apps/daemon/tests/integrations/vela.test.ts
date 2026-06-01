@@ -406,4 +406,47 @@ describe('spawnVelaLogin', () => {
     expect(next.profiles.local.user.email).toBe('settings-profile@example.com');
     expect(next.profiles.prod).toBeUndefined();
   });
+
+  it('re-launches a Node-based vela wrapper after logout even when the child PATH is stripped', async () => {
+    writeConfig({
+      profiles: {
+        local: {
+          runtimeKey: 'rt-old',
+          controlKey: 'ck-old',
+          apiUrl: 'http://localhost:18080',
+          linkUrl: 'http://localhost:18081',
+          user: { id: 'old-user', email: 'old@example.com' },
+        },
+      },
+    });
+
+    expect(readVelaLoginStatus({ OPEN_DESIGN_AMR_PROFILE: 'local' }).loggedIn).toBe(true);
+    forgetVelaLogin({ OPEN_DESIGN_AMR_PROFILE: 'local' });
+    expect(readVelaLoginStatus({ OPEN_DESIGN_AMR_PROFILE: 'local' }).loggedIn).toBe(false);
+
+    const result = await spawnVelaLogin({
+      baseEnv: {
+        ...process.env,
+        HOME: tmpHome,
+        OPEN_DESIGN_AMR_PROFILE: 'local',
+        PATH: '',
+        FAKE_VELA_LOGIN_USER_EMAIL: 'relogin@example.com',
+      },
+      configuredEnv: {
+        VELA_BIN: FAKE_VELA,
+      },
+    });
+    expect(result.pid).toBeGreaterThan(0);
+
+    for (let i = 0; i < 40; i += 1) {
+      const status = readVelaLoginStatus({ OPEN_DESIGN_AMR_PROFILE: 'local' });
+      if (status.loggedIn) {
+        expect(status.user?.email).toBe('relogin@example.com');
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    throw new Error('AMR login did not converge after relaunch');
+  });
 });

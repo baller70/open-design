@@ -1,6 +1,7 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import type { Writable } from 'node:stream';
 import path from 'node:path';
+import { createCommandLaunchDescriptor, spawnLaunchDescriptor } from './launcher/launch.js';
 
 const ACP_PROTOCOL_VERSION = 1;
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -328,11 +329,21 @@ export async function detectAcpModels({
 }: DetectAcpModelsOptions): Promise<ModelOption[]> {
   const effectiveTimeoutMs = resolveAcpTimeoutMs(env, timeoutMs);
   return await new Promise<ModelOption[]>((resolve, reject) => {
-    const child = spawn(bin, args, {
+    const descriptor = createCommandLaunchDescriptor({
+      command: bin,
+      args,
+      baseEnv: env,
+      executionMode: 'probe',
+    });
+    const child = spawnLaunchDescriptor(descriptor, {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...env },
     });
+    if (!child.stdout || !child.stderr || !child.stdin) {
+      reject(new Error('ACP model detection requires piped stdio'));
+      return;
+    }
+    const stdin = child.stdin;
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
 
@@ -347,7 +358,7 @@ export async function detectAcpModels({
       settled = true;
       if (timer) clearTimeout(timer);
       try {
-        child.stdin.end();
+        stdin.end();
       } catch {}
       fn(value);
     };
@@ -359,7 +370,7 @@ export async function detectAcpModels({
 
     const writeRpc = (id: JsonRpcId, method: string, params: unknown) => {
       try {
-        sendRpc(child.stdin, id, method, params);
+        sendRpc(stdin, id, method, params);
       } catch (err) {
         fail(`stdin write failed: ${errorMessage(err)}`);
       }

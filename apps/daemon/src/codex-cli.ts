@@ -4,11 +4,10 @@
 // Codex CLI rather than rewriting config.toml ourselves so we inherit
 // Codex's own merge / dedupe / validation rules.
 //
-// CodexRunner is injected so tests can stub spawn without poking the
-// global child_process module; production uses defaultCodexRunner which
-// is a thin spawn() wrapper with a 30s timeout.
+// CodexRunner is injected so tests can stub the launcher without poking the
+// global child_process module; production uses the bounded CLI launch contract.
 
-import { spawn } from 'node:child_process';
+import { createCommandLaunchDescriptor, runBoundedLaunchDescriptor } from './launcher/launch.js';
 
 export interface CodexRunnerResult {
   exitCode: number;
@@ -20,36 +19,29 @@ export interface CodexRunner {
   run(args: string[], opts?: { env?: Record<string, string> }): Promise<CodexRunnerResult>;
 }
 
-const defaultCodexRunner: CodexRunner = {
-  run(args, opts) {
-    return new Promise<CodexRunnerResult>((resolve, reject) => {
-      const child = spawn('codex', args, {
-        env: { ...process.env, ...(opts?.env ?? {}) },
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      let stdout = '';
-      let stderr = '';
-      const timer = setTimeout(() => {
-        child.kill('SIGKILL');
-        reject(new Error('codex CLI timed out after 30s'));
-      }, 30_000);
-      child.stdout?.on('data', (d) => {
-        stdout += String(d);
-      });
-      child.stderr?.on('data', (d) => {
-        stderr += String(d);
-      });
-      child.on('error', (err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-      child.on('close', (code) => {
-        clearTimeout(timer);
-        resolve({ exitCode: code ?? -1, stdout, stderr });
-      });
-    });
-  },
-};
+export async function runCodexCli(
+  args: string[],
+  opts?: { env?: Record<string, string> },
+): Promise<CodexRunnerResult> {
+  const codexConfiguredEnv =
+    typeof opts?.env?.CODEX_BIN === 'string' && opts.env.CODEX_BIN.trim().length > 0
+      ? { CODEX_BIN: opts.env.CODEX_BIN }
+      : {};
+  const descriptor = createCommandLaunchDescriptor({
+    command: 'codex',
+    args,
+    baseEnv: process.env,
+    executionMode: 'bounded-cli',
+    knownAgentId: 'codex',
+    ...(opts?.env ? { env: opts.env } : {}),
+    ...(Object.keys(codexConfiguredEnv).length > 0
+      ? { configuredEnv: codexConfiguredEnv }
+      : {}),
+  });
+  return await runBoundedLaunchDescriptor(descriptor, { timeoutMs: 30_000 });
+}
+
+const defaultCodexRunner: CodexRunner = { run: runCodexCli };
 
 let _runner: CodexRunner | null = null;
 

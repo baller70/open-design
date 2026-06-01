@@ -1,13 +1,9 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-import { createCommandInvocation } from '@open-design/platform';
-
-import { resolveAgentLaunch } from '../runtimes/launch.js';
-import { spawnEnvForAgent } from '../runtimes/env.js';
-import { getAgentDef } from '../runtimes/registry.js';
+import { createAgentLaunchDescriptor, spawnLaunchDescriptor } from '../launcher/launch.js';
 import { resolveAmrProfile } from './vela-profile.js';
 
 export { resolveAmrProfile } from './vela-profile.js';
@@ -236,27 +232,27 @@ export async function spawnVelaLogin(
   if (isVelaLoginInFlight()) {
     throw new Error('vela login already running');
   }
-  const def = getAgentDef('amr');
-  if (!def) throw new Error('AMR runtime def not registered');
   const baseEnv = deps.baseEnv ?? process.env;
   const configuredEnv = deps.configuredEnv ?? {};
-  const launch = resolveAgentLaunch(def, configuredEnv);
-  const bin = launch.selectedPath;
-  if (!bin) {
-    throw new Error('vela binary not found; install vela or configure VELA_BIN');
+  let descriptor;
+  try {
+    descriptor = createAgentLaunchDescriptor({
+      agentId: 'amr',
+      args: ['login'],
+      baseEnv,
+      configuredEnv,
+      executionMode: 'auth-setup-cli',
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/not installed or not on PATH/i.test(message)) {
+      throw new Error('vela binary not found; install vela or configure VELA_BIN');
+    }
+    throw error;
   }
-  const env = spawnEnvForAgent('amr', baseEnv, configuredEnv);
-  // Route through createCommandInvocation so an npm/Node-style `vela.cmd` or
-  // `vela.bat` shim on Windows gets wrapped under `cmd.exe /d /s /c …` with
-  // verbatim args, matching what `execAgentFile` / chat-run spawning do. A
-  // direct `spawn(bin, args)` on a `.cmd` shim quietly fails to find the
-  // shim's actual entry point. POSIX is unchanged (no wrapping needed).
-  const invocation = createCommandInvocation({ command: bin, args: ['login'], env });
-  const child = spawn(invocation.command, invocation.args, {
+  const child = spawnLaunchDescriptor(descriptor, {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env,
     detached: false,
-    windowsVerbatimArguments: invocation.windowsVerbatimArguments,
   });
   if (typeof child.pid !== 'number') {
     throw new Error('failed to spawn vela login');
@@ -274,6 +270,6 @@ export async function spawnVelaLogin(
   return {
     pid: child.pid,
     startedAt: new Date().toISOString(),
-    profile: resolveAmrProfile(env),
+    profile: resolveAmrProfile(descriptor.env),
   };
 }
