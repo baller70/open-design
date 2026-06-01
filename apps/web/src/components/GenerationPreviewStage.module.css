@@ -198,19 +198,18 @@
   }
 }
 
+/* Keep all three steps a single neutral gray family — the icon (dot / check /
+   ✕) carries the state, the color does not. Avoids a multi-color row. */
 .step[data-status='running'] {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
   color: var(--text);
 }
 
 .step[data-status='succeeded'] {
-  border-color: color-mix(in srgb, var(--green) 36%, var(--border));
-  color: var(--green);
+  color: var(--text);
 }
 
 .step[data-status='failed'] {
-  border-color: color-mix(in srgb, var(--red) 40%, var(--border));
-  color: var(--red);
+  color: var(--text-muted);
 }
 
 .stepIcon {
