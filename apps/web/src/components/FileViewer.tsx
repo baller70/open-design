@@ -4011,12 +4011,12 @@ function HtmlViewer({
       const out = fn();
       if (out && typeof (out as Promise<unknown>).then === 'function') {
         (out as Promise<unknown>).then(
-          () => { finish('success'); if (toastFormats.has(format)) setExportToast(t('fileViewer.exportStarted')); },
+          () => { finish('success'); if (toastFormats.has(format)) setExportToast({ message: t('fileViewer.exportStarted'), tone: 'default' }); },
           (err) => finish('failed', err instanceof Error ? err.name : 'UNKNOWN'),
         );
       } else {
         finish('success');
-        if (toastFormats.has(format)) setExportToast(t('fileViewer.exportStarted'));
+        if (toastFormats.has(format)) setExportToast({ message: t('fileViewer.exportStarted'), tone: 'default' });
       }
     } catch (err) {
       finish('failed', err instanceof Error ? err.name : 'UNKNOWN');
@@ -4365,7 +4365,9 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
   const imageExportSnapshotDataUrlRef = useRef<string | null>(null);
   const imageExportPrepareIdRef = useRef(0);
   const screenshotInFlightRef = useRef(false);
-  const [exportToast, setExportToast] = useState<string | null>(null);
+  const [exportToast, setExportToast] = useState<
+    { message: string; tone: 'default' | 'success' | 'error' | 'loading' } | null
+  >(null);
   const [selectedSideCommentIds, setSelectedSideCommentIds] = useState<Set<string>>(() => new Set());
   const [commentSidePanelCollapsed, setCommentSidePanelCollapsed] = useState(false);
   const [strokePoints, setStrokePoints] = useState<StrokePoint[]>([]);
@@ -6378,26 +6380,29 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
   const handleCopyScreenshot = useCallback(async () => {
     if (screenshotInFlightRef.current) return;
     screenshotInFlightRef.current = true;
-    setExportToast(t('fileViewer.screenshotCopying'));
+    setExportToast({ message: t('fileViewer.screenshotCopying'), tone: 'loading' });
     try {
       const snap = await captureExportImageSnapshot();
       if (!snap) {
-        setExportToast(t('fileViewer.screenshotPreviewLoading'));
+        setExportToast({ message: t('fileViewer.screenshotPreviewLoading'), tone: 'error' });
         return;
       }
       const result = await copyImageDataUrlToClipboard(snap.dataUrl);
       setExportToast(
-        t(
-          result === 'copied'
-            ? 'fileViewer.screenshotCopied'
-            : result === 'denied'
-              ? 'fileViewer.screenshotClipboardDenied'
-              : 'fileViewer.screenshotCaptureFailed',
-        ),
+        result === 'copied'
+          ? { message: t('fileViewer.screenshotCopied'), tone: 'success' }
+          : {
+              message: t(
+                result === 'denied'
+                  ? 'fileViewer.screenshotClipboardDenied'
+                  : 'fileViewer.screenshotCaptureFailed',
+              ),
+              tone: 'error',
+            },
       );
     } catch (err) {
       console.warn('[handleCopyScreenshot] failed:', err);
-      setExportToast(t('fileViewer.screenshotCaptureFailed'));
+      setExportToast({ message: t('fileViewer.screenshotCaptureFailed'), tone: 'error' });
     } finally {
       screenshotInFlightRef.current = false;
     }
@@ -7492,8 +7497,10 @@ const [manualEditTargets, setManualEditTargets] = useState<ManualEditTarget[]>([
             {exportToast ? (
               <div className="comment-toast-anchor">
                 <Toast
-                  message={exportToast}
-                  ttlMs={2200}
+                  message={exportToast.message}
+                  tone={exportToast.tone}
+                  role={exportToast.tone === 'error' ? 'alert' : 'status'}
+                  ttlMs={exportToast.tone === 'loading' ? 8000 : 2200}
                   onDismiss={() => setExportToast(null)}
                 />
               </div>

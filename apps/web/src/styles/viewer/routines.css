@@ -129,6 +129,69 @@
     0 4px 14px rgba(0, 0, 0, 0.14),
     0 0 0 1px color-mix(in srgb, var(--success, #2da44e) 12%, transparent);
 }
+.od-toast.tone-error {
+  border: 1px solid color-mix(in srgb, var(--danger, #cf222e) 42%, var(--border));
+  background: color-mix(in srgb, var(--danger, #cf222e) 13%, var(--bg));
+  color: var(--text);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.14),
+    0 0 0 1px color-mix(in srgb, var(--danger, #cf222e) 12%, transparent);
+}
+.od-toast-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.od-toast-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+.od-toast.tone-success .od-toast-icon {
+  color: var(--success, #2da44e);
+}
+.od-toast.tone-error .od-toast-icon {
+  color: var(--danger, #cf222e);
+}
+.od-toast.tone-loading .od-toast-icon {
+  color: var(--text-muted, #6e7781);
+}
+/* Entrance: gentle rise + fade (ease-out per the UI animation philosophy).
+   Exit: the .leaving class plays a faster fade-out before onDismiss unmounts
+   the toast, so confirmations like "copied to clipboard" don't blink away. */
+.od-toast {
+  animation: od-toast-in 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.od-toast.leaving {
+  animation: od-toast-out 140ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+@keyframes od-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+@keyframes od-toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .od-toast,
+  .od-toast.leaving {
+    animation: none;
+  }
+}
 .od-toast-message {
   font-weight: 500;
 }

@@ -3,6 +3,7 @@ import { useAnalytics } from '../analytics/provider';
 import { trackFileManagerClick } from '../analytics/events';
 import { useT } from '../i18n';
 import type { Dict } from '../i18n/types';
+import { copyToClipboard } from '../lib/copy-to-clipboard';
 import { projectFileUrl, projectRawUrl } from '../providers/registry';
 import { buildSrcdoc } from '../runtime/srcdoc';
 import type { LiveArtifactWorkspaceEntry, ProjectFile, ProjectFileKind, ProjectFolder } from '../types';
@@ -21,10 +22,16 @@ type TranslateFn = (key: keyof Dict, vars?: Record<string, string | number>) => 
 
 interface Props {
   projectId: string;
+  /** Absolute on-disk project directory, used to build absolute file paths
+   * for the "copy path" menu action. */
+  resolvedDir?: string;
   files: ProjectFile[];
   folders?: ProjectFolder[];
   liveArtifacts: LiveArtifactWorkspaceEntry[];
   onRefreshFiles: () => Promise<void> | void;
+  /** Notified whenever the viewed folder changes, so the host can route new
+   * files (uploads, pastes, sketches) into that folder. '' means project root. */
+  onCurrentDirChange?: (dir: string) => void;
   onOpenFile: (name: string) => void;
   onOpenLiveArtifact: (tabId: LiveArtifactWorkspaceEntry['tabId']) => void;
   onRenameFile: (from: string, to: string) => Promise<ProjectFile | null> | ProjectFile | null;
@@ -33,6 +40,7 @@ interface Props {
   onUpload: () => void;
   onUploadFiles: (files: File[]) => void;
   onCreateFolder?: (name: string) => Promise<ProjectFolder | null> | ProjectFolder | null;
+  onDeleteFolder?: (folderPath: string) => Promise<boolean> | boolean;
   onPaste: () => void;
   onNewSketch: () => void;
   uploadError?: string | null;
@@ -188,10 +196,12 @@ function ActionNoticeView({ notice }: { notice: ActionNotice | null }) {
  */
 export function DesignFilesPanel({
   projectId,
+  resolvedDir,
   files,
   folders = [],
   liveArtifacts,
   onRefreshFiles,
+  onCurrentDirChange,
   onOpenFile,
   onOpenLiveArtifact,
   onRenameFile,
@@ -200,6 +210,7 @@ export function DesignFilesPanel({
   onUpload,
   onUploadFiles,
   onCreateFolder,
+  onDeleteFolder,
   onPaste,
   onNewSketch,
   uploadError = null,
@@ -217,6 +228,12 @@ export function DesignFilesPanel({
   const internalDragNamesRef = useRef<string[]>([]);
   const [hover, setHover] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ name: string; top: number; left: number } | null>(null);
+  // Folder rows get their own context menu (open / copy path / delete); `path`
+  // is the folder's project-relative path.
+  const [folderMenuPos, setFolderMenuPos] = useState<{ path: string; top: number; left: number } | null>(null);
+  // Transient confirmation toast shown after an action (copy path, create /
+  // delete folder, move files). Auto-dismisses.
+  const [toast, setToast] = useState<string | null>(null);
   const MENU_ESTIMATED_HEIGHT = 180;
   const MENU_SAFE_PADDING = 8;
   const [preview, setPreview] = useState<string | null>(null);
@@ -296,6 +313,18 @@ export function DesignFilesPanel({
   }, [files, folders, optimisticFolderPaths]);
 
   const folderPathSet = useMemo(() => new Set(folderPaths), [folderPaths]);
+
+  // Modified time per folder path, from the persisted folder listing. Derived
+  // folders (inferred from a file's path) and freshly-created optimistic
+  // folders have no entry, so their row shows no time until the next refresh.
+  const folderMtimeByPath = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const folder of folders) {
+      const p = folder.path || folder.name;
+      if (p) map.set(p, folder.mtime);
+    }
+    return map;
+  }, [folders]);
 
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
   const searchActive = normalizedSearchQuery.length > 0;
@@ -498,6 +527,19 @@ export function DesignFilesPanel({
     setRenaming(null);
   }, [currentDir]);
 
+  // Tell the host which folder is being viewed so new files (uploads, pastes,
+  // sketches, dropped files) are created under it instead of the project root.
+  useEffect(() => {
+    onCurrentDirChange?.(currentDir);
+  }, [currentDir, onCurrentDirChange]);
+
+  // Auto-dismiss the confirmation toast.
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
   // Navigate up to the nearest ancestor that still exists when files under
   // currentDir disappear (e.g. after deleting the last file in a subfolder).
   useEffect(() => {
@@ -589,8 +631,11 @@ export function DesignFilesPanel({
   );
 
   useEffect(() => {
-    if (!menuPos) return;
-    const close = () => setMenuPos(null);
+    if (!menuPos && !folderMenuPos) return;
+    const close = () => {
+      setMenuPos(null);
+      setFolderMenuPos(null);
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
     };
@@ -600,7 +645,7 @@ export function DesignFilesPanel({
       window.removeEventListener('mousedown', close);
       window.removeEventListener('keydown', onKey);
     };
-  }, [menuPos]);
+  }, [menuPos, folderMenuPos]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -679,6 +724,56 @@ export function DesignFilesPanel({
     setMenuPos({ name, top, left });
   }
 
+  function openFolderMenuFor(path: string, el: HTMLElement) {
+    const rect = el.closest('.df-row-menu')?.getBoundingClientRect();
+    if (!rect) return;
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    let top: number;
+    if (spaceBelow >= MENU_ESTIMATED_HEIGHT + MENU_SAFE_PADDING) {
+      top = rect.bottom + 4;
+    } else if (spaceAbove >= MENU_ESTIMATED_HEIGHT + MENU_SAFE_PADDING) {
+      top = rect.top - MENU_ESTIMATED_HEIGHT - 4;
+    } else {
+      top = Math.max(MENU_SAFE_PADDING, viewportHeight - MENU_ESTIMATED_HEIGHT - MENU_SAFE_PADDING);
+    }
+    const left = Math.max(MENU_SAFE_PADDING, rect.right - 160);
+    setMenuPos(null);
+    setFolderMenuPos({ path, top, left });
+  }
+
+  // Absolute on-disk path for a project-relative file/folder path. Falls back
+  // to the relative path when the project root is unknown (e.g. a non-desktop
+  // host that didn't resolve it).
+  function absPathFor(name: string): string {
+    const base = (resolvedDir ?? '').replace(/[/\\]+$/, '');
+    return base ? `${base}/${name}` : name;
+  }
+
+  async function copyPath(name: string) {
+    setMenuPos(null);
+    setFolderMenuPos(null);
+    const ok = await copyToClipboard(absPathFor(name));
+    if (ok) setToast(t('designFiles.copiedPath'));
+  }
+
+  async function handleDeleteFolder(path: string) {
+    setFolderMenuPos(null);
+    if (!onDeleteFolder) return;
+    const label = basenameForProjectPath(path);
+    if (!window.confirm(t('designFiles.deleteFolderConfirm', { name: label }))) return;
+    const ok = await onDeleteFolder(path);
+    if (ok) {
+      setOptimisticFolderPaths((current) => current.filter((p) => p !== path && !p.startsWith(`${path}/`)));
+      if (currentDir === path || currentDir.startsWith(`${path}/`)) {
+        const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+        setCurrentDir(parent);
+      }
+      setToast(t('designFiles.folderDeleted', { name: label }));
+    }
+  }
+
   function startRename(name: string) {
     setMenuPos(null);
     setPreview(name);
@@ -739,6 +834,7 @@ export function DesignFilesPanel({
       );
       setSearchQuery('');
       setCurrentDir(createdPath);
+      setToast(t('designFiles.folderCreated', { name: basenameForProjectPath(createdPath) }));
     }
   }
 
@@ -755,12 +851,14 @@ export function DesignFilesPanel({
   async function moveFilesToFolder(names: string[], folderPath: string) {
     const uniqueNames = Array.from(new Set(names));
     const failed: string[] = [];
+    let moved = 0;
     for (const name of uniqueNames) {
       const nextName = joinProjectPath(folderPath, basenameForProjectPath(name));
       if (nextName === name) continue;
       try {
         const renamed = await onRenameFile(name, nextName);
         if (!renamed) throw new Error('Move failed');
+        moved += 1;
         setPreview((curr) => (curr === name ? renamed.name : curr));
         setSelected((prev) => {
           if (!prev.has(name)) return prev;
@@ -775,6 +873,9 @@ export function DesignFilesPanel({
     }
     if (failed.length > 0) {
       alert(`Could not move ${failed.length} file(s).\n${failed.slice(0, 4).join('\n')}`);
+    } else if (moved > 0) {
+      const dest = folderPath ? basenameForProjectPath(folderPath) : t('designFiles.moveRoot');
+      setToast(t('designFiles.filesMoved', { n: moved, dest }));
     }
   }
 
@@ -983,10 +1084,15 @@ export function DesignFilesPanel({
     const prefix = `${fullPath}/`;
     const count = files.filter((f) => f.name.startsWith(prefix)).length;
     const dragActive = dragOverFolder === fullPath;
+    const folderMtime = folderMtimeByPath.get(fullPath);
+    const hoverKey = `dir:${fullPath}`;
+    const menuVisible = hover === hoverKey || folderMenuPos?.path === fullPath;
     return (
       <tr
         key={`dir:${fullPath}`}
         className={`df-file-row df-dir-row ${dragActive ? 'drag-over' : ''}`}
+        onMouseEnter={() => setHover(hoverKey)}
+        onMouseLeave={() => setHover((curr) => (curr === hoverKey ? null : curr))}
         onDragEnter={(e) => {
           if (!hasInternalFileDrag(e.dataTransfer)) return;
           e.preventDefault();
@@ -1030,8 +1136,32 @@ export function DesignFilesPanel({
         <td className="df-cell-kind df-cell-openable" onClick={() => openDirectory(fullPath)}>
           <span className="df-kind-label">{t('designFiles.kindFolder')}</span>
         </td>
-        <td className="df-cell-time df-cell-openable" onClick={() => openDirectory(fullPath)} />
-        <td className="df-cell-menu" />
+        <td className="df-cell-time df-cell-openable" onClick={() => openDirectory(fullPath)}>
+          {folderMtime != null ? relativeTime(folderMtime, t) : null}
+        </td>
+        <td className="df-cell-menu">
+          <span
+            data-testid={`design-folder-menu-${fullPath}`}
+            className="df-row-menu"
+            style={menuVisible ? { opacity: 1 } : undefined}
+            role="button"
+            tabIndex={0}
+            aria-label={t('designFiles.rowMenu')}
+            onClick={(e) => {
+              e.stopPropagation();
+              openFolderMenuFor(fullPath, e.target as HTMLElement);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                openFolderMenuFor(fullPath, e.currentTarget as HTMLElement);
+              }
+            }}
+          >
+            ⋯
+          </span>
+        </td>
       </tr>
     );
   }
@@ -1820,6 +1950,15 @@ export function DesignFilesPanel({
           >
             {t('designFiles.moveTitle')}
           </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void copyPath(menuPos.name);
+            }}
+          >
+            {t('designFiles.copyPath')}
+          </button>
           <a
             href={projectFileUrl(projectId, menuPos.name)}
             download={menuPos.name}
@@ -1849,6 +1988,55 @@ export function DesignFilesPanel({
           >
             {t('designFiles.delete')}
           </button>
+        </div>
+      ) : null}
+      {folderMenuPos ? (
+        <div
+          data-testid="design-folder-menu-popover"
+          className="df-row-popover"
+          style={{ top: folderMenuPos.top, left: folderMenuPos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const path = folderMenuPos.path;
+              setFolderMenuPos(null);
+              openDirectory(path);
+            }}
+          >
+            {t('designFiles.previewOpen')}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void copyPath(folderMenuPos.path);
+            }}
+          >
+            {t('designFiles.copyPath')}
+          </button>
+          {onDeleteFolder ? (
+            <button
+              type="button"
+              className="danger"
+              data-testid={`design-folder-delete-${folderMenuPos.path}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                void handleDeleteFolder(folderMenuPos.path);
+              }}
+            >
+              {t('designFiles.delete')}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {toast ? (
+        <div className="df-toast" role="status">
+          {toast}
         </div>
       ) : null}
       {folderDialogDefault !== null ? (

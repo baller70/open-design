@@ -36,12 +36,21 @@ describe('Toast', () => {
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
-  it('auto-dismisses after ttlMs when code is not present', () => {
+  it('auto-dismisses after ttlMs plus the exit fade when code is not present', () => {
     vi.useFakeTimers();
     const onDismiss = vi.fn();
     render(<Toast message="folder opened" ttlMs={2000} onDismiss={onDismiss} />);
+    // The fade-out begins at ttlMs, but onDismiss (which unmounts the toast)
+    // waits for the exit animation to play first, so it has not fired yet.
     vi.advanceTimersByTime(2001);
+    expect(onDismiss).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(200);
     expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a leading status glyph for the success tone', () => {
+    const { container } = render(<Toast message="Screenshot copied to clipboard" tone="success" />);
+    expect(container.querySelector('.od-toast.tone-success .od-toast-icon')).not.toBeNull();
   });
 
   it('renders a Dismiss button when both code and onDismiss are present', () => {

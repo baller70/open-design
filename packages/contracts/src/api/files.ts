@@ -70,6 +70,8 @@ export interface UploadProjectFilesResponse extends ProjectFilesResponse {}
 
 export interface DeleteProjectFileResponse extends OkResponse {}
 
+export interface DeleteProjectFolderResponse extends OkResponse {}
+
 export interface RenameProjectFileRequest {
   from: string;
   to: string;

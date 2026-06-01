@@ -22,6 +22,7 @@ import {
   fetchProjectFolders,
   projectFileUrl,
   createProjectFolder,
+  deleteProjectFolder,
   renameProjectFile,
   updateDesignSystemDraft,
   type UploadProjectFilesResult,
@@ -82,6 +83,9 @@ import {
 interface Props {
   projectId: string;
   projectKind: TrackingProjectKind;
+  /** Absolute on-disk project directory (from GET /api/projects/:id). Used by
+   * the Design Files panel's "copy absolute path" action. */
+  resolvedDir?: string | null;
   files: ProjectFile[];
   liveArtifacts: LiveArtifactSummary[];
   filesRefreshKey?: number;
@@ -250,6 +254,7 @@ const DESIGN_SYSTEM_IMAGE_OR_FONT_EXTENSIONS = /\.(svg|png|jpe?g|gif|webp|avif|i
 export function FileWorkspace({
   projectId,
   projectKind,
+  resolvedDir,
   files,
   liveArtifacts,
   filesRefreshKey = 0,
@@ -328,6 +333,10 @@ export function FileWorkspace({
 
   const [showPasteDialog, setShowPasteDialog] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // The folder the Design Files panel is currently viewing (synced via
+  // onCurrentDirChange). New files — uploads, pastes, sketches, dropped files —
+  // are created under this folder instead of the project root.
+  const [uploadDir, setUploadDir] = useState<string>('');
   const [sketches, setSketches] = useState<Record<string, SketchState>>({});
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [projectFolders, setProjectFolders] = useState<ProjectFolder[]>([]);
@@ -623,7 +632,7 @@ export function FileWorkspace({
     const cohort = deriveUploadCohort(picked);
     let result: UploadProjectFilesResult;
     try {
-      result = await uploadProjectFiles(projectId, picked);
+      result = await uploadProjectFiles(projectId, picked, uploadDir);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       setUploadError(`Upload failed for ${picked.length} file(s) (${detail}).`);
@@ -857,7 +866,11 @@ export function FileWorkspace({
 
   function startNewSketch() {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const name = `sketch-${stamp}.sketch.json`;
+    const base = `sketch-${stamp}.sketch.json`;
+    // Create under the folder currently being viewed, if any. The slash-joined
+    // name flows through as the sketch's tab id and save path; the daemon's
+    // sanitizePath turns it into a real subdirectory on save.
+    const name = uploadDir ? `${uploadDir}/${base}` : base;
     setSketches((curr) => ({
       ...curr,
       [name]: {
@@ -1360,10 +1373,12 @@ export function FileWorkspace({
           <DesignFilesPanel
             key={projectId}
             projectId={projectId}
+            resolvedDir={resolvedDir ?? undefined}
             files={visibleFiles}
             folders={projectFolders}
             liveArtifacts={liveArtifactEntries}
             onRefreshFiles={onRefreshFiles}
+            onCurrentDirChange={setUploadDir}
             onOpenFile={openFile}
             onOpenLiveArtifact={(tabId) => openFile(tabId)}
             onRenameFile={handleRename}
@@ -1398,6 +1413,14 @@ export function FileWorkspace({
                 await refreshProjectFolders();
               }
               return folder;
+            }}
+            onDeleteFolder={async (folderPath) => {
+              const ok = await deleteProjectFolder(projectId, folderPath);
+              if (ok) {
+                await onRefreshFiles();
+                await refreshProjectFolders();
+              }
+              return ok;
             }}
             onPaste={() => {
               trackFileManagerClick(analytics.track, {
@@ -1521,7 +1544,9 @@ export function FileWorkspace({
           onClose={() => setShowPasteDialog(false)}
           onSave={async (name, content) => {
             setShowPasteDialog(false);
-            const file = await writeProjectTextFile(projectId, name, content);
+            // Save under the folder currently being viewed, if any.
+            const target = uploadDir ? `${uploadDir}/${name}` : name;
+            const file = await writeProjectTextFile(projectId, target, content);
             if (file) {
               await onRefreshFiles();
               openFile(file.name);

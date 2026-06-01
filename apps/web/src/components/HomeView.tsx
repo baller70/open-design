@@ -52,7 +52,7 @@ import type {
   SkillSummary,
 } from '../types';
 import { inlineMentionToken } from '../utils/inlineMentions';
-import { HomeHero } from './HomeHero';
+import { HomeHero, type HomeHeroHandle } from './HomeHero';
 import { findChip, HOME_HERO_CHIPS, type HomeHeroChip } from './home-hero/chips';
 import {
   buildHomeMediaComposer,
@@ -267,7 +267,7 @@ export function HomeView({
       area: 'plugin_replacement_modal',
     });
   }, [pendingReplacement, analytics.track]);
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const inputRef = useRef<HomeHeroHandle | null>(null);
   const consumedHandoffIdRef = useRef<number | null>(null);
   const pendingPromptFocusEndRef = useRef(false);
   const activePluginApplyRequestRef = useRef(0);
@@ -387,12 +387,7 @@ export function HomeView({
   useEffect(() => {
     if (!pendingPromptFocusEndRef.current) return;
     pendingPromptFocusEndRef.current = false;
-    const input = inputRef.current;
-    if (!input) return;
-    input.focus();
-    const position = input.value.length;
-    input.setSelectionRange(position, position);
-    input.scrollTop = input.scrollHeight;
+    inputRef.current?.focusEnd();
   }, [prompt]);
 
   useEffect(() => {
@@ -542,12 +537,7 @@ export function HomeView({
 
   function focusPromptAtEnd() {
     requestAnimationFrame(() => {
-      const input = inputRef.current;
-      if (!input) return;
-      input.focus();
-      const position = input.value.length;
-      input.setSelectionRange(position, position);
-      input.scrollTop = input.scrollHeight;
+      inputRef.current?.focusEnd();
     });
   }
 

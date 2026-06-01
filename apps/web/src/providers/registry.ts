@@ -1281,6 +1281,22 @@ export async function createProjectFolder(
   }
 }
 
+export async function deleteProjectFolder(
+  projectId: string,
+  folderPath: string,
+): Promise<boolean> {
+  try {
+    const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folders`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: folderPath }),
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchLiveArtifacts(projectId: string): Promise<LiveArtifactSummary[]> {
   try {
     const resp = await fetch(`/api/live-artifacts?projectId=${encodeURIComponent(projectId)}`);
@@ -1707,17 +1723,23 @@ export interface UploadProjectFilesResult {
 export async function uploadProjectFiles(
   projectId: string,
   files: File[],
+  dir?: string,
 ): Promise<UploadProjectFilesResult> {
   if (files.length === 0) return { uploaded: [], failed: [] };
 
   const uploaded: ChatAttachment[] = [];
   const failed: ProjectUploadFailure[] = [];
   let error: string | undefined;
+  const targetDir = dir?.trim() ?? '';
 
   for (let i = 0; i < files.length; i += PROJECT_UPLOAD_BATCH_SIZE) {
     const batch = files.slice(i, i + PROJECT_UPLOAD_BATCH_SIZE);
     const remaining = files.slice(i + PROJECT_UPLOAD_BATCH_SIZE);
     const form = new FormData();
+    // The `dir` field MUST be appended before the file parts: the daemon's
+    // multer destination resolver reads req.body.dir as each file streams in,
+    // and busboy only exposes fields parsed earlier in the multipart body.
+    if (targetDir) form.append('dir', targetDir);
     for (const f of batch) form.append('files', f);
 
     try {

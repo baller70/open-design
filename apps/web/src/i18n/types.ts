@@ -2067,6 +2067,12 @@ export interface Dict {
   'designFiles.moveRoot': string;
   'designFiles.moveNewFolder': string;
   'designFiles.move': string;
+  'designFiles.copyPath': string;
+  'designFiles.copiedPath': string;
+  'designFiles.deleteFolderConfirm': string;
+  'designFiles.folderCreated': string;
+  'designFiles.folderDeleted': string;
+  'designFiles.filesMoved': string;
   'designFiles.colName': string;
   'designFiles.colKind': string;
   'designFiles.colModified': string;

@@ -610,6 +610,16 @@ const MAC_WINDOW_CHROME_CSS = `
   .modal-backdrop *,
   .modal,
   .modal *,
+  .new-project-modal-backdrop,
+  .new-project-modal-backdrop *,
+  .automation-modal-backdrop,
+  .automation-modal-backdrop *,
+  .use-everywhere-modal-backdrop,
+  .use-everywhere-modal-backdrop *,
+  .plugin-details-modal-backdrop,
+  .plugin-details-modal-backdrop *,
+  .plugins-import-modal__backdrop,
+  .plugins-import-modal__backdrop *,
   .ds-modal-backdrop,
   .ds-modal-backdrop *,
   .ds-modal,
@@ -619,8 +629,41 @@ const MAC_WINDOW_CHROME_CSS = `
   .prompt-template-modal,
   .prompt-template-modal *,
   .prompt-template-lightbox-backdrop,
-  .prompt-template-lightbox-backdrop * {
+  .prompt-template-lightbox-backdrop *,
+  .project-instructions-modal-backdrop,
+  .project-instructions-modal-backdrop *,
+  .home-hero-confirm__backdrop,
+  .home-hero-confirm__backdrop *,
+  .project-ds-picker-fullscreen,
+  .project-ds-picker-fullscreen *,
+  .staged-preview-modal,
+  .staged-preview-modal *,
+  .qs-overlay,
+  .qs-overlay * {
     -webkit-app-region: no-drag;
+  }
+  .modal-backdrop::before,
+  .new-project-modal-backdrop::before,
+  .automation-modal-backdrop::before,
+  .use-everywhere-modal-backdrop::before,
+  .plugin-details-modal-backdrop::before,
+  .plugins-import-modal__backdrop::before,
+  .ds-modal-backdrop::before,
+  .prompt-template-modal-backdrop::before,
+  .prompt-template-lightbox-backdrop::before,
+  .project-instructions-modal-backdrop::before,
+  .home-hero-confirm__backdrop::before,
+  .project-ds-picker-fullscreen::before,
+  .staged-preview-modal::before,
+  .qs-overlay::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 56px;
+    pointer-events: auto;
+    -webkit-app-region: drag !important;
   }
   .entry-brand {
     -webkit-app-region: drag;
