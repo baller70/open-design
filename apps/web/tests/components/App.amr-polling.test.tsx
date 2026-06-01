@@ -192,6 +192,48 @@ describe('App AMR polling', () => {
     expect(mockedFetchAmrModels).toHaveBeenCalledTimes(3);
   });
 
+  it('starts AMR preset polling before the agent probe resolves', { timeout: 10_000 }, async () => {
+    let resolveAgents!: (value: Array<{
+      id: string;
+      name: string;
+      bin: string;
+      available: boolean;
+      version: string;
+      models: Array<{ id: string; label: string }>;
+    }>) => void;
+    mockedFetchAgents.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAgents = resolve;
+      }),
+    );
+    mockedFetchAmrModels.mockReset();
+    mockedFetchAmrModels.mockResolvedValue({
+      source: 'preset',
+      refreshing: true,
+      models: [{ id: 'preset-a', label: 'preset-a' }],
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mockedFetchAmrModels).toHaveBeenCalledTimes(1);
+    });
+    resolveAgents([
+      {
+        id: 'amr',
+        name: 'AMR',
+        bin: 'vela',
+        available: true,
+        version: '1.0.0',
+        models: [],
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('amr-model').textContent).toBe('preset-a');
+    });
+  });
+
   it('stops polling after the remote refresh reports a preset-side error', { timeout: 10_000 }, async () => {
     mockedFetchAmrModels.mockReset();
     mockedFetchAmrModels
