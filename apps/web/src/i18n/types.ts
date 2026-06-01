@@ -1932,9 +1932,6 @@ export interface Dict {
   'generationPreview.stepUnderstand': string;
   'generationPreview.stepGenerate': string;
   'generationPreview.stepPrepare': string;
-  'generationPreview.elapsed': string;
-  'generationPreview.estimate': string;
-  'generationPreview.progressAria': string;
   'generationPreview.retry': string;
   'generationPreview.awaitingTitle': string;
   'generationPreview.awaitingLead': string;

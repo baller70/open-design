@@ -108,17 +108,6 @@ export function GenerationPreviewStage({
           {lead}
         </p>
       ) : null}
-      <div
-        className={styles.progress}
-        data-active={generating}
-        role="progressbar"
-        aria-label={t('generationPreview.progressAria', { percent: model.progressPercent })}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={model.progressPercent}
-      >
-        <span style={{ width: `${model.progressPercent}%` }} />
-      </div>
       <ol className={styles.steps}>
         {model.steps
           .filter((step) => step.status !== 'pending')
