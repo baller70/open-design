@@ -1943,6 +1943,7 @@ function QueuedSendStrip({
   const [dragState, setDragState] = useState<QueuedSendDragState | null>(null);
   if (items.length === 0) return null;
   const canReorder = Boolean(onReorder && items.length > 1);
+  const overflowCount = Math.max(0, items.length - QUEUED_SEND_VISIBLE_ROW_COUNT);
 
   const handleDragStart = (
     event: ReactDragEvent<HTMLButtonElement>,
@@ -2024,84 +2025,92 @@ function QueuedSendStrip({
           <span>{t('chat.queuedToSend')}</span>
         </div>
       </div>
-      {items.map((item, index) => {
-        const isDragging = dragState?.draggingId === item.id;
-        const dropClass = dragState?.overId === item.id
-          && dragState.draggingId !== item.id
-          && dragState.edge
-          ? ` chat-queued-send-row-drop-${dragState.edge}`
-          : '';
-        return (
-          <div
-            className={`chat-queued-send-row${index === 0 ? ' chat-queued-send-row-active' : ''}${
-              editingId === item.id ? ' chat-queued-send-row-editing' : ''
-            }${isDragging ? ' chat-queued-send-row-dragging' : ''}${dropClass}`}
-            key={item.id}
-            onDragOver={(event) => handleDragOver(event, item.id)}
-            onDrop={(event) => handleDrop(event, item.id)}
-          >
-            <button
-              type="button"
-              className="chat-queued-send-drag-handle chat-queued-send-tooltip"
-              title={t('chat.queuedReorder')}
-              data-tooltip={t('chat.queuedReorder')}
-              aria-label={t('chat.queuedReorder')}
-              draggable={canReorder}
-              disabled={!canReorder}
-              onDragStart={(event) => handleDragStart(event, item)}
-              onDragEnd={() => setDragState(null)}
+      <div className={`chat-queued-send-list${overflowCount > 0 ? ' is-scrollable' : ''}`}>
+        {items.map((item, index) => {
+          const isDragging = dragState?.draggingId === item.id;
+          const dropClass = dragState?.overId === item.id
+            && dragState.draggingId !== item.id
+            && dragState.edge
+            ? ` chat-queued-send-row-drop-${dragState.edge}`
+            : '';
+          return (
+            <div
+              className={`chat-queued-send-row${index === 0 ? ' chat-queued-send-row-active' : ''}${
+                editingId === item.id ? ' chat-queued-send-row-editing' : ''
+              }${isDragging ? ' chat-queued-send-row-dragging' : ''}${dropClass}`}
+              key={item.id}
+              onDragOver={(event) => handleDragOver(event, item.id)}
+              onDrop={(event) => handleDrop(event, item.id)}
             >
-              <Icon name="grip-vertical" size={14} />
-            </button>
-            <div className="chat-queued-send-main">
-              <span className="chat-queued-send-title">{summarizeQueuedPrompt(item, t)}</span>
-              <QueuedSendMetaChips item={item} />
-            </div>
-            <div className="chat-queued-send-actions">
-              {onEdit ? (
-                <button
-                  type="button"
-                  className="chat-queued-send-action chat-queued-send-tooltip"
-                  title={t('chat.queuedEdit')}
-                  data-tooltip={t('chat.queuedEdit')}
-                  aria-label={t('chat.queuedEdit')}
-                  onClick={() => onEdit(item)}
-                >
-                  <Icon name="pencil" size={13} />
-                </button>
-              ) : null}
               <button
                 type="button"
-                className="chat-queued-send-action chat-queued-send-tooltip"
-                title={t('chat.send')}
-                data-tooltip={t('chat.send')}
-                aria-label={t('chat.send')}
-                onClick={() => onSendNow?.(item.id)}
-                disabled={!onSendNow}
+                className="chat-queued-send-drag-handle chat-queued-send-tooltip"
+                title={t('chat.queuedReorder')}
+                data-tooltip={t('chat.queuedReorder')}
+                aria-label={t('chat.queuedReorder')}
+                draggable={canReorder}
+                disabled={!canReorder}
+                onDragStart={(event) => handleDragStart(event, item)}
+                onDragEnd={() => setDragState(null)}
               >
-                <Icon name="arrow-up" size={13} />
+                <Icon name="grip-vertical" size={14} />
               </button>
-              {onRemove ? (
+              <div className="chat-queued-send-main">
+                <span className="chat-queued-send-title">{summarizeQueuedPrompt(item, t)}</span>
+                <QueuedSendMetaChips item={item} />
+              </div>
+              <div className="chat-queued-send-actions">
+                {onEdit ? (
+                  <button
+                    type="button"
+                    className="chat-queued-send-action chat-queued-send-tooltip"
+                    title={t('chat.queuedEdit')}
+                    data-tooltip={t('chat.queuedEdit')}
+                    aria-label={t('chat.queuedEdit')}
+                    onClick={() => onEdit(item)}
+                  >
+                    <Icon name="pencil" size={13} />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="chat-queued-send-action chat-queued-send-tooltip"
-                  onClick={() => onRemove(item.id)}
-                  title={t('chat.comments.remove')}
-                  data-tooltip={t('chat.comments.remove')}
-                  aria-label={t('chat.comments.remove')}
+                  title={t('chat.send')}
+                  data-tooltip={t('chat.send')}
+                  aria-label={t('chat.send')}
+                  onClick={() => onSendNow?.(item.id)}
+                  disabled={!onSendNow}
                 >
-                  <Icon name="trash" size={13} />
+                  <Icon name="arrow-up" size={13} />
                 </button>
-              ) : null}
+                {onRemove ? (
+                  <button
+                    type="button"
+                    className="chat-queued-send-action chat-queued-send-tooltip"
+                    onClick={() => onRemove(item.id)}
+                    title={t('chat.comments.remove')}
+                    data-tooltip={t('chat.comments.remove')}
+                    aria-label={t('chat.comments.remove')}
+                  >
+                    <Icon name="trash" size={13} />
+                  </button>
+                ) : null}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      {overflowCount > 0 ? (
+        <div className="chat-queued-send-overflow">
+          +{overflowCount} {t('chat.queuedMore')}
+        </div>
+      ) : null}
     </div>
   );
 }
 
 const QUEUED_SEND_DRAG_MIME = 'application/x-open-design-queued-send';
+const QUEUED_SEND_VISIBLE_ROW_COUNT = 4;
 
 type QueuedSendDropEdge = 'before' | 'after';
 

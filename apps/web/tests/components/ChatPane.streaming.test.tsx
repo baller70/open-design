@@ -150,8 +150,11 @@ describe('ChatPane streaming state', () => {
 
     expect(css).toContain('.chat-queued-send-strip');
     expect(css).toContain('display: flex;');
+    expect(css).toContain('.chat-queued-send-list');
+    expect(css).toContain('overflow-y: auto;');
     expect(css).toContain('.chat-queued-send-row');
-    expect(css).toContain('align-items: center;');
+    expect(css).toContain('display: grid;');
+    expect(css).toContain('grid-template-columns: 24px minmax(0, 1fr) max-content;');
     expect(css).toContain('.chat-queued-send-title');
     expect(css).toContain('text-overflow: ellipsis;');
     expect(css).toContain('.chat-queued-send-drag-handle');
@@ -159,6 +162,7 @@ describe('ChatPane streaming state', () => {
     expect(css).toContain('.chat-queued-send-action');
     expect(css).toContain('width: 24px;');
     expect(css).toContain('height: 24px;');
+    expect(css).toContain('.chat-queued-send-overflow');
   });
 
   it('exposes retry only for the last failed assistant when the pane is idle', () => {
@@ -549,7 +553,8 @@ Expected output:
     expect(strip?.textContent).toContain('Reduce the subtitle size');
     expect(strip?.textContent).toContain('Switch to a lighter font weight');
     expect(strip?.textContent).toContain('Add hover polish');
-    expect(container.querySelector('.chat-queued-send-overflow')).toBeNull();
+    expect(container.querySelector('.chat-queued-send-list')?.className).toContain('is-scrollable');
+    expect(container.querySelector('.chat-queued-send-overflow')?.textContent).toContain('+1 more queued');
     expect(screen.getAllByRole('button', { name: 'Drag to reorder' })).toHaveLength(5);
 
     const sendNowButtons = screen.getAllByRole('button', { name: 'chat.send' });
