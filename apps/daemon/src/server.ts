@@ -12180,6 +12180,13 @@ export async function startServer({
     // in the close handler suppresses the buffer when the output is an
     // OAuth prompt; otherwise the flush below sends the chunks in order.
     const plaintextStdoutBuffer: string[] = [];
+    // Arrival time of the first buffered plain-text stdout chunk
+    // (antigravity). First-token timing is stamped from this value only
+    // when the buffer is actually flushed to the client at close time. If
+    // the auth-prompt guard suppresses the buffer (the OAuth login URL is
+    // printed to stdout), no token ever reaches the user, so TTFT must not
+    // be recorded for that failure mode. See PR #3412.
+    let firstBufferedStdoutAt: number | null = null;
     // Tracks whether any stream the run is using actually emitted user-
     // visible content. Only the streams routed through `sendAgentEvent`
     // contribute to this flag; ACP sessions and plain stdout streams are
@@ -12529,10 +12536,13 @@ export async function startServer({
       // the OAuth URL before forwarding it to the client as assistant
       // text. agy exits 0 after printing the auth URL on stdout, so the
       // chunks would otherwise arrive before the close-time classifier
-      // detects them as an auth prompt.
+      // detects them as an auth prompt. First-token timing is deliberately
+      // NOT stamped here — only the first chunk's arrival time is recorded,
+      // and `firstTokenAt` is stamped from it at flush time so the
+      // suppressed OAuth-prompt path never reports a TTFT (PR #3412).
       child.stdout.on('data', (chunk) => {
         noteAgentActivity();
-        noteFirstTokenAt();
+        if (firstBufferedStdoutAt === null) firstBufferedStdoutAt = Date.now();
         plaintextStdoutBuffer.push(String(chunk));
       });
     } else {
@@ -12856,7 +12866,13 @@ export async function startServer({
       // Flush buffered plain-text stdout (antigravity) that was not
       // suppressed by the auth-prompt guard above. Send each chunk in
       // order before finishing so the assistant text arrives before the
-      // run's `finished` event.
+      // run's `finished` event. Stamp first-token timing here — and only
+      // here — using the first chunk's arrival time, so the OAuth-prompt
+      // path (which returns before this flush) never records a TTFT for
+      // output the user never saw (PR #3412).
+      if (plaintextStdoutBuffer.length > 0 && firstBufferedStdoutAt !== null) {
+        noteFirstTokenAt(firstBufferedStdoutAt);
+      }
       for (const chunk of plaintextStdoutBuffer) {
         send('stdout', { chunk });
       }
