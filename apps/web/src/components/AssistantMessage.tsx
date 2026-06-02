@@ -407,8 +407,10 @@ function AssistantMessageImpl({
   // above the composer, so we strip any TodoWrite tool-groups out of the
   // per-message flow to avoid the same task list rendering twice.
   const blocks = stripTodoToolGroups(
-    suppressDuplicateQuestionForms(
-      suppressAskUserQuestionFallbackText(buildBlocks(events)),
+    stripEmptyThinkingBlocks(
+      suppressDuplicateQuestionForms(
+        suppressAskUserQuestionFallbackText(buildBlocks(events)),
+      ),
     ),
   );
   const fileOps = useMemo(() => deriveFileOps(events), [events]);
@@ -2336,6 +2338,13 @@ function stripTodoToolGroups(blocks: Block[]): Block[] {
   return blocks.filter((block) => {
     if (block.kind !== "tool-group") return true;
     return !block.items.every((it) => isTodoWriteToolName(it.use.name));
+  });
+}
+
+function stripEmptyThinkingBlocks(blocks: Block[]): Block[] {
+  return blocks.filter((block) => {
+    if (block.kind !== "thinking") return true;
+    return block.text.trim().length > 0;
   });
 }
 

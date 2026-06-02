@@ -292,6 +292,45 @@ describe('AssistantMessage status badge updates (Bug A)', () => {
   });
 });
 
+describe('AssistantMessage thinking blocks', () => {
+  it('does not render an empty thinking block for whitespace-only thinking deltas', () => {
+    const { container } = render(
+      <AssistantMessage
+        message={baseMessage({
+          content: '',
+          events: [
+            { kind: 'status', label: 'thinking' } as ChatMessage['events'][number],
+            { kind: 'thinking', text: '\n  \t' } as ChatMessage['events'][number],
+          ],
+        })}
+        streaming={false}
+        projectId="proj-1"
+      />,
+    );
+
+    expect(container.querySelector('.thinking-block')).toBeNull();
+  });
+
+  it('keeps non-empty thinking content visible after leading whitespace deltas', () => {
+    const { container } = render(
+      <AssistantMessage
+        message={baseMessage({
+          content: '',
+          events: [
+            { kind: 'thinking', text: '\n  ' } as ChatMessage['events'][number],
+            { kind: 'thinking', text: 'Reading the directory listing.' } as ChatMessage['events'][number],
+          ],
+        })}
+        streaming={false}
+        projectId="proj-1"
+      />,
+    );
+
+    expect(container.querySelector('.thinking-block')).toBeTruthy();
+    expect(screen.getByText('Reading the directory listing.')).toBeTruthy();
+  });
+});
+
 describe('AssistantMessage question forms', () => {
   it('renders only the first question form for a repeated form id in one assistant turn', () => {
     const firstForm = [

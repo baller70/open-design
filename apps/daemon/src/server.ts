@@ -1063,6 +1063,16 @@ function finiteAttachmentNumber(value) {
   return Number.isFinite(value) ? Math.round(value) : 0;
 }
 
+const DESIGN_FILES_HINT_FOLDER_LIMIT = 40;
+const DESIGN_FILES_HINT_FILE_LIMIT = 80;
+type DesignFilesHintEntry = {
+  name?: string;
+  path?: string;
+  kind?: string;
+  type?: string;
+  size?: number;
+};
+
 function formatAttachmentPosition(position) {
   return `x=${position.x}, y=${position.y}, width=${position.width}, height=${position.height}`;
 }
@@ -1113,6 +1123,76 @@ export function formatProjectAttachmentHint(attachments) {
     '',
     'When the user says "first attachment", "second file", or similar, map those references to the numbered list above.',
   ].join('\n');
+}
+
+function formatProjectEntrySize(size: number) {
+  if (!Number.isFinite(size) || size <= 0) return '';
+  if (size < 1024) return `${Math.round(size)} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDesignFilesEntryLine(entry: DesignFilesHintEntry | null | undefined, fallbackKind?: string) {
+  const entryPath =
+    typeof entry?.path === 'string' && entry.path
+      ? entry.path
+      : typeof entry?.name === 'string'
+        ? entry.name
+        : '';
+  if (!entryPath) return null;
+  const kind = fallbackKind || entry.kind || entry.type || 'file';
+  const size = kind === 'folder' ? '' : formatProjectEntrySize(Number(entry.size));
+  return `- \`${entryPath}\` (${[kind, size].filter(Boolean).join(', ')})`;
+}
+
+export function formatDesignFilesWorkspaceHint(
+  cwd: string | null | undefined,
+  files: DesignFilesHintEntry[] = [],
+  folders: DesignFilesHintEntry[] = [],
+) {
+  if (typeof cwd !== 'string' || cwd.trim().length === 0) return '';
+  const safeFolders = Array.isArray(folders) ? folders : [];
+  const safeFiles = Array.isArray(files) ? files : [];
+  const folderLines = safeFolders
+    .slice(0, DESIGN_FILES_HINT_FOLDER_LIMIT)
+    .map((folder) => formatDesignFilesEntryLine(folder, 'folder'))
+    .filter(Boolean);
+  const fileLines = safeFiles
+    .slice(0, DESIGN_FILES_HINT_FILE_LIMIT)
+    .map((file) => formatDesignFilesEntryLine(file, file?.kind || 'file'))
+    .filter(Boolean);
+  const totalFolders = safeFolders.length;
+  const totalFiles = safeFiles.length;
+  const omittedFolders = Math.max(0, totalFolders - folderLines.length);
+  const omittedFiles = Math.max(0, totalFiles - fileLines.length);
+
+  const lines = [
+    '',
+    '',
+    '## Design Files workspace',
+    `The Design Files panel is backed by your current working directory: \`${cwd}\`. Write project files relative to this directory (for example \`index.html\` or \`assets/x.png\`). The user can browse these files in real time.`,
+    'The selected/attached files for a turn are only a shortcut for priority and ordering. If the user did not attach any file, do not assume there are no relevant Design Files.',
+    'When the request refers to existing files, asks you to choose a file, says "current", "this design", "the deck", "the image", "the folder", or depends on project state, inspect/search/read this workspace before answering or editing. Prefer project-relative paths, use the active workspace context as the default target, and ask only if multiple plausible targets remain after inspection.',
+    'For non-trivial inspection or edits, surface progress through visible planning/status/tool events instead of silently guessing.',
+    '',
+    `Current Design Files snapshot: ${totalFolders} folder${totalFolders === 1 ? '' : 's'}, ${totalFiles} file${totalFiles === 1 ? '' : 's'}.`,
+  ];
+
+  if (folderLines.length > 0) {
+    lines.push('', 'Folders:', ...folderLines);
+    if (omittedFolders > 0) lines.push(`- ... ${omittedFolders} more folder${omittedFolders === 1 ? '' : 's'} omitted`);
+  }
+
+  if (fileLines.length > 0) {
+    lines.push('', 'Files:', ...fileLines);
+    if (omittedFiles > 0) lines.push(`- ... ${omittedFiles} more file${omittedFiles === 1 ? '' : 's'} omitted`);
+  }
+
+  if (folderLines.length === 0 && fileLines.length === 0) {
+    lines.push('', 'No user-visible Design Files exist yet. Create clear project-relative files when the task requires output.');
+  }
+
+  return lines.join('\n');
 }
 
 export function resolveSafePromptImagePaths(imagePaths, opts = {}) {
@@ -11059,6 +11139,7 @@ export async function startServer({
     // so the agent writes back to the user's original source tree.
     let cwd = null;
     let existingProjectFiles = [];
+    let existingProjectFolders = [];
     if (typeof projectId === 'string' && projectId) {
       try {
         const chatProject = getProject(db, projectId);
@@ -11066,12 +11147,16 @@ export async function startServer({
         if (chatMeta?.baseDir) {
           cwd = path.normalize(chatMeta.baseDir);
           existingProjectFiles = await listFiles(PROJECTS_DIR, projectId, { metadata: chatMeta });
+          existingProjectFolders = await listProjectFolders(PROJECTS_DIR, projectId, { metadata: chatMeta });
         } else {
           cwd = await ensureProject(PROJECTS_DIR, projectId);
           existingProjectFiles = await listFiles(PROJECTS_DIR, projectId);
+          existingProjectFolders = await listProjectFolders(PROJECTS_DIR, projectId);
         }
       } catch {
         cwd = null;
+        existingProjectFiles = [];
+        existingProjectFolders = [];
       }
     }
     if (run.cancelRequested || design.runs.isTerminal(run.status)) return;
@@ -11114,13 +11199,6 @@ export async function startServer({
     // systemPrompt. We also stitch in the cwd hint so the agent knows
     // where its file tools should write, and the attachment list so it
     // doesn't have to guess what the user just dropped in.
-    // Also ship the current file listing so the agent can pick a unique
-    // filename instead of clobbering a previous artifact.
-    const filesListBlock = existingProjectFiles.length
-      ? `\nFiles already in this folder (do NOT overwrite unless the user asks; pick a fresh, descriptive name for new artifacts):\n${existingProjectFiles
-          .map((f) => `- ${f.name}`)
-          .join('\n')}`
-      : '\nThis folder is empty. Choose a clear, descriptive filename for whatever you create.';
     const projectRecord =
       typeof projectId === 'string' && projectId
         ? getProject(db, projectId)
@@ -11132,7 +11210,7 @@ export async function startServer({
       return v.dirs ?? [];
     })();
     const cwdHint = cwd
-      ? `\n\nYour working directory: ${cwd}\nWrite project files relative to it (e.g. \`index.html\`, \`assets/x.png\`). The user can browse those files in real time.${filesListBlock}`
+      ? formatDesignFilesWorkspaceHint(cwd, existingProjectFiles, existingProjectFolders)
       : '';
     const linkedDirsHint = linkedDirs.length > 0
       ? `\n\nLinked code folders (read-only reference code the user wants you to see):\n${

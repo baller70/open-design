@@ -305,6 +305,14 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
     // row of three standalone buttons (which overflowed in narrow chats).
     const [toolsOpen, setToolsOpen] = useState(false);
     const [toolsTab, setToolsTab] = useState<ToolsTab>('plugins');
+    // Defer the (large) plugin / MCP / connector fetches until the composer is
+    // actually used — first focus, the tools popover opening, an @/slash
+    // trigger, or a pre-seeded draft. An untouched empty composer (e.g. a home
+    // surface the user bounces off, or a background chat) never pays for the
+    // full plugin-manifest list. Latches once true and never resets.
+    const [composerEngaged, setComposerEngaged] = useState(
+      () => (draft ?? '').trim().length > 0,
+    );
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     // The Lexical editor handle — drives text/mention/clear/focus from the
     // host. Replaces the old textareaRef + manual selection plumbing. IME
@@ -366,7 +374,16 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       };
     }, [toolsOpen]);
 
-    // Lazy-fetch the user's external MCP servers list once on mount so the
+    // Latch `composerEngaged` true on the first real interaction so the
+    // deferred fetches below run exactly once, when they are actually needed.
+    useEffect(() => {
+      if (composerEngaged) return;
+      if (draft.trim().length > 0 || toolsOpen || mention || slash) {
+        setComposerEngaged(true);
+      }
+    }, [composerEngaged, draft, toolsOpen, mention, slash]);
+
+    // Lazy-fetch the user's external MCP servers list (once engaged) so the
     // `/mcp …` slash palette and the composer's MCP button popover have
     // something to render. We deliberately do not reactively re-fetch when
     // the user toggles servers from Settings — the dialog refreshes itself,
@@ -374,6 +391,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
     // background poll would be cheap but unnecessary for the typical
     // edit-once-then-chat workflow.
     useEffect(() => {
+      if (!composerEngaged) return;
       let cancelled = false;
       void (async () => {
         const data = await fetchMcpServers();
@@ -384,7 +402,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       return () => {
         cancelled = true;
       };
-    }, []);
+    }, [composerEngaged]);
 
     // Skills now come from the parent (App.tsx → ProjectView → ChatPane → ChatComposer)
     // pre-filtered by enabled/disabled state. We no longer fetch a fresh list
@@ -393,7 +411,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
     // Lazy-fetch installed plugins once on mount; the tools-menu Plugins
     // tab and the @-mention picker both consume this list.
     useEffect(() => {
-      if (!projectId) return;
+      if (!projectId || !composerEngaged) return;
       let cancelled = false;
       void listPlugins().then((rows) => {
         if (cancelled) return;
@@ -402,9 +420,10 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       return () => {
         cancelled = true;
       };
-    }, [projectId]);
+    }, [projectId, composerEngaged]);
 
     useEffect(() => {
+      if (!composerEngaged) return;
       let cancelled = false;
       void fetchConnectors().then((rows) => {
         if (cancelled) return;
@@ -413,7 +432,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       return () => {
         cancelled = true;
       };
-    }, []);
+    }, [composerEngaged]);
 
     // Composer-side plugin list: hide bundled atoms (pipeline-only). Keep
     // the full installed list available even when the project was created
@@ -1633,7 +1652,10 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
               </select>
             </div>
           ) : null}
-          <div className="composer-input-wrap">
+          <div
+            className="composer-input-wrap"
+            onFocus={() => setComposerEngaged(true)}
+          >
             <LexicalComposerInput
               ref={editorRef}
               draft={draft}
