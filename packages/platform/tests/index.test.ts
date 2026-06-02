@@ -470,14 +470,18 @@ HKEY_CURRENT_USER\\Environment
   });
 
   it("resolves Windows REG_EXPAND_SZ proxy values from registry-backed user env", () => {
+    let userEnvironmentQueryCount = 0;
     const env = resolveSystemProxyEnv({
       platform: "win32",
       runCommand(_command, args) {
         if (args.includes("HKCU\\Environment")) {
+          userEnvironmentQueryCount += 1;
           return `
 HKEY_CURRENT_USER\\Environment
+    COMPUTERNAME    REG_SZ    BUILD-WIN-01
     CORP_PROXY_URL    REG_SZ    http://registry-proxy:7890
     HTTPS_PROXY    REG_EXPAND_SZ    %CORP_PROXY_URL%
+    NO_PROXY    REG_EXPAND_SZ    %COMPUTERNAME%,localhost
 `;
         }
         return "";
@@ -485,7 +489,9 @@ HKEY_CURRENT_USER\\Environment
     });
 
     expect(env.HTTPS_PROXY).toBe("http://registry-proxy:7890");
+    expect(env.NO_PROXY).toBe("BUILD-WIN-01,localhost,127.0.0.1");
     expect(env.NODE_USE_ENV_PROXY).toBe("1");
+    expect(userEnvironmentQueryCount).toBe(1);
   });
 
   it("lets Windows user-level proxy env override Internet Settings proxy values", () => {
