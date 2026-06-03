@@ -1,3 +1,5 @@
+import { RELEASE_METADATA_UPSTREAM_URL, formatStableReleaseVersion } from './release-metadata';
+
 export interface GithubRepoMeta {
   starsLabel: string;
   versionLabel: string;
@@ -27,18 +29,19 @@ async function fetchJson(url: string, headers?: Record<string, string>): Promise
 
 export function getGithubRepoMeta(): Promise<GithubRepoMeta> {
   repoMetaPromise ??= (async () => {
-    let repo: unknown = null;
-    try {
-      repo = await fetchJson(REPO_API, { Accept: 'application/vnd.github+json' });
-    } catch {
-      repo = null;
-    }
+    const [repoResult, releaseMetadataResult] = await Promise.allSettled([
+      fetchJson(REPO_API, { Accept: 'application/vnd.github+json' }),
+      fetchJson(RELEASE_METADATA_UPSTREAM_URL, { Accept: 'application/json' }),
+    ]);
 
+    const repo = repoResult.status === 'fulfilled' ? repoResult.value : null;
+    const releaseMetadata = releaseMetadataResult.status === 'fulfilled' ? releaseMetadataResult.value : null;
     const starsLabel = formatStars((repo as { stargazers_count?: unknown } | null)?.stargazers_count);
+    const versionLabel = formatStableReleaseVersion(releaseMetadata);
 
     return {
       starsLabel: starsLabel ?? FALLBACK_META.starsLabel,
-      versionLabel: FALLBACK_META.versionLabel,
+      versionLabel: versionLabel ?? FALLBACK_META.versionLabel,
     };
   })();
 
