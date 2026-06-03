@@ -26,6 +26,7 @@ import {
   type ToolCallSummary,
   type TurnInfo,
 } from './langfuse-trace.js';
+import type { PromptStackTelemetry } from './prompt-telemetry.js';
 import { redactSecrets } from './redact.js';
 import {
   hasExplicitRequestedModelForAnalytics,
@@ -67,6 +68,7 @@ interface DaemonRunRecord {
   skillId?: string;
   designSystemId?: string;
   clientType?: 'desktop' | 'web' | 'unknown';
+  promptTelemetry?: PromptStackTelemetry;
 }
 
 export interface ReportRunCompletedFromDaemonOpts {
@@ -444,6 +446,7 @@ export async function reportRunCompletedFromDaemon(
       prefs,
       ...(turn ? { turn } : {}),
       runtime,
+      ...(run.promptTelemetry ? { promptTelemetry: run.promptTelemetry } : {}),
     };
 
     await reportRunCompleted(
