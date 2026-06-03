@@ -29,6 +29,7 @@ import { readSidecarLogTail, startPackagedSidecars } from "./sidecars.js";
 import { probeWebuiStatus } from "./webui-ipc.js";
 import { resolveWebuiLocale, webuiMessages } from "./webui-i18n.js";
 import {
+  assertExplicitConfigExists,
   composeHttpUrl,
   ensureWebuiConfigScaffold,
   generateApiToken,
@@ -474,6 +475,10 @@ async function main(): Promise<void> {
     return;
   }
   const { command, flags } = parseWebuiArgs(argv);
+  // An explicit --config path must exist — for start, stop, AND status. Failing
+  // fast here (before any config resolution) is the single guard that prevents a
+  // missing explicit path from silently falling back to the default namespace.
+  assertExplicitConfigExists(flags.config);
   if (command === "start") {
     const json = flags.json === true;
     const { configFile, configPath, scaffold } = discoverConfigFile(flags.config);

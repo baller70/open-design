@@ -10,6 +10,7 @@ import {
   ensureWebuiConfigScaffold,
   formatHostForUrl,
   generateApiToken,
+  assertExplicitConfigExists,
   hasDisplay,
   isLoopbackHost,
   isNotRunningIpcError,
@@ -385,6 +386,25 @@ describe("loadConfigFile", () => {
     const path = join(dir, "bad.json");
     writeFileSync(path, "{ not valid json", "utf8");
     expect(() => loadConfigFile(path)).toThrow(/failed to read config file/i);
+  });
+});
+
+describe("assertExplicitConfigExists", () => {
+  // This guard is what main() calls before resolving config for start/stop/status,
+  // so a missing explicit --config can never silently fall back to the default
+  // namespace (which would let `stop`/`status` hit the wrong instance).
+  it("throws when an explicit --config path is missing", () => {
+    expect(() => assertExplicitConfigExists("/tmp/missing.json", () => false)).toThrow(
+      "config file not found",
+    );
+  });
+
+  it("passes when the explicit --config path exists", () => {
+    expect(() => assertExplicitConfigExists("/tmp/there.json", () => true)).not.toThrow();
+  });
+
+  it("is a no-op when no --config is given (the auto-discovered default may be absent → scaffolded)", () => {
+    expect(() => assertExplicitConfigExists(undefined, () => false)).not.toThrow();
   });
 });
 

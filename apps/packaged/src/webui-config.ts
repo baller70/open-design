@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { isIP } from "node:net";
 import { networkInterfaces } from "node:os";
+import { resolve } from "node:path";
 
 import { SIDECAR_DEFAULTS, normalizeNamespace } from "@open-design/sidecar-proto";
 
@@ -338,6 +339,27 @@ export function resolveRuntimeNamespace(
 export function isNotRunningIpcError(error: unknown): boolean {
   const code = (error as NodeJS.ErrnoException | null)?.code;
   return code === "ENOENT" || code === "ECONNREFUSED";
+}
+
+// An explicit `--config <path>` MUST point at an existing file. Treating a
+// missing explicit path as "no config" silently falls back to the default
+// namespace/port/host: `start` would ignore the caller's chosen location, and a
+// later `stop`/`status --config <missing>` would probe the DEFAULT namespace and
+// could stop the wrong instance. So fail fast instead. A missing path is fine
+// only when none was given (the auto-discovered default gets scaffolded). `exists`
+// is injectable for tests.
+export function assertExplicitConfigExists(
+  explicitPath: string | undefined,
+  exists: (p: string) => boolean = existsSync,
+): void {
+  if (explicitPath == null) return;
+  const resolved = resolve(explicitPath);
+  if (!exists(resolved)) {
+    throw new Error(
+      `config file not found: ${resolved}. An explicit --config path must exist; ` +
+        `falling back to defaults would target the wrong namespace/port.`,
+    );
+  }
 }
 
 export function generateApiToken(): string {

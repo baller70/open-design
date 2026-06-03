@@ -27,7 +27,7 @@ The daemon listens on a fixed port `7457` by default (paired with web's `7456`, 
 - `--no-open`: do not open the browser automatically
 - `--foreground`: run in the foreground (background is the default), Ctrl+C to stop
 - `--lang <en|zh-CN>`: startup output language (defaults to the system locale)
-- `--config <PATH>`: use a specific config file
+- `--config <PATH>`: use a specific config file (it must already exist — only the default `webui.config.json` is auto-created; a missing explicit path is a hard error so `start`/`stop`/`status` never silently fall back to the default instance)
 
 **The first `start` auto-creates `webui.config.json` next to the scripts** (seeded from the field values in `webui.config.example.json`, with the example's `//`-prefixed documentation keys stripped, so the generated file is pure data with no comments; if no example is present, built-in defaults are written); an existing file is never overwritten. Edit it to persist configuration. Every config key is documented inline in `webui.config.example.json`: `port` (web port), `daemonPort` (daemon port, `0` = random loopback), `host`, `token`, `openBrowser`, `lang` (startup output language), plus two optional keys `namespace` (runtime namespace, for isolating multiple instances) and `dataDir` (override the data directory, equivalent to `OD_DATA_DIR`).
 
