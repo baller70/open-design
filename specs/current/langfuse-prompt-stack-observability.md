@@ -194,9 +194,6 @@ interface PromptStackTelemetry {
   composedPrompt: {
     bytes: number;
     sha256: string;
-    redactedPreview?: string;
-    redactedPreviewBytes?: number;
-    redactedPreviewTruncated?: boolean;
     redactedContent?: string;
     redactedContentBytes?: number;
     redactedContentTruncated?: boolean;
@@ -277,7 +274,7 @@ interface PromptPrivacyTelemetry {
   maxSectionBytes: number;
   maxDaemonSystemPromptBytes: number;
   maxTotalSectionBytes: number;
-  maxComposedBytes: number;
+  maxComposedBytes?: number;
   localPaths: 'redacted' | 'hashed' | 'omitted';
   attachments: 'metadata-only' | 'redacted-preview';
   toolTokens: 'omitted';
@@ -294,6 +291,23 @@ dimensions (`promptStackHash`, `promptStackBytes`), the
 linkage list — denotes that same `composedPrompt.sha256`/`composedPrompt.bytes`
 value, so the `apps/daemon/src/prompt-telemetry.ts` builder has exactly one
 source for the fingerprint and dashboards/joins cannot fragment.
+
+The daemon system prompt is likewise single-sourced. The authoritative record is
+the `sections[]` entry named `daemonSystemPrompt`: it owns `bytes`, `sha256`, and
+(when content capture is enabled) the bounded `redactedContent`. The top-level
+`daemonSystemPrompt` object and the flat `daemonSystemPromptHash` dimension are
+projections of that section — `daemonSystemPrompt.bytes`/`daemonSystemPrompt.sha256`
+and `daemonSystemPromptHash` must equal the section's `bytes`/`sha256`, and
+`redactedContent` lives only on the section so the builder never copies content
+into two places.
+
+`maxComposedBytes` is optional because composed-prompt capture is out of scope
+for Phase 1 (see the "Out of scope for Phase 1" list under
+[Phase 1: Debug-Ready Prompt Diagnostics](#phase-1-debug-ready-prompt-diagnostics)).
+A Phase 1 builder omits it; it becomes a required bound only once a
+`redacted-composed-content` capture mode is implemented. The three section bounds
+(`maxSectionBytes`, `maxDaemonSystemPromptBytes`, `maxTotalSectionBytes`) are the
+only required bound fields in Phase 1.
 
 Phase 1 uses `redactionVersion: 'prompt-stack-redaction-v1'`.
 
