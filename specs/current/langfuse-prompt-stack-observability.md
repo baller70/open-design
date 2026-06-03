@@ -284,6 +284,17 @@ interface PromptPrivacyTelemetry {
 }
 ```
 
+`PromptStackTelemetry` intentionally carries no separate top-level fingerprint
+field: the stack-level `promptStackHash` and `promptStackBytes` are sourced
+directly from `composedPrompt.sha256` and `composedPrompt.bytes`. Every other
+reference to the stack fingerprint — the Phase 2 `generation.input` example
+(`promptStackHash`), the flat [Flat Metadata for Metrics](#flat-metadata-for-metrics)
+dimensions (`promptStackHash`, `promptStackBytes`), the
+[Privacy and Safety](#privacy-and-safety) hashing rule, and the per-score
+linkage list — denotes that same `composedPrompt.sha256`/`composedPrompt.bytes`
+value, so the `apps/daemon/src/prompt-telemetry.ts` builder has exactly one
+source for the fingerprint and dashboards/joins cannot fragment.
+
 Phase 1 uses `redactionVersion: 'prompt-stack-redaction-v1'`.
 
 Capture modes:
