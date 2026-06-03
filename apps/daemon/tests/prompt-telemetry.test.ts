@@ -366,6 +366,58 @@ describe('prompt telemetry builder', () => {
     expect(userRequest.truncationReason).toBe('total_budget_exceeded');
   });
 
+  it('keeps aggregate prompt fingerprints metadata-only without spending content budget', () => {
+    const huge = 'x'.repeat(120 * 1024);
+    const telemetry = buildPromptStackTelemetry({
+      composedPrompt: huge,
+      sections: [
+        {
+          kind: 'daemonSystemPrompt',
+          content: huge,
+          captureContent: false,
+        },
+        {
+          kind: 'clientSystemPrompt',
+          content: huge,
+          captureContent: false,
+        },
+        { kind: 'skillPrompt', content: huge },
+        { kind: 'designSystemPrompt', content: huge },
+        { kind: 'pluginStagePrompt', content: huge },
+        { kind: 'researchCommandContract', content: huge },
+        { kind: 'runContextPrompt', content: huge },
+      ],
+    });
+
+    const daemonSystemPrompt = telemetry.sections.find(
+      (s) => s.kind === 'daemonSystemPrompt',
+    )!;
+    const clientSystemPrompt = telemetry.sections.find(
+      (s) => s.kind === 'clientSystemPrompt',
+    )!;
+    expect(daemonSystemPrompt.contentMode).toBe('metadata-only');
+    expect(daemonSystemPrompt.redactedContent).toBeUndefined();
+    expect(daemonSystemPrompt.fingerprint).toMatch(/^sha256:/);
+    expect(clientSystemPrompt.contentMode).toBe('metadata-only');
+    expect(clientSystemPrompt.redactedContent).toBeUndefined();
+    expect(clientSystemPrompt.fingerprint).toMatch(/^sha256:/);
+    expect(telemetry.sections.find((s) => s.kind === 'skillPrompt')?.redactedContent)
+      .toHaveLength(16 * 1024);
+    expect(
+      telemetry.sections.find((s) => s.kind === 'designSystemPrompt')?.redactedContent,
+    ).toHaveLength(16 * 1024);
+    expect(
+      telemetry.sections.find((s) => s.kind === 'pluginStagePrompt')?.redactedContent,
+    ).toHaveLength(16 * 1024);
+    expect(
+      telemetry.sections.find((s) => s.kind === 'researchCommandContract')
+        ?.redactedContent,
+    ).toHaveLength(16 * 1024);
+    expect(telemetry.sections.find((s) => s.kind === 'runContextPrompt')?.redactedContent)
+      .toHaveLength(16 * 1024);
+    expect(telemetry.redactedContentBytes).toBe(80 * 1024);
+  });
+
   it('removes redactedContent when content consent is unavailable', () => {
     const telemetry = buildPromptStackTelemetry({
       composedPrompt: 'hello',

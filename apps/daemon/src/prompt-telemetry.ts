@@ -32,6 +32,7 @@ export type PromptTelemetrySectionKind =
 export interface PromptTelemetryInputSection {
   kind: PromptTelemetrySectionKind;
   content?: string | null;
+  captureContent?: boolean;
   metadata?: unknown;
 }
 
@@ -252,11 +253,12 @@ export function buildPromptStackTelemetry({
       (Array.isArray(section.metadata)
         ? section.metadata.length > 0
         : section.metadata !== undefined && section.metadata !== null);
-    const canCaptureContent = REDACTED_CONTENT_KINDS.has(section.kind);
-    const redacted = canCaptureContent
+    const isContentKind = REDACTED_CONTENT_KINDS.has(section.kind);
+    const canCaptureContent = isContentKind && section.captureContent !== false;
+    const redacted = isContentKind
       ? sanitizeSectionContent(section.kind, rawContent)
       : JSON.stringify(metadataFingerprintSource(section));
-    const metadata = canCaptureContent
+    const metadata = isContentKind
       ? section.metadata && typeof section.metadata === 'object'
         ? summarizeMetadataValue(section.metadata)
         : undefined

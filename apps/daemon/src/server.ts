@@ -11091,11 +11091,19 @@ export async function startServer({
       composedPrompt: composed,
       sections: [
         { kind: 'formOverride', content: formOverride },
-        { kind: 'daemonSystemPrompt', content: daemonSystemPrompt },
+        {
+          kind: 'daemonSystemPrompt',
+          content: daemonSystemPrompt,
+          captureContent: false,
+        },
         { kind: 'runtimeToolPrompt', content: runtimeToolPrompt },
         { kind: 'researchCommandContract', content: researchCommandContract },
         { kind: 'runContextPrompt', content: runContextPrompt },
-        { kind: 'clientSystemPrompt', content: clientInstructionPrompt },
+        {
+          kind: 'clientSystemPrompt',
+          content: clientInstructionPrompt,
+          captureContent: false,
+        },
         { kind: 'echoGuard', content: ECHO_GUARD },
         { kind: 'userRequest', content: userRequestPrompt },
         { kind: 'skillPrompt', content: promptTelemetryParts?.skillPrompt },
