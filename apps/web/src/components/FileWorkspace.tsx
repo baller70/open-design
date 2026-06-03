@@ -59,6 +59,7 @@ import {
 } from '../types';
 import type { ChatSessionMode, WorkspaceContextItem } from '@open-design/contracts';
 import { createTerminal, killTerminal } from '../state/projects';
+import type { QuestionForm } from '../artifacts/question-form';
 import { DesignFilesPanel } from './DesignFilesPanel';
 import { DesignBrowserPanel, labelFromUrl, type BrowserPageInfo } from './DesignBrowserPanel';
 import type { PluginFolderAgentAction } from './design-files/pluginFolderActions';
@@ -74,6 +75,7 @@ import { TerminalViewer } from './workspace/TerminalViewer';
 import { LiveArtifactBadges } from './LiveArtifactBadges';
 import { MissingBrandFontsBanner } from './MissingBrandFontsBanner';
 import { PasteTextDialog } from './PasteTextDialog';
+import { QuestionsPanel } from './QuestionsPanel';
 import { QuickSwitcher } from './QuickSwitcher';
 import { SketchEditor } from './SketchEditor';
 import {
@@ -178,6 +180,25 @@ interface Props {
   // row was removed; these moved here alongside the FileViewer present/Share
   // portal that targets the same actions container.
   headerActions?: ReactNode;
+  // Active discovery question form, surfaced in the right-hand Questions tab
+  // instead of inline in the chat. Owned by ProjectView (derived from the
+  // latest assistant message).
+  questionForm?: QuestionForm | null;
+  // Tolerantly-parsed form shown while the block is still streaming, so the
+  // panel renders a frame and fills questions in progressively.
+  questionFormPreview?: QuestionForm | null;
+  // Stable per-occurrence id so the panel can remember a completed reveal
+  // across the streaming→persisted remount instead of re-animating.
+  questionFormKey?: string | null;
+  questionFormInteractive?: boolean;
+  // The turn is busy (streaming/queued) — keep Continue/Skip disabled while the
+  // form itself stays editable.
+  questionFormSubmitDisabled?: boolean;
+  questionFormSubmittedAnswers?: Record<string, string | string[]>;
+  questionsGenerating?: boolean;
+  onSubmitQuestionForm?: (text: string) => void;
+  // Bumped nonce that focuses the Questions tab (banner click / new form).
+  focusQuestionsRequest?: { nonce: number } | null;
 }
 
 interface SketchState {
@@ -193,6 +214,7 @@ interface SketchState {
 
 export const DESIGN_FILES_TAB = '__design_files__';
 export const DESIGN_SYSTEM_TAB = '__design_system__';
+const QUESTIONS_TAB = '__questions__';
 const BROWSER_TAB_PREFIX = '__browser__:';
 // Keep at most this many embedded-browser `<webview>`s mounted at once. Each is
 // a full out-of-process Chromium guest (timers, JS, network, a GPU surface), so
@@ -352,8 +374,23 @@ export function FileWorkspace({
   onLaunchTerminalAuth,
   conversationId,
   headerActions,
+  questionForm = null,
+  questionFormPreview = null,
+  questionFormKey = null,
+  questionFormInteractive = false,
+  questionFormSubmitDisabled = false,
+  questionFormSubmittedAnswers,
+  questionsGenerating = false,
+  onSubmitQuestionForm,
+  focusQuestionsRequest = null,
 }: Props) {
   const t = useT();
+  // The Questions tab only exists while there's an unanswered form. Once the
+  // user replies, the answered copy moves back into chat and the tab must close
+  // — so gate on `questionFormSubmittedAnswers === undefined` rather than the
+  // mere presence of a form, otherwise a locked duplicate lingers in the panel.
+  const showQuestionsTab =
+    Boolean(questionForm || questionsGenerating) && questionFormSubmittedAnswers === undefined;
   const analytics = useAnalytics();
   // P1 page_view page_name=file_manager — once per project the user lands
   // inside the workspace. Re-fire when the projectId changes so a
@@ -611,7 +648,7 @@ export function FileWorkspace({
   // back to the last remaining tab. Skip transient activeTab values
   // (DESIGN_FILES_TAB, pending sketches) since those aren't in persistedTabs.
   useEffect(() => {
-    if (activeTab === DESIGN_FILES_TAB || activeTab === DESIGN_SYSTEM_TAB) return;
+    if (activeTab === DESIGN_FILES_TAB || activeTab === DESIGN_SYSTEM_TAB || activeTab === QUESTIONS_TAB) return;
     if (isBrowserTabId(activeTab)) {
       if (!browserTabs.some((tab) => tab.id === activeTab)) {
         setActiveTab(DESIGN_FILES_TAB);
@@ -653,6 +690,24 @@ export function FileWorkspace({
     setActiveTab(name);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequest]);
+
+  // Focus the Questions tab when the parent bumps the nonce (banner click in
+  // chat, or a freshly generated form). The tab is transient — not added to
+  // the persisted tab list.
+  useEffect(() => {
+    if (!focusQuestionsRequest) return;
+    setActiveTab(QUESTIONS_TAB);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusQuestionsRequest?.nonce]);
+
+  // If the Questions tab is active but the form is gone (answered, or a new
+  // assistant turn without a form), fall back to the default root tab.
+  useEffect(() => {
+    if (activeTab === QUESTIONS_TAB && !showQuestionsTab) {
+      setActiveTab(defaultRootTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, showQuestionsTab]);
 
   function openFile(name: string) {
     setUploadError(null);
@@ -870,7 +925,7 @@ export function FileWorkspace({
   // The Design Files entry is already sticky-pinned, so we only scroll
   // for real workspace tabs. Issue #775.
   useEffect(() => {
-    if (activeTab === DESIGN_FILES_TAB || activeTab === DESIGN_SYSTEM_TAB) return;
+    if (activeTab === DESIGN_FILES_TAB || activeTab === DESIGN_SYSTEM_TAB || activeTab === QUESTIONS_TAB) return;
     const tabBar = tabsBarRef.current;
     if (!tabBar) return;
     const el = tabBar.querySelector<HTMLElement>('.ws-tab.active');
@@ -1143,7 +1198,12 @@ export function FileWorkspace({
   }
 
   const activeFile = useMemo<ProjectFile | null>(() => {
-    if (activeTab === DESIGN_FILES_TAB || activeTab === DESIGN_SYSTEM_TAB || isBrowserTabId(activeTab)) return null;
+    if (
+      activeTab === DESIGN_FILES_TAB
+      || activeTab === DESIGN_SYSTEM_TAB
+      || activeTab === QUESTIONS_TAB
+      || isBrowserTabId(activeTab)
+    ) return null;
     const onDisk = visibleFiles.find((f) => f.name === activeTab);
     if (onDisk) return onDisk;
     if (isSketchName(activeTab) && sketches[activeTab]) {
@@ -1159,7 +1219,12 @@ export function FileWorkspace({
   }, [activeTab, visibleFiles, sketches]);
 
   const activeLiveArtifact = useMemo<LiveArtifactWorkspaceEntry | null>(() => {
-    if (activeTab === DESIGN_FILES_TAB || activeTab === DESIGN_SYSTEM_TAB || isBrowserTabId(activeTab)) return null;
+    if (
+      activeTab === DESIGN_FILES_TAB
+      || activeTab === DESIGN_SYSTEM_TAB
+      || activeTab === QUESTIONS_TAB
+      || isBrowserTabId(activeTab)
+    ) return null;
     return liveArtifactEntries.find((entry) => entry.tabId === activeTab) ?? null;
   }, [activeTab, liveArtifactEntries]);
 
@@ -1546,6 +1611,23 @@ export function FileWorkspace({
             </span>
             <span className="ws-tab-label">{t('workspace.designFiles')}</span>
           </button>
+          {showQuestionsTab ? (
+            <button
+              type="button"
+              className={`ws-tab questions-tab ${activeTab === QUESTIONS_TAB ? 'active' : ''}`}
+              role="tab"
+              aria-selected={activeTab === QUESTIONS_TAB}
+              tabIndex={0}
+              data-testid="questions-tab"
+              onClick={() => setActiveTab(QUESTIONS_TAB)}
+              title={t('questions.tabLabel')}
+            >
+              <span className="tab-icon" aria-hidden>
+                <Icon name="help-circle" size={13} />
+              </span>
+              <span className="ws-tab-label">{t('questions.tabLabel')}</span>
+            </button>
+          ) : null}
           {orderedWorkspaceTabs.map((entry) => {
             if (entry.kind === 'browser') {
               const browserTab = entry.browserTab;
@@ -1747,7 +1829,18 @@ export function FileWorkspace({
             />
           </div>
         ))}
-        {activeTab === DESIGN_SYSTEM_TAB && designSystemProject ? (
+        {activeTab === QUESTIONS_TAB ? (
+          <QuestionsPanel
+            key={questionFormKey ?? undefined}
+            formKey={questionFormKey}
+            form={questionForm ?? questionFormPreview}
+            interactive={questionFormInteractive}
+            submitDisabled={questionFormSubmitDisabled}
+            submittedAnswers={questionFormSubmittedAnswers}
+            generating={questionsGenerating}
+            onSubmit={(text) => onSubmitQuestionForm?.(text)}
+          />
+        ) : activeTab === DESIGN_SYSTEM_TAB && designSystemProject ? (
           <DesignSystemProjectPanel
             projectId={projectId}
             system={designSystemProject}

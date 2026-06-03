@@ -281,6 +281,8 @@ interface Props {
   // Question-form submissions become a normal user message; the parent
   // routes that text through onSend (no attachments).
   onSubmitForm?: (text: string) => void;
+  // Focus the right-hand Questions tab from the chat banner.
+  onOpenQuestions?: () => void;
   onContinueRemainingTasks?: (assistantMessage: ChatMessage, todos: TodoItem[]) => void;
   onAssistantFeedback?: (assistantMessage: ChatMessage, change: ChatMessageFeedbackChange) => void;
   onForkFromMessage?: (assistantMessage: ChatMessage) => void;
@@ -429,6 +431,7 @@ export function ChatPane({
   forceStreamingMessageIds,
   initialDraft,
   onSubmitForm,
+  onOpenQuestions,
   onContinueRemainingTasks,
   onAssistantFeedback,
   onForkFromMessage,
@@ -1173,6 +1176,7 @@ export function ChatPane({
                   pinnedToBottomRef.current = true;
                   scrolledToFormRef.current = new Set();
                 }}
+                onOpenQuestions={onOpenQuestions}
                 scrollContainerRef={logRef}
               />
               {displayError ? (
@@ -1427,6 +1431,7 @@ function ChatRows({
   forkingMessageId,
   t,
   onAssistantFormSubmitStart,
+  onOpenQuestions,
   scrollContainerRef,
 }: {
   messages: ChatMessage[];
@@ -1458,6 +1463,7 @@ function ChatRows({
   forkingMessageId?: string | null;
   t: TranslateFn;
   onAssistantFormSubmitStart: () => void;
+  onOpenQuestions?: () => void;
   scrollContainerRef: MutableRefObject<HTMLDivElement | null>;
 }) {
   const items = useMemo(() => buildChatRenderItems(messages), [messages]);
@@ -1527,6 +1533,7 @@ function ChatRows({
           onAssistantFormSubmitStart();
           assistantCallbacksRef.current.onSubmitForm?.(text);
         }}
+        onOpenQuestions={onOpenQuestions}
         onContinueRemainingTasks={
           m.id === lastAssistantId && onContinueRemainingTasks
             ? (todos) => assistantCallbacksRef.current.onContinueRemainingTasks?.(m, todos)
