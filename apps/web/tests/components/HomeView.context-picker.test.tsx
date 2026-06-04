@@ -211,10 +211,12 @@ describe('HomeView context picker', () => {
     fireEvent.mouseDown(await screen.findByRole('option', { name: /chart plugin/i }));
 
     // Picking inserts an atomic plugin mention pill (`@Chart Plugin`) plus a
-    // trailing space, and stages the plugin as context in HomeView state.
+    // trailing space, and stages the plugin as context in HomeView state. The
+    // inline pill is now the only on-screen representation of the staged context
+    // (the duplicate top context-badge row was removed), so the submit payload
+    // below is the authoritative check that the plugin was staged.
     await waitFor(() => {
       expect(homeHeroPromptText().trim()).toBe('Build @Chart Plugin');
-      expect(screen.getByTestId('home-hero-context-plugin-chart-plugin')).toBeTruthy();
     });
 
     // Re-seed the draft with a fresh `@deck` trigger appended after the first
@@ -226,8 +228,6 @@ describe('HomeView context picker', () => {
 
     await waitFor(() => {
       expect(homeHeroPromptText().trim()).toBe('Build @Chart Plugin @Deck Plugin');
-      expect(screen.getByTestId('home-hero-context-plugin-chart-plugin')).toBeTruthy();
-      expect(screen.getByTestId('home-hero-context-plugin-deck-plugin')).toBeTruthy();
     });
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/apply'))).toBe(false);
     expect(homeHeroPromptText()).not.toContain('Hydrated query');
