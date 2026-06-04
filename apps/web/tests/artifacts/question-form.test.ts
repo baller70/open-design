@@ -204,4 +204,18 @@ describe('parsePartialQuestionForm (true token-by-token streaming)', () => {
     const buf = '<question-form id="discovery">{"questions":[{"id":"a","label":"Q","required":t';
     expect(parsePartialQuestionForm(buf)?.questions.map((q) => q.label)).toEqual(['Q']);
   });
+
+  it('keeps a preview question id stable when label streams before its canonical id', () => {
+    // label-first: id falls back to the index-pinned preview id.
+    const labelFirst = parsePartialQuestionForm(
+      '<question-form id="discovery">{"questions":[{"label":"Platform"',
+    );
+    // …then the canonical id arrives — the preview id must NOT change, or the
+    // editable field remounts and orphans the user's in-progress answer.
+    const idLater = parsePartialQuestionForm(
+      '<question-form id="discovery">{"questions":[{"label":"Platform","id":"platform"',
+    );
+    expect(labelFirst?.questions[0]?.id).toBe('q1');
+    expect(idLater?.questions[0]?.id).toBe('q1');
+  });
 });

@@ -374,7 +374,13 @@ function shapeStreamingQuestions(rawQuestions: unknown): FormQuestion[] {
     const label = (raw as Record<string, unknown>).label;
     if (typeof label !== 'string' || label.trim().length === 0) return;
     const mapped = mapRawQuestion(raw, index);
-    if (mapped) out.push(mapped);
+    // Pin the preview id to the array position for the whole streaming phase.
+    // The panel stays editable while building and keys fields / answers off
+    // `q.id`, so if we surfaced a question on its `label` and then adopted a
+    // later-arriving canonical `id`, the field would remount and orphan
+    // whatever the user already picked. Index is stable (questions only append
+    // once their label exists); the final non-preview parse uses the real id.
+    if (mapped) out.push({ ...mapped, id: `q${index + 1}` });
   });
   return out;
 }
