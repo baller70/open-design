@@ -6,7 +6,11 @@ import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { FileWorkspace, scrollWorkspaceTabsWithWheel } from '../../src/components/FileWorkspace';
+import {
+  DESIGN_FILES_TAB,
+  FileWorkspace,
+  scrollWorkspaceTabsWithWheel,
+} from '../../src/components/FileWorkspace';
 import { DesignFilesPanel } from '../../src/components/DesignFilesPanel';
 import { projectSplitClassName, projectSplitStyle } from '../../src/components/ProjectView';
 import {
@@ -186,6 +190,21 @@ function failedAssistantMessage(
     agentId,
     preTurnFileNames: [],
     events: [{ kind: 'status', label: 'error', detail, code }],
+  };
+}
+
+function generatingAssistantMessage(): ChatMessage {
+  return {
+    id: 'msg-generating',
+    role: 'assistant',
+    content: '',
+    createdAt: 1700000000,
+    startedAt: 1700000000,
+    runId: 'run-generating',
+    runStatus: 'running',
+    agentId: 'claude',
+    preTurnFileNames: [],
+    events: [{ kind: 'status', label: 'thinking' }],
   };
 }
 
@@ -1385,6 +1404,31 @@ describe('FileWorkspace generation failure recovery', () => {
     expect(onRetry).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'msg-rate_limited', agentId: 'antigravity' }),
     );
+  });
+
+  // Regression guard for #3516: the giant Lexical-composer merge added an
+  // `activeTab !== DESIGN_FILES_TAB` clause to `showGenerationPreview`, which
+  // suppressed the generation progress card on the design-files tab — the
+  // default landing tab. While a run is in flight and no previewable artifact
+  // exists yet, the progress card must take priority over the empty
+  // "Creations will appear here" file list instead of being hidden behind it.
+  it('keeps the generation preview on the design-files tab while generating with no artifacts yet', () => {
+    render(
+      <FileWorkspace
+        projectId="project-1"
+        projectKind="prototype"
+        files={[]}
+        liveArtifacts={[]}
+        onRefreshFiles={vi.fn()}
+        isDeck={false}
+        streaming
+        tabsState={{ tabs: [], active: DESIGN_FILES_TAB }}
+        onTabsStateChange={vi.fn()}
+        messages={[generatingAssistantMessage()]}
+      />,
+    );
+
+    expect(screen.getByTestId('generation-preview-stage')).toBeTruthy();
   });
 });
 

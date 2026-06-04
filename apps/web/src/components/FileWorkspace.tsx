@@ -1690,8 +1690,16 @@ export function FileWorkspace({
 
   const isActiveSketch = activeFile?.kind === 'sketch' && isSketchName(activeFile.name);
   const activeSketch = activeFile && isActiveSketch ? sketches[activeFile.name] : null;
+  // The generation progress card takes priority over the design-files tab's
+  // empty "Creations will appear here" list: while a run is in flight and no
+  // previewable artifact exists yet, the design-files tab (the default landing
+  // tab) must still show generation progress rather than an idle empty state.
+  // `buildGenerationPreviewState` already returns null once a preview surface
+  // exists, so this never hides a finished artifact. (Pre-#3516 the preview
+  // branch rendered before the design-files branch with no tab guard; the
+  // composer rewrite added an `activeTab !== DESIGN_FILES_TAB` clause here that
+  // accidentally hid the progress card on the default tab.)
   const showGenerationPreview = Boolean(generationPreview)
-    && activeTab !== DESIGN_FILES_TAB
     && activeTab !== DESIGN_SYSTEM_TAB
     && !isBrowserTabId(activeTab)
     && !isSideChatTabId(activeTab)
