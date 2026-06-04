@@ -31,6 +31,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import path from 'node:path';
 import url from 'node:url';
 import { promisify } from 'node:util';
+import {
+  clearAtomWorkers,
+  registerAtomWorker,
+} from '../src/plugins/atoms/registry.js';
+import {
+  registerBuiltInAtomWorkers,
+  resetBuiltInAtomWorkersForTests,
+} from '../src/plugins/atoms/built-ins.js';
 import { startServer } from '../src/server.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
@@ -717,5 +725,154 @@ process.stdin.on('end', () => {
 
     await fetch(`${baseUrl}/api/runs/${encodeURIComponent(runBody.runId)}/cancel`, { method: 'POST' });
     await fs.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('defers visual-validation until after the agent rewrites the artifact', async () => {
+    const fs = await import('node:fs/promises');
+    const os = await import('node:os');
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'od-headless-visual-validation-'));
+    const fixture = path.join(tmpRoot, 'visual-validation-plugin');
+    const seenHtml: string[] = [];
+
+    clearAtomWorkers();
+    resetBuiltInAtomWorkersForTests();
+    registerBuiltInAtomWorkers();
+    registerAtomWorker({
+      id: 'visual-validation',
+      run: async (ctx) => {
+        if (!ctx.cwd) throw new Error('expected project cwd for visual validation');
+        seenHtml.push(await readFile(path.join(ctx.cwd, 'index.html'), 'utf8'));
+        return {
+          signals: {
+            'preview.ok': true,
+            'critique.score': 5,
+          },
+          note: 'captured test artifact',
+        };
+      },
+    });
+
+    try {
+      await fs.mkdir(fixture, { recursive: true });
+      await fs.writeFile(
+        path.join(fixture, 'open-design.json'),
+        JSON.stringify({
+          $schema: 'https://open-design.ai/schemas/plugin.v1.json',
+          name: 'visual-validation-plugin',
+          title: 'Visual Validation Plugin',
+          version: '1.0.0',
+          description: 'fixture with a post-run visual validation stage',
+          license: 'MIT',
+          od: {
+            kind: 'skill',
+            taskKind: 'new-generation',
+            useCase: { query: 'Make a {{topic}} brief.' },
+            inputs: [{ name: 'topic', type: 'string', required: true, label: 'Topic' }],
+            pipeline: {
+              stages: [
+                {
+                  id: 'critique',
+                  atoms: ['visual-validation'],
+                  repeat: false,
+                },
+              ],
+            },
+            capabilities: ['prompt:inject'],
+          },
+        }, null, 2),
+      );
+      await fs.writeFile(
+        path.join(fixture, 'SKILL.md'),
+        '---\nname: visual-validation-plugin\ndescription: fixture with visual validation\n---\n# Visual validation\n',
+      );
+
+      const installResp = await fetch(`${baseUrl}/api/plugins/install`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+        body: JSON.stringify({ source: fixture }),
+      });
+      await readSseUntilSuccess(installResp);
+
+      const projectId = `visual-validation-${Date.now()}`;
+      const createResp = await fetch(`${baseUrl}/api/projects`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: projectId,
+          name: 'Visual validation pipeline e2e',
+          pluginId: 'visual-validation-plugin',
+          pluginInputs: { topic: 'artifact rewrite' },
+          grantCaps: ['pipeline:*'],
+        }),
+      });
+      expect(createResp.status).toBe(200);
+      const createBody = (await createResp.json()) as {
+        appliedPluginSnapshotId?: string;
+      };
+      expect(createBody.appliedPluginSnapshotId).toBeTruthy();
+
+      const seedResp = await fetch(`${baseUrl}/api/projects/${projectId}/files`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'index.html', content: '<!doctype html><h1>before</h1>' }),
+      });
+      expect(seedResp.status).toBe(200);
+
+      await withFakeAgent(
+        'opencode',
+        `
+const fs = require('node:fs');
+if (process.argv.includes('--version')) {
+  console.log('opencode 0.0.0');
+  process.exit(0);
+}
+if (process.argv[2] === 'models') {
+  console.log('test/model');
+  process.exit(0);
+}
+if (process.argv[2] === 'run') {
+  setTimeout(() => {
+    fs.writeFileSync('index.html', '<!doctype html><h1>after</h1>');
+    console.log(JSON.stringify({ type: 'text', part: { text: 'rewritten' } }));
+    process.exit(0);
+  }, 150);
+}
+`,
+        async () => {
+          const runResp = await fetch(`${baseUrl}/api/runs`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              agentId: 'opencode',
+              projectId,
+              pluginId: 'visual-validation-plugin',
+              appliedPluginSnapshotId: createBody.appliedPluginSnapshotId,
+              grantCaps: ['pipeline:*'],
+            }),
+          });
+          expect(runResp.status).toBe(202);
+          const runBody = (await runResp.json()) as { runId: string };
+
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          expect(seenHtml).toEqual([]);
+
+          const deadline = Date.now() + 5_000;
+          while (Date.now() < deadline) {
+            const statusResp = await fetch(`${baseUrl}/api/runs/${encodeURIComponent(runBody.runId)}`);
+            expect(statusResp.status).toBe(200);
+            const statusBody = (await statusResp.json()) as { status?: string };
+            if (statusBody.status === 'succeeded' && seenHtml.length > 0) break;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+
+          expect(seenHtml).toEqual(['<!doctype html><h1>after</h1>']);
+        },
+      );
+    } finally {
+      clearAtomWorkers();
+      resetBuiltInAtomWorkersForTests();
+      registerBuiltInAtomWorkers();
+      await fs.rm(tmpRoot, { recursive: true, force: true });
+    }
   });
 });
