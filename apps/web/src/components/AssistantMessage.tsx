@@ -649,6 +649,7 @@ function AssistantMessageImpl({
                   onSubmitForm?.(text);
                 }}
                 onOpenQuestions={onOpenQuestions}
+                projectFileNames={projectFileNames}
                 onRequestOpenFile={onRequestOpenFile}
               />
             );
@@ -1888,6 +1889,7 @@ function ProseBlock({
   suppressDirectionForms,
   onSubmitForm,
   onOpenQuestions,
+  projectFileNames,
   onRequestOpenFile,
 }: {
   text: string;
@@ -1899,6 +1901,7 @@ function ProseBlock({
   suppressDirectionForms: boolean;
   onSubmitForm: (formId: string, text: string) => void;
   onOpenQuestions?: () => void;
+  projectFileNames?: Set<string>;
   onRequestOpenFile?: (name: string) => void;
 }) {
   const t = useT();
@@ -1931,12 +1934,12 @@ function ProseBlock({
   const onLinkClick = useMemo<MarkdownLinkClickHandler | undefined>(() => {
     if (!onRequestOpenFile) return undefined;
     return (href, event) => {
-      const path = asInProjectFilePath(href);
+      const path = asInProjectFilePath(href, projectFileNames);
       if (!path) return;
       event.preventDefault();
       onRequestOpenFile(path);
     };
-  }, [onRequestOpenFile]);
+  }, [onRequestOpenFile, projectFileNames]);
   // Each text segment is further split on `<system-reminder>` blocks so
   // those render as their own collapsible chip instead of raw markup.
   const renderable = segments.flatMap(
