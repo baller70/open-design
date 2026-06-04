@@ -518,13 +518,13 @@ function PreviewViewportControls({
     <div className="viewer-viewport-switcher" ref={menuRef}>
       <button
         type="button"
-        className="viewer-action viewer-viewport-trigger od-tooltip"
+        className={`viewer-action viewer-viewport-trigger${open ? '' : ' od-tooltip'}`}
         aria-label={t('fileViewer.viewportAria')}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listboxId : undefined}
         title={t(activePreset.titleKey)}
-        data-tooltip={t(activePreset.titleKey)}
+        data-tooltip={open ? undefined : t(activePreset.titleKey)}
         data-tooltip-placement="bottom"
         tabIndex={tabIndex}
         onClick={() => setOpen((value) => !value)}

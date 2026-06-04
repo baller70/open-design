@@ -7,7 +7,7 @@
 // surface by lifting its plugin orchestration up here so the prompt
 // textarea can live centered in the hero.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type {
   ApplyResult,
   ChatSessionMode,
@@ -186,6 +186,7 @@ interface Props {
   skillsLoading?: boolean;
   connectors?: ConnectorDetail[];
   promptTemplates?: PromptTemplateSummary[];
+  executionSwitcher?: ReactNode;
 }
 
 const EMPTY_DESIGN_SYSTEMS: DesignSystemSummary[] = [];
@@ -208,6 +209,7 @@ export function HomeView({
   skillsLoading = false,
   connectors = EMPTY_CONNECTORS,
   promptTemplates = EMPTY_PROMPT_TEMPLATES,
+  executionSwitcher,
 }: Props) {
   const { locale, t } = useI18n();
   const analytics = useAnalytics();
@@ -1418,6 +1420,7 @@ export function HomeView({
           setWorkingDirToken(null);
         }}
         onExamplePromptStatusChange={handleExamplePromptStatusChange}
+        executionSwitcher={executionSwitcher}
       />
 
       <RecentProjectsStrip

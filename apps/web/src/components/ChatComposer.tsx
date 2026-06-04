@@ -369,6 +369,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
     const t = useT();
     const analytics = useAnalytics();
     const [draft, setDraft] = useState(() => initialDraft ?? loadComposerDraft(draftStorageKey) ?? "");
+    const composerRootRef = useRef<HTMLDivElement | null>(null);
     // Synchronous mirror of `draft`. Event handlers that mutate the draft off
     // a captured render closure (notably the annotation listener, where two
     // uploads can resolve concurrently) read/write this ref so their edits
@@ -1916,6 +1917,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       <div
         className={`composer${dragActive ? " drag-active" : ""}`}
         data-testid="chat-composer"
+        ref={composerRootRef}
         onDragOver={(e) => {
           e.preventDefault();
           setDragActive(true);
@@ -2067,7 +2069,11 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
               }}
             />
           </div>
-          <CaretFloatingLayer caret={caretRect} open={Boolean(mention)}>
+          <CaretFloatingLayer
+            caret={caretRect}
+            open={Boolean(mention)}
+            boundaryRef={composerRootRef}
+          >
             <MentionPopover
               files={filteredFiles}
               workspaceContexts={filteredWorkspaceContexts}
@@ -2094,6 +2100,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
           <CaretFloatingLayer
             caret={caretRect}
             open={Boolean(slash && filteredSlash.length > 0)}
+            boundaryRef={composerRootRef}
           >
             <SlashPopover
               commands={filteredSlash}

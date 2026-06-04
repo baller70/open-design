@@ -612,6 +612,22 @@ export function EntryShell({
     );
   }
 
+  const executionSwitcher = (
+    <InlineModelSwitcher
+      config={config}
+      agents={agents}
+      providerModelsCache={activeProviderModelsCache}
+      compact={view === 'home'}
+      daemonLive={daemonLive}
+      onModeChange={onModeChange}
+      onAgentChange={onAgentChange}
+      onAgentModelChange={onAgentModelChange}
+      onApiProtocolChange={onApiProtocolChange}
+      onApiModelChange={onApiModelChange}
+      onOpenSettings={onOpenSettings}
+    />
+  );
+
   return (
     <div className="entry-shell entry-shell--no-header">
       <div className="entry">
@@ -644,18 +660,7 @@ export function EntryShell({
                   </>
                 ) : null}
               </a>
-              <InlineModelSwitcher
-                config={config}
-                agents={agents}
-                providerModelsCache={activeProviderModelsCache}
-                daemonLive={daemonLive}
-                onModeChange={onModeChange}
-                onAgentChange={onAgentChange}
-                onAgentModelChange={onAgentModelChange}
-                onApiProtocolChange={onApiProtocolChange}
-                onApiModelChange={onApiModelChange}
-                onOpenSettings={onOpenSettings}
-              />
+              {view === 'home' ? null : executionSwitcher}
               <button
                 type="button"
                 className="use-everywhere-chip"
@@ -705,6 +710,7 @@ export function EntryShell({
                 skillsLoading={skillsLoading}
                 connectors={connectors}
                 promptTemplates={promptTemplates}
+                executionSwitcher={view === 'home' ? executionSwitcher : null}
               />
             </div>
             <div data-testid="entry-view-projects" data-active={view === 'projects' ? 'true' : 'false'} {...inactiveViewProps(view === 'projects')}>

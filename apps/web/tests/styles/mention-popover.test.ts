@@ -26,22 +26,28 @@ function ruleValue(block: string, property: string): string {
 }
 
 describe('mention popover styles', () => {
-  it('keeps category tabs responsive without wrapping labels', () => {
+  it('wraps category tabs inside the panel without clipping labels', () => {
     const tabs = cssBlock('.mention-tabs');
     const tab = cssBlock('.mention-tab');
 
-    expect(ruleValue(tabs, 'overflow-x')).toBe('auto');
-    expect(ruleValue(tabs, 'overflow-y')).toBe('hidden');
+    expect(ruleValue(tabs, 'flex-wrap')).toBe('wrap');
+    expect(ruleValue(tabs, 'overflow')).toBe('hidden');
     expect(ruleValue(tab, 'flex')).toBe('0 0 auto');
     expect(ruleValue(tab, 'white-space')).toBe('nowrap');
   });
 
-  it('left-aligns multiline result text in the row body', () => {
+  it('keeps result rows aligned with truncated text and stable meta badges', () => {
+    const item = cssBlock('.mention-item');
+    const icon = cssBlock('.mention-item > svg');
     const body = cssBlock('.mention-item-body');
     const description = cssBlock('.mention-meta--desc');
     const kind = cssBlock('.mention-item-kind');
 
+    expect(ruleValue(item, 'display')).toBe('grid');
+    expect(ruleValue(item, 'grid-template-columns')).toBe('24px minmax(0, 1fr) max-content');
+    expect(ruleValue(icon, 'width')).toBe('24px');
     expect(ruleValue(body, 'align-items')).toBe('stretch');
+    expect(ruleValue(body, 'overflow')).toBe('hidden');
     expect(ruleValue(body, 'text-align')).toBe('left');
     expect(ruleValue(description, 'align-self')).toBe('stretch');
     expect(ruleValue(description, 'text-align')).toBe('left');

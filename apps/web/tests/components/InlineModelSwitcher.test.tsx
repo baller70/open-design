@@ -50,6 +50,7 @@ function renderSwitcher(
   config: Partial<AppConfig> = {},
   agents: AgentInfo[] = [amrAgent],
   providerModelsCache: Record<string, ProviderModelOption[]> = {},
+  options: { compact?: boolean } = {},
 ) {
   const onAgentModelChange = vi.fn();
   const view = render(
@@ -57,6 +58,7 @@ function renderSwitcher(
       config={{ ...baseConfig, ...config }}
       agents={agents}
       providerModelsCache={providerModelsCache}
+      compact={options.compact}
       daemonLive={true}
       onModeChange={vi.fn()}
       onAgentChange={vi.fn()}
@@ -160,6 +162,14 @@ describe('InlineModelSwitcher AMR row', () => {
     renderSwitcher({}, [amrAgent, codexAgent]);
 
     expect(screen.queryByTestId('inline-model-switcher-amr-reminder')).toBeNull();
+  });
+
+  it('can render the compact home-hero chip variant', () => {
+    renderSwitcher({}, [amrAgent, codexAgent], {}, { compact: true });
+
+    expect(screen.getByTestId('inline-model-switcher').className).toContain(
+      'inline-switcher--compact',
+    );
   });
 
   it('labels AMR without vela branding and keeps AMR models from AgentInfo.models', async () => {

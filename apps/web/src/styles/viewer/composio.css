@@ -667,7 +667,7 @@
  */
 .chat-pinned-todo {
   position: relative;
-  padding: 0 10px;
+  padding: 0 16px;
   transition:
     transform 220ms cubic-bezier(0.23, 1, 0.32, 1),
     opacity 200ms cubic-bezier(0.23, 1, 0.32, 1);
