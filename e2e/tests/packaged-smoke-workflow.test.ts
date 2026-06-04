@@ -244,6 +244,7 @@ describe("packaged smoke workflow", () => {
     expect(publishBetaMetadataScript).toContain("manifest.releaseVersion !== releaseVersion");
     expect(publishBetaMetadataScript).toContain("manifest.github?.runId !== currentRunId");
     expect(publishBetaMetadataScript).toContain("manifest.github?.runAttempt !== currentRunAttempt");
+    expect(publishBetaMetadataScript).toContain("manifest.github?.commit !== currentCommit");
     expect(publishBetaMetadataScript).toContain("manifest.platformKey !== key");
     expect(publishBetaMetadataScript).toContain("manifest.r2.versionPrefix.includes(`/versions/${releaseVersion}`)");
     expect(publishBetaMetadataScript).toContain("refusing stale ${def.key} platform manifest");
@@ -253,7 +254,82 @@ describe("packaged smoke workflow", () => {
     expect(workflow).not.toContain("publish-beta.ps1 -IndexPath");
   });
 
-  it("rejects stale latest platform manifests from a previous beta workflow run", async () => {
+  it("rejects stale latest platform manifests from a previous beta version", async () => {
+    const fixture = await startReleaseMetadataObjectStore({
+      "beta/latest/platforms/mac.json": {
+        artifacts: {
+          dmg: {
+            url: "https://releases.open-design.ai/beta/versions/1.2.3-beta.3.unsigned/Open Design Beta.dmg",
+          },
+        },
+        channel: "beta",
+        github: {
+          commit: "current-sha",
+          runAttempt: 2,
+          runId: 222222222,
+        },
+        platformKey: "mac",
+        r2: {
+          versionPrefix: "beta/versions/1.2.3-beta.3.unsigned",
+        },
+        releaseVersion: "1.2.3-beta.3",
+        signed: false,
+        status: "published",
+      },
+    });
+    const runnerTemp = await mkdtemp(join(tmpdir(), "od-release-beta-metadata-"));
+
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        ["--experimental-strip-types", releasePublishBetaMetadataScriptPath],
+        {
+          cwd: workspaceRoot,
+          env: {
+            ...process.env,
+            AWS_ACCESS_KEY_ID: "test-access-key",
+            AWS_DEFAULT_REGION: "auto",
+            AWS_SECRET_ACCESS_KEY: "test-secret-key",
+            BASE_VERSION: "1.2.3",
+            BRANCH_NAME: "codex/release-beta-s-mac-arm64",
+            CLOUDFLARE_R2_RELEASES_BUCKET: fixture.bucket,
+            CLOUDFLARE_R2_RELEASES_PUBLIC_ORIGIN: "https://releases.open-design.ai",
+            CLOUDFLARE_R2_RELEASES_URL: fixture.endpointUrl,
+            ENABLE_LINUX: "false",
+            ENABLE_MAC: "true",
+            ENABLE_MAC_INTEL: "false",
+            ENABLE_WIN: "false",
+            GITHUB_RUN_ATTEMPT: "2",
+            GITHUB_RUN_ID: "222222222",
+            GITHUB_SHA: "current-sha",
+            MAC_RESULT: "success",
+            PLATFORM_MANIFEST_ROOT: join(runnerTemp, "release-platform-manifests"),
+            PLATFORM_MANIFEST_PREFIX: "beta/latest/platforms",
+            RELEASE_CHANNEL: "beta",
+            RELEASE_SIGNED: "false",
+            RELEASE_VERSION: "1.2.3-beta.4",
+            RUNNER_TEMP: runnerTemp,
+            STATE_SOURCE: "test",
+          },
+          maxBuffer: 1024 * 1024,
+        },
+      ).then(
+        (value) => ({ status: "fulfilled" as const, value }),
+        (reason: unknown) => ({ reason, status: "rejected" as const }),
+      );
+
+      expect(result.status).toBe("rejected");
+      expect(String(result.status === "rejected" ? result.reason : "")).toContain(
+        "refusing stale mac platform manifest for 1.2.3-beta.4: releaseVersion=1.2.3-beta.3",
+      );
+      expect(fixture.uploadedObjectKeys()).toEqual([]);
+    } finally {
+      await fixture.close();
+      await rm(runnerTemp, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects stale latest platform manifests from a previous same-version beta workflow run", async () => {
     const fixture = await startReleaseMetadataObjectStore({
       "beta/latest/platforms/mac.json": {
         artifacts: {
@@ -263,6 +339,7 @@ describe("packaged smoke workflow", () => {
         },
         channel: "beta",
         github: {
+          commit: "previous-sha",
           runAttempt: 1,
           runId: 111111111,
         },
@@ -299,6 +376,7 @@ describe("packaged smoke workflow", () => {
             ENABLE_WIN: "false",
             GITHUB_RUN_ATTEMPT: "2",
             GITHUB_RUN_ID: "222222222",
+            GITHUB_SHA: "current-sha",
             MAC_RESULT: "success",
             PLATFORM_MANIFEST_ROOT: join(runnerTemp, "release-platform-manifests"),
             PLATFORM_MANIFEST_PREFIX: "beta/latest/platforms",
