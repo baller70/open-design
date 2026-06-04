@@ -10,7 +10,7 @@
 // When the user already has projects, this wrapper is a no-op pass-through —
 // HomeView renders the gallery directly.
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { useT } from '../i18n';
 
@@ -44,13 +44,35 @@ export function HomeTemplatesReveal({ enabled, children }: Props) {
     if (!enabled) setRevealed(false);
   }, [enabled]);
 
+  // While collapsed the gallery is only height-clipped + aria-hidden, but its
+  // buttons, tabs, and search input stay mounted and focusable. Mark the body
+  // `inert` until revealed so a keyboard user can't Tab into the invisible
+  // Community-template controls before reaching the visible bottom hint.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = bodyRef.current;
+    if (!node) return;
+    if (revealed) {
+      node.removeAttribute('inert');
+    } else {
+      node.setAttribute('inert', '');
+    }
+    // `enabled` is in the deps because the body only mounts once the wrapper is
+    // engaged (projects load async); without it the effect wouldn't re-run to
+    // set `inert` on the freshly-mounted body while `revealed` stays false.
+  }, [revealed, enabled]);
+
   if (!enabled) {
     return <>{children}</>;
   }
 
   return (
     <div className={`home-templates-reveal${revealed ? ' is-revealed' : ''}`}>
-      <div className="home-templates-reveal__body" aria-hidden={!revealed}>
+      <div
+        ref={bodyRef}
+        className="home-templates-reveal__body"
+        aria-hidden={!revealed}
+      >
         {children}
       </div>
 

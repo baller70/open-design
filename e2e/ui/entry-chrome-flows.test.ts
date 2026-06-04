@@ -1050,6 +1050,61 @@ test('[P1] collapsed rail stays out of the keyboard tab order on the home view',
   await expect(page.getByTestId('entry-nav-new-project')).toBeVisible();
 });
 
+test('[P1] collapsed new-user templates gallery stays out of the keyboard tab order', async ({ page }) => {
+  // Force the no-project (new-user) state so the templates gallery starts
+  // collapsed behind the scroll-up hint.
+  await page.route('**/api/projects', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: { projects: [] } });
+      return;
+    }
+    await route.continue();
+  });
+  await gotoEntryHome(page);
+
+  const body = page.locator('.home-templates-reveal__body');
+  await expect(body).toHaveAttribute('inert', '');
+
+  // Tabbing from the top of the document must never land inside the still-
+  // mounted (but hidden) Community-template controls.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press('Tab');
+    const inBody = await page.evaluate(
+      () => !!document.activeElement?.closest('.home-templates-reveal__body'),
+    );
+    expect(inBody).toBe(false);
+  }
+
+  // Revealing the gallery (click the hint) drops inert and exposes the grid.
+  await page.getByTestId('home-templates-hint').click();
+  await expect(body).not.toHaveAttribute('inert', '');
+});
+
+test('[P1] rail can be collapsed again on coarse-pointer / non-hover devices', async ({ page }) => {
+  // Emulate a touch device where `(hover: none)` matches: the collapse button
+  // can't be revealed by hover and the topbar toggle is display:none once the
+  // rail docks, so the rail must stay foldable through the always-visible
+  // collapse control. emulateMedia() doesn't cover `hover`, so use CDP.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setEmulatedMedia', {
+    features: [
+      { name: 'hover', value: 'none' },
+      { name: 'pointer', value: 'coarse' },
+    ],
+  });
+
+  await gotoEntryHome(page);
+  await ensureRailOpen(page);
+
+  // Without a hover, the collapse control must still be visible and tappable,
+  // and tapping it must actually fold the rail back.
+  const collapse = page.getByTestId('entry-nav-collapse');
+  await expect(collapse).toBeVisible();
+  await collapse.click();
+  await expect(page.locator('.entry')).not.toHaveClass(/entry--rail-open/);
+});
+
 async function gotoEntryHome(page: Page) {
   await page.goto('/');
   const privacyDialog = page.getByRole('dialog').filter({ hasText: 'Help us improve Open Design' });

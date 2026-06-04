@@ -119,6 +119,16 @@
   opacity: 1;
   pointer-events: auto;
 }
+/* Coarse-pointer / non-hover devices can't reveal the collapse button on
+   hover, and the topbar toggle is display:none once the rail docks — so the
+   rail would strand open. Keep the collapse control permanently visible and
+   tappable there so touch users can always fold the rail back. */
+@media (hover: none) {
+  .entry--rail-open .entry-nav-rail__collapse {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
 /* When the rail is collapsed the brand element still sits at the top-left
    under the cursor; force the absolutely-positioned collapse button inert so
    it can't swallow clicks meant for the topbar toggle stacked beneath it. */
