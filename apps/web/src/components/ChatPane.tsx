@@ -31,7 +31,7 @@ import { TodoCard } from './ToolCard';
 import type { AppConfig, ChatAttachment, ChatCommentAttachment, ChatMessage, ChatMessageFeedbackChange, Conversation, DesignSystemSummary, PreviewComment, Project, ProjectFile, ProjectMetadata, SkillSummary } from '../types';
 import { dayKey, dayLabel, exactDateTime, messageTime, relativeTimeLong, shortTime } from '../utils/chatTime';
 import { commentTargetDisplayName, commentsToAttachments, simplePositionLabel } from '../comments';
-import { AssistantMessage } from './AssistantMessage';
+import { AssistantMessage, type QuestionFormOpenRequest } from './AssistantMessage';
 import { AmrGuidance } from './AmrGuidance';
 import { AMR_RECHARGE_URL, resolveRunFailureUi } from '../runtime/amr-guidance';
 import {
@@ -287,7 +287,7 @@ interface Props {
   // routes that text through onSend (no attachments).
   onSubmitForm?: (text: string) => void;
   // Focus the right-hand Questions tab from the chat banner.
-  onOpenQuestions?: () => void;
+  onOpenQuestions?: (request?: QuestionFormOpenRequest) => void;
   onContinueRemainingTasks?: (assistantMessage: ChatMessage, todos: TodoItem[]) => void;
   onAssistantFeedback?: (assistantMessage: ChatMessage, change: ChatMessageFeedbackChange) => void;
   // "Next step" affordance handlers forwarded to the last assistant message.
@@ -724,9 +724,9 @@ export function ChatPane({
     () => messages.find((m) => m.role === 'user')?.id,
     [messages],
   );
-  // Map each assistant message id to the user message that follows it
-  // (if any) so QuestionFormView can render its locked "answered" state
-  // with the user's picks.
+  // Map each assistant message id to the user message that follows it (if any)
+  // so the chat-side Questions banner can reopen that exact answered form in
+  // the right-hand panel later.
   const nextUserContentByAssistantId = useMemo(() => {
     const map = new Map<string, string>();
     for (let i = 0; i < messages.length - 1; i++) {
@@ -1822,7 +1822,7 @@ function ChatRows({
   forkingMessageId?: string | null;
   t: TranslateFn;
   onAssistantFormSubmitStart: () => void;
-  onOpenQuestions?: () => void;
+  onOpenQuestions?: (request?: QuestionFormOpenRequest) => void;
   scrollContainerRef: MutableRefObject<HTMLDivElement | null>;
 }) {
   const items = useMemo(() => buildChatRenderItems(messages), [messages]);
