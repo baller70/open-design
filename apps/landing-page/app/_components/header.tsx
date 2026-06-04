@@ -62,15 +62,17 @@ const SOLUTION_USE_CASES: ReadonlyArray<{
   { key: 'designSystem', href: '/solutions/design-system/' },
 ];
 
-// Solution → Roles. Hidden until the Role pages ship (next PR). Kept here so
-// re-enabling the group in the Solution dropdown is a one-line change.
-// const SOLUTION_ROLES: ReadonlyArray<{ name: string; href: string }> = [
-//   { name: 'Solo Builder', href: '/for/solo-builder/' },
-//   { name: 'Designer', href: '/for/designer/' },
-//   { name: 'Engineering', href: '/for/engineering/' },
-//   { name: 'Product Managers', href: '/for/product-managers/' },
-//   { name: 'Marketing', href: '/for/marketing/' },
-// ];
+// Solution → Roles. Same `key`→localized-breadcrumb pattern as use cases.
+const SOLUTION_ROLES: ReadonlyArray<{
+  key: SolutionPageKey;
+  href: string;
+}> = [
+  { key: 'roleSoloBuilder', href: '/for/solo-builder/' },
+  { key: 'roleDesigner', href: '/for/designer/' },
+  { key: 'roleEngineering', href: '/for/engineering/' },
+  { key: 'roleProductManagers', href: '/for/product-managers/' },
+  { key: 'roleMarketing', href: '/for/marketing/' },
+];
 
 
 export interface HeaderProps {
@@ -270,12 +272,16 @@ export function Header({
                     </a>
                   </li>
                 ))}
-                {/*
-                  Roles group (Solo Builder / Designer / Engineering / Product
-                  Managers / Marketing) is hidden for now — those pages have no
-                  content yet. Re-add the SOLUTION_ROLES block here, plus the
-                  nav.roles group label, when the Role pages ship (next PR).
-                */}
+                <li role='none' className='nav-dropdown-group'>
+                  <span className='nav-dropdown-group-label'>{headerCopy.nav.roles}</span>
+                </li>
+                {SOLUTION_ROLES.map((item) => (
+                  <li role='none' key={`role-${item.key}`}>
+                    <a role='menuitem' href={href(item.href)}>
+                      <span className='dropdown-name'>{getSolutionPageCopy(locale, item.key).breadcrumb}</span>
+                    </a>
+                  </li>
+                ))}
               </ul>
             </li>
             {/*
