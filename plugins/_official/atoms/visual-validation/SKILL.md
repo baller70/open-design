@@ -17,8 +17,9 @@ browser.
 - The project's current HTML entry file (`index.html` when present, otherwise
   the first root HTML file).
 - One or more project-local reference screenshots. The daemon auto-detects
-  common names such as `reference*.png`, `spec*.png`, `baseline*.png`, and
-  images under `reference/`, `references/`, or `spec/`.
+  PNG screenshots with common names such as `reference*.png`,
+  `spec*.png`, `baseline*.png`, and images under `reference/`,
+  `references/`, or `spec/`.
 
 ## Output
 

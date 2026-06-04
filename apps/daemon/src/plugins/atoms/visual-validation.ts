@@ -15,6 +15,7 @@ const DEFAULT_MAX_DIFF_BOX_REGIONS = 12;
 const DEFAULT_MAX_CANVAS_PIXELS = 16_000_000;
 const DIFF_COLOR = [255, 76, 76] as const;
 const IGNORED_REFERENCE_SCAN_DIRS = new Set(['critique', 'dist', 'node_modules', '.next']);
+const AUTO_DISCOVERED_REFERENCE_IMAGE_RE = /\.png$/i;
 
 export interface VisualValidationCaptureInput {
   entryFile: string;
@@ -162,6 +163,18 @@ export async function runVisualValidation(
       },
     };
   } catch (error) {
+    if (isUnavailableBrowserRuntimeError(error)) {
+      return {
+        report: {
+          status: 'skipped',
+          entryFile,
+          message: `skipped: Playwright browser runtime unavailable for visual validation (${formatVisualValidationError(error)})`,
+          comparedAt: new Date().toISOString(),
+          comparison: null,
+        },
+        signals: {},
+      };
+    }
     return {
       report: {
         status: 'failed',
@@ -330,7 +343,7 @@ async function resolveReferenceImages(
   const files = await walkFiles(cwd, '');
   const candidates = files.filter((relPath) => {
     const lower = relPath.toLowerCase();
-    if (!/\.(png|jpe?g|webp)$/i.test(lower)) return false;
+    if (!AUTO_DISCOVERED_REFERENCE_IMAGE_RE.test(lower)) return false;
     if (lower.startsWith('critique/')) return false;
     const name = path.basename(lower);
     const dir = path.dirname(lower);
@@ -377,6 +390,13 @@ function summarizeComparison(comparison: VisualValidationComparison): string {
 function formatVisualValidationError(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
   return 'unknown error';
+}
+
+function isUnavailableBrowserRuntimeError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return message.includes("executable doesn't exist")
+    || message.includes('please run the following command to download new browsers');
 }
 
 function buildSuggestions(input: {

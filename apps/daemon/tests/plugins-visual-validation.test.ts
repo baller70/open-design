@@ -82,6 +82,31 @@ describe('visual validation atom runner', () => {
     }
   });
 
+  it('skips cleanly when the Playwright browser runtime is unavailable', async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), 'od-visual-no-browser-'));
+    try {
+      await writeFile(path.join(cwd, 'index.html'), '<!doctype html><html><body>ok</body></html>', 'utf8');
+      await writeFile(
+        path.join(cwd, 'reference-home.png'),
+        PNG.sync.write(createFilledPng(200, 120, [255, 255, 255, 255])),
+      );
+      const result = await runVisualValidation({
+        cwd,
+        captureScreenshot: async () => {
+          throw new Error(
+            "browserType.launch: Executable doesn't exist at /tmp/ms-playwright/chromium\nPlease run the following command to download new browsers: npx playwright install",
+          );
+        },
+      });
+
+      expect(result.report.status).toBe('skipped');
+      expect(result.report.message).toContain('Playwright browser runtime unavailable');
+      expect(result.signals).toEqual({});
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   it('skips ignored dependency trees before recursing for references', async () => {
     const cwd = await mkdtemp(path.join(os.tmpdir(), 'od-visual-ignore-'));
     try {
@@ -104,6 +129,27 @@ describe('visual validation atom runner', () => {
       expect(result.report.status).toBe('ok');
     } finally {
       await chmod(path.join(cwd, 'node_modules'), 0o755).catch(() => {});
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('only auto-discovers PNG reference screenshots', async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), 'od-visual-png-only-'));
+    try {
+      await writeFile(path.join(cwd, 'index.html'), '<!doctype html><html><body>ok</body></html>', 'utf8');
+      await writeFile(path.join(cwd, 'reference-home.jpg'), 'not-a-png', 'utf8');
+
+      const result = await runVisualValidation({
+        cwd,
+        captureScreenshot: async ({ outputPath }) => {
+          await writeFile(outputPath, PNG.sync.write(createFilledPng(200, 120, [255, 255, 255, 255])));
+        },
+      });
+
+      expect(result.report.status).toBe('skipped');
+      expect(result.report.message).toContain('no reference screenshot found');
+      expect(result.signals).toEqual({});
+    } finally {
       await rm(cwd, { recursive: true, force: true });
     }
   });
