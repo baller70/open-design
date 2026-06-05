@@ -1812,8 +1812,6 @@ export const ja: Dict = {
   'workspace.allFiles': 'すべて',
   'workspace.createNew': '新規作成',
   'workspace.tabOpen': '開いています',
-  'workspace.newSideChat': '新しいサイドチャット',
-  'workspace.newSideChatDescription': 'コンテキストを引き継いだチャットを新しいタブで開く',
   'workspace.sideChatContextBanner': '現在の会話のコンテキストを引き継ぎました',
   'workspace.sideChatDefaultTitle': 'サイドチャット',
   'workspace.newTerminal': '新しいターミナル',

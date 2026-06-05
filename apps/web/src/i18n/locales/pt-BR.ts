@@ -1812,8 +1812,6 @@ export const ptBR: Dict = {
   'workspace.allFiles': 'Todos',
   'workspace.createNew': 'Criar novo',
   'workspace.tabOpen': 'Aberto',
-  'workspace.newSideChat': 'Novo chat lateral',
-  'workspace.newSideChatDescription': 'Abrir um chat com contexto em uma nova aba',
   'workspace.sideChatContextBanner': 'Contexto da conversa atual integrado',
   'workspace.sideChatDefaultTitle': 'Chat lateral',
   'workspace.newTerminal': 'Novo terminal',

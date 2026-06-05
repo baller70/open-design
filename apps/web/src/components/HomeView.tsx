@@ -317,9 +317,22 @@ export function HomeView({
     });
   }, [pendingReplacement, analytics.track]);
   const inputRef = useRef<HomeHeroHandle | null>(null);
+  const homeViewRef = useRef<HTMLDivElement | null>(null);
   const consumedHandoffIdRef = useRef<number | null>(null);
   const pendingPromptFocusEndRef = useRef(false);
   const activePluginApplyRequestRef = useRef(0);
+  const scrollHomeToTop = useCallback(() => {
+    requestAnimationFrame(() => {
+      const scrollContainer = homeViewRef.current?.closest('.entry-main--scroll');
+      if (!(scrollContainer instanceof HTMLElement)) return;
+      if (typeof scrollContainer.scrollTo === 'function') {
+        scrollContainer.scrollTo({ top: 0, left: 0 });
+      } else {
+        scrollContainer.scrollTop = 0;
+        scrollContainer.scrollLeft = 0;
+      }
+    });
+  }, []);
   const importSkillId = useMemo(() => {
     const prototypeSkills = skills.filter((skill) => skill.mode === 'prototype');
     return prototypeSkills.find((skill) => skill.defaultFor.includes('prototype'))?.id
@@ -459,6 +472,7 @@ export function HomeView({
       if (promptHandoff.focus) {
         focusPromptAtEnd();
       }
+      scrollHomeToTop();
       return;
     }
 
@@ -478,7 +492,8 @@ export function HomeView({
     setPendingAuthoringInputs(promptHandoff.inputs);
     setPendingAuthoringChipId('create-plugin');
     setPendingChipId('create-plugin');
-  }, [promptHandoff]);
+    scrollHomeToTop();
+  }, [promptHandoff, scrollHomeToTop]);
 
   const activeContextItemCount = useMemo(
     () =>
@@ -847,6 +862,7 @@ export function HomeView({
     setError(null);
     setDetailsRecord(null);
     if (shouldFocusOnly) focusPromptAtEnd();
+    scrollHomeToTop();
   }
 
   function runWithReplacementConfirmation(
@@ -1438,7 +1454,7 @@ export function HomeView({
   }
 
   return (
-    <div className="home-view" data-testid="home-view">
+    <div className="home-view" data-testid="home-view" ref={homeViewRef}>
       <HomeHero
         ref={inputRef}
         prompt={prompt}

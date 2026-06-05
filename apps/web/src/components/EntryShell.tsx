@@ -438,6 +438,7 @@ export function EntryShell({
     useState<CreateTab>('prototype');
   const [integrationTab, setIntegrationTab] = useState<IntegrationTab>(integrationInitialTab);
   const [homePromptHandoff, setHomePromptHandoff] = useState<HomePromptHandoff | null>(null);
+  const entryMainScrollRef = useRef<HTMLElement | null>(null);
   const analytics = useAnalytics();
   const discordOnlineLabel = discordPresence
     ? t('entry.discordOnlineLabel', {
@@ -475,6 +476,21 @@ export function EntryShell({
     );
     changeView('home');
   }
+
+  useEffect(() => {
+    if (view !== 'home' || !homePromptHandoff) return;
+    const frame = window.requestAnimationFrame(() => {
+      const scrollContainer = entryMainScrollRef.current;
+      if (!scrollContainer) return;
+      if (typeof scrollContainer.scrollTo === 'function') {
+        scrollContainer.scrollTo({ top: 0, left: 0 });
+        return;
+      }
+      scrollContainer.scrollTop = 0;
+      scrollContainer.scrollLeft = 0;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [homePromptHandoff?.id, view]);
 
   useEffect(() => {
     setIntegrationTab(integrationInitialTab);
@@ -638,7 +654,7 @@ export function EntryShell({
           open={railOpen}
           onClose={() => setRailOpen(false)}
         />
-        <main className="entry-main entry-main--scroll">
+        <main className="entry-main entry-main--scroll" ref={entryMainScrollRef}>
           <div className="entry-main__topbar">
             <button
               type="button"

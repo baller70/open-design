@@ -87,16 +87,20 @@ describe('HomeView plugin i18n', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(
+    const view = render(
       <I18nProvider initial="zh-CN">
-        <HomeView
-          projects={[]}
-          onSubmit={() => undefined}
-          onOpenProject={() => undefined}
-          onViewAllProjects={() => undefined}
-        />
+        <div className="entry-main--scroll">
+          <HomeView
+            projects={[]}
+            onSubmit={() => undefined}
+            onOpenProject={() => undefined}
+            onViewAllProjects={() => undefined}
+          />
+        </div>
       </I18nProvider>,
     );
+    const scrollContainer = view.container.querySelector('.entry-main--scroll') as HTMLElement;
+    scrollContainer.scrollTop = 240;
 
     fireEvent.click(await waitFor(() => screen.getByTestId('plugins-home-use-localized-plugin')));
 
@@ -114,6 +118,9 @@ describe('HomeView plugin i18n', () => {
     await screen.findByTestId('home-hero-input');
     expect(homeHeroPromptText().trim()).toBe('');
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/apply'))).toBe(false);
+    await waitFor(() => {
+      expect(scrollContainer.scrollTop).toBe(0);
+    });
   });
 
   it('hydrates the Home prompt with the localized plugin query', async () => {

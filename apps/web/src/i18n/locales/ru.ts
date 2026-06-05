@@ -1812,8 +1812,6 @@ export const ru: Dict = {
   'workspace.allFiles': 'Все',
   'workspace.createNew': 'Создать',
   'workspace.tabOpen': 'Открыт',
-  'workspace.newSideChat': 'Новый боковой чат',
-  'workspace.newSideChatDescription': 'Открыть чат с контекстом в новой вкладке',
   'workspace.sideChatContextBanner': 'Контекст текущего разговора интегрирован',
   'workspace.sideChatDefaultTitle': 'Боковой чат',
   'workspace.newTerminal': 'Новый терминал',

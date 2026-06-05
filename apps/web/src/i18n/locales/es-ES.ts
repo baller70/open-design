@@ -1812,8 +1812,6 @@ export const esES: Dict = {
   'workspace.allFiles': 'Todos',
   'workspace.createNew': 'Crear nuevo',
   'workspace.tabOpen': 'Abierto',
-  'workspace.newSideChat': 'Nuevo chat lateral',
-  'workspace.newSideChatDescription': 'Abrir un chat con contexto en una pestaña nueva',
   'workspace.sideChatContextBanner': 'Contexto de la conversación actual integrado',
   'workspace.sideChatDefaultTitle': 'Chat lateral',
   'workspace.newTerminal': 'Nueva terminal',

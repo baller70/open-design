@@ -1812,8 +1812,6 @@ export const zhTW: Dict = {
   'workspace.allFiles': '全部',
   'workspace.createNew': '新增',
   'workspace.tabOpen': '已開啟',
-  'workspace.newSideChat': '新增側邊對話',
-  'workspace.newSideChatDescription': '在新分頁中開啟繼承上下文的對話',
   'workspace.sideChatContextBanner': '已整合目前對話的上下文',
   'workspace.sideChatDefaultTitle': '側邊對話',
   'workspace.newTerminal': '新增終端機',

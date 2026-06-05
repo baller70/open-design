@@ -1812,8 +1812,6 @@ export const zhCN: Dict = {
   'workspace.allFiles': '全部',
   'workspace.createNew': '新建',
   'workspace.tabOpen': '已打开',
-  'workspace.newSideChat': '新建侧边对话',
-  'workspace.newSideChatDescription': '在新标签页中打开继承上下文的对话',
   'workspace.sideChatContextBanner': '已集成当前会话上下文',
   'workspace.sideChatDefaultTitle': '侧边对话',
   'workspace.newTerminal': '新建终端',

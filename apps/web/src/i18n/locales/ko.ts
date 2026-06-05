@@ -1812,8 +1812,6 @@ export const ko: Dict = {
   'workspace.allFiles': '전체',
   'workspace.createNew': '새로 만들기',
   'workspace.tabOpen': '열림',
-  'workspace.newSideChat': '새 사이드 채팅',
-  'workspace.newSideChatDescription': '컨텍스트를 이어받은 채팅을 새 탭에서 열기',
   'workspace.sideChatContextBanner': '현재 대화의 컨텍스트를 통합했습니다',
   'workspace.sideChatDefaultTitle': '사이드 채팅',
   'workspace.newTerminal': '새 터미널',
