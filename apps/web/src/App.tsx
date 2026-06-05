@@ -104,6 +104,7 @@ import type {
   AppConfig,
   AppVersionInfo,
   ChatAttachment,
+  DesignSystemGenerationJob,
   DesignSystemSummary,
   Project,
   ProjectTemplate,
@@ -343,6 +344,9 @@ function AppInner() {
   // EntryView Templates tab. See specs/current/skills-and-design-templates.md.
   const [designTemplates, setDesignTemplates] = useState<SkillSummary[]>([]);
   const [designSystems, setDesignSystems] = useState<DesignSystemSummary[]>([]);
+  const [pendingDesignSystemRevisionJobs, setPendingDesignSystemRevisionJobs] = useState<
+    Record<string, DesignSystemGenerationJob>
+  >({});
   const [projects, setProjects] = useState<Project[]>([]);
   const [petTaskCenter, setPetTaskCenter] = useState<PetTaskCenter>({
     running: [],
@@ -1597,6 +1601,23 @@ function AppInner() {
     },
     [iframeKeepAlivePool],
   );
+  const handleDesignSystemImportRebuildJob = useCallback(
+    (designSystemId: string, job: DesignSystemGenerationJob) => {
+      setPendingDesignSystemRevisionJobs((current) => ({
+        ...current,
+        [designSystemId]: job,
+      }));
+    },
+    [],
+  );
+  const handleDesignSystemRevisionJobConsumed = useCallback((designSystemId: string, jobId: string) => {
+    setPendingDesignSystemRevisionJobs((current) => {
+      if (current[designSystemId]?.id !== jobId) return current;
+      const next = { ...current };
+      delete next[designSystemId];
+      return next;
+    });
+  }, []);
 
   const activeProject =
     route.kind === 'project'
@@ -1866,6 +1887,10 @@ function AppInner() {
         onSetDefault={handleChangeDefaultDesignSystem}
         onSystemsRefresh={refreshDesignSystems}
         onProjectsRefresh={refreshProjects}
+        initialRevisionJob={pendingDesignSystemRevisionJobs[route.designSystemId] ?? null}
+        onInitialRevisionJobConsumed={(jobId) =>
+          handleDesignSystemRevisionJobConsumed(route.designSystemId, jobId)
+        }
       />
     );
   } else if (activeProject) {
@@ -2047,6 +2072,7 @@ function AppInner() {
           onProjectsRefresh={refreshProjects}
           onSkillsChanged={handleSkillsChanged}
           onDesignSystemsChanged={handleDesignSystemsChanged}
+          onDesignSystemImportRebuildJob={handleDesignSystemImportRebuildJob}
           providerModelsCache={providerModelsCache}
           onProviderModelsCacheChange={setProviderModelsCache}
         />

@@ -161,6 +161,8 @@ interface DetailProps {
   onSetDefault: (id: string) => void;
   onSystemsRefresh?: () => Promise<void> | void;
   onProjectsRefresh?: () => Promise<void> | void;
+  initialRevisionJob?: DesignSystemGenerationJob | null;
+  onInitialRevisionJobConsumed?: (jobId: string) => void;
 }
 
 type SetupStep = 'setup' | 'confirm';
@@ -888,6 +890,8 @@ export function DesignSystemDetailView({
   onSetDefault,
   onSystemsRefresh,
   onProjectsRefresh,
+  initialRevisionJob,
+  onInitialRevisionJobConsumed,
 }: DetailProps) {
   const { locale } = useI18n();
   const [system, setSystem] = useState<DesignSystemDetail | null>(null);
@@ -954,6 +958,17 @@ export function DesignSystemDetailView({
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!initialRevisionJob?.id) return;
+    setRevisionJob((current) =>
+      current?.id === initialRevisionJob.id ? current : initialRevisionJob,
+    );
+    if (initialRevisionJob.kind === 'token-contract-rebuild') {
+      setStatusLine('Token contract rebuild started');
+    }
+    onInitialRevisionJobConsumed?.(initialRevisionJob.id);
+  }, [initialRevisionJob, onInitialRevisionJobConsumed]);
 
   useEffect(() => {
     if (!system) return undefined;
