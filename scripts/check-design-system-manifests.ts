@@ -18,12 +18,17 @@ import { parseDesignSystemProjectManifest } from "../design-systems/_schema/mani
 import type { DesignSystemProjectManifest } from "../design-systems/_schema/manifest.schema.ts";
 import { TOKEN_SCHEMA } from "../design-systems/_schema/tokens.schema.ts";
 import { extractComponentsManifest } from "../packages/contracts/src/design-systems/components-manifest.ts";
+import {
+  renderDesignTokensJson,
+  renderTailwindV4Css,
+  type DerivedDesignTokenBinding,
+  type DerivedDesignTokenReport,
+} from "../packages/contracts/src/design-systems/derived-token-outputs.ts";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const designSystemsRoot = path.join(repoRoot, "design-systems");
 const craftRoot = path.join(repoRoot, "craft");
 const SKIPPED_DIRECTORIES = new Set(["_schema"]);
-const TOKEN_SCHEMA_NAMES = new Set(TOKEN_SCHEMA.map((spec) => spec.name));
 
 function toRepositoryPath(filePath: string): string {
   return path.relative(repoRoot, filePath).split(path.sep).join("/");
@@ -113,8 +118,21 @@ export async function checkDesignSystemManifests(): Promise<boolean> {
     }
 
     await validateDeclaredJsonFiles(violations, repositoryManifestPath, brandRoot, manifest);
-    await validateDesignTokensJson(violations, repositoryManifestPath, brandRoot, manifest.files.designTokens);
-    await validateTailwindV4Css(violations, repositoryManifestPath, brandRoot, manifest.files.tailwind);
+    await validateDesignTokensJson(
+      violations,
+      repositoryManifestPath,
+      brandRoot,
+      manifest.files.tokens,
+      manifest.files.designTokens,
+      manifest.sourceFiles?.report,
+    );
+    await validateTailwindV4Css(
+      violations,
+      repositoryManifestPath,
+      brandRoot,
+      manifest.files.tokens,
+      manifest.files.tailwind,
+    );
     await validateComponentsManifestCache(violations, repositoryManifestPath, brandRoot, folderSlug, manifest.componentsManifest);
   }
 
@@ -130,17 +148,21 @@ export async function checkDesignSystemManifests(): Promise<boolean> {
   return true;
 }
 
-async function validateDesignTokensJson(
+export async function validateDesignTokensJson(
   violations: string[],
   repositoryManifestPath: string,
   brandRoot: string,
+  tokensPath: string,
   designTokensPath: string | undefined,
+  reportPath: string | undefined,
 ): Promise<void> {
   if (designTokensPath === undefined) return;
   const filePath = path.join(brandRoot, designTokensPath);
+  let actualText: string;
   let parsed: unknown;
   try {
-    parsed = await readJson(filePath);
+    actualText = await readFile(filePath, "utf8");
+    parsed = JSON.parse(actualText) as unknown;
   } catch (error) {
     violations.push(
       `${repositoryManifestPath}: ${designTokensPath} could not be parsed: ${
@@ -163,17 +185,60 @@ async function validateDesignTokensJson(
     violations.push(`${repositoryManifestPath}: ${designTokensPath} tokens must be an array`);
     return;
   }
-  const declared = new Set<string>();
-  for (const [index, token] of parsed.tokens.entries()) {
-    if (!isRecord(token) || typeof token.name !== "string" || typeof token.value !== "string") {
-      violations.push(`${repositoryManifestPath}: ${designTokensPath} tokens[${index}] must include string name and value`);
-      continue;
-    }
-    declared.add(token.name);
+  if (reportPath === undefined) {
+    violations.push(`${repositoryManifestPath}: ${designTokensPath} requires sourceFiles.report`);
+    return;
   }
+  const reportFilePath = path.join(brandRoot, reportPath);
+  let reportJson: unknown;
+  try {
+    reportJson = await readJson(reportFilePath);
+  } catch (error) {
+    violations.push(
+      `${repositoryManifestPath}: ${reportPath} could not be parsed while validating ${designTokensPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return;
+  }
+  const report = toDerivedDesignTokenReport(reportJson);
+  if (report === undefined) {
+    violations.push(`${repositoryManifestPath}: ${reportPath} must contain generatedAt, summary, and token contract bindings`);
+    return;
+  }
+  const expected = renderDesignTokensJson({
+    bindings: report.tokens,
+    report,
+  });
+  if (actualText !== expected) {
+    violations.push(`${repositoryManifestPath}: ${designTokensPath} is stale; regenerate it from ${reportPath}`);
+  }
+
+  const reportNames = new Set(report.tokens.map((token) => token.name));
   for (const spec of TOKEN_SCHEMA) {
-    if (!declared.has(spec.name)) {
-      violations.push(`${repositoryManifestPath}: ${designTokensPath} is missing ${spec.name}`);
+    if (!reportNames.has(spec.name)) {
+      violations.push(`${repositoryManifestPath}: ${reportPath} is missing ${spec.name}`);
+    }
+  }
+
+  let tokensCss: string;
+  try {
+    tokensCss = await readFile(path.join(brandRoot, tokensPath), "utf8");
+  } catch (error) {
+    violations.push(
+      `${repositoryManifestPath}: ${tokensPath} could not be read while validating ${designTokensPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return;
+  }
+  const tokenDeclarations = parseRootTokenDeclarations(tokensCss);
+  for (const binding of report.tokens) {
+    const declaredValue = tokenDeclarations.get(binding.name);
+    if (declaredValue === undefined) {
+      violations.push(`${repositoryManifestPath}: ${reportPath} token ${binding.name} is missing from ${tokensPath}`);
+    } else if (declaredValue !== normalizeTokenValue(binding.value)) {
+      violations.push(`${repositoryManifestPath}: ${reportPath} token ${binding.name} value does not match ${tokensPath}`);
     }
   }
 }
@@ -182,12 +247,13 @@ export async function validateTailwindV4Css(
   violations: string[],
   repositoryManifestPath: string,
   brandRoot: string,
+  tokensPath: string,
   tailwindPath: string | undefined,
 ): Promise<void> {
   if (tailwindPath === undefined) return;
-  let css: string;
+  let actualCss: string;
   try {
-    css = await readFile(path.join(brandRoot, tailwindPath), "utf8");
+    actualCss = await readFile(path.join(brandRoot, tailwindPath), "utf8");
   } catch (error) {
     violations.push(
       `${repositoryManifestPath}: ${tailwindPath} could not be read: ${
@@ -196,28 +262,88 @@ export async function validateTailwindV4Css(
     );
     return;
   }
-  if (!css.includes('@import "./tokens.css";')) {
-    violations.push(`${repositoryManifestPath}: ${tailwindPath} must import ./tokens.css`);
-  }
-  const themeBody = css.match(/@theme\s*\{([\s\S]*?)\}/)?.[1];
-  if (themeBody === undefined) {
-    violations.push(`${repositoryManifestPath}: ${tailwindPath} must declare an @theme block`);
+  let tokensCss: string;
+  try {
+    tokensCss = await readFile(path.join(brandRoot, tokensPath), "utf8");
+  } catch (error) {
+    violations.push(
+      `${repositoryManifestPath}: ${tokensPath} could not be read while validating ${tailwindPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
     return;
   }
-  for (const rawDeclaration of themeBody.split(";")) {
-    const declaration = rawDeclaration.trim();
-    if (declaration.length === 0) continue;
-    const match = declaration.match(/^(--[A-Za-z0-9_-]+)\s*:\s*var\(\s*(--[A-Za-z0-9_-]+)\s*\)$/);
-    if (match === null) {
-      violations.push(`${repositoryManifestPath}: ${tailwindPath} @theme declarations must be var(--token) aliases`);
-      continue;
-    }
-    const tailwindName = match[1]!;
-    const sourceName = match[2]!;
-    if (!TOKEN_SCHEMA_NAMES.has(sourceName)) {
-      violations.push(`${repositoryManifestPath}: ${tailwindPath} maps ${tailwindName} to non-schema token ${sourceName}`);
-    }
+  const expectedCss = renderTailwindV4Css(
+    Array.from(parseRootTokenDeclarations(tokensCss).keys(), (name) => ({ name })),
+  );
+  if (actualCss !== expectedCss) {
+    violations.push(`${repositoryManifestPath}: ${tailwindPath} is stale; regenerate it from ${tokensPath}`);
   }
+}
+
+function toDerivedDesignTokenReport(value: unknown): (DerivedDesignTokenReport & {
+  tokens: DerivedDesignTokenBinding[];
+}) | undefined {
+  if (!isRecord(value) || typeof value.generatedAt !== "string" || !isRecord(value.summary) || !Array.isArray(value.tokens)) {
+    return undefined;
+  }
+  const tokens: DerivedDesignTokenBinding[] = [];
+  for (const token of value.tokens) {
+    const binding = toDerivedDesignTokenBinding(token);
+    if (binding === undefined) return undefined;
+    tokens.push(binding);
+  }
+  return {
+    generatedAt: value.generatedAt,
+    summary: value.summary,
+    tokens,
+  };
+}
+
+function toDerivedDesignTokenBinding(value: unknown): DerivedDesignTokenBinding | undefined {
+  if (
+    !isRecord(value)
+    || typeof value.name !== "string"
+    || typeof value.layer !== "string"
+    || typeof value.value !== "string"
+    || typeof value.confidence !== "string"
+    || typeof value.reason !== "string"
+    || !Array.isArray(value.sources)
+    || !value.sources.every((source): source is string => typeof source === "string")
+    || (value.sourceName !== undefined && typeof value.sourceName !== "string")
+  ) {
+    return undefined;
+  }
+  return {
+    name: value.name,
+    layer: value.layer,
+    value: value.value,
+    confidence: value.confidence,
+    reason: value.reason,
+    sources: value.sources,
+    ...(value.sourceName === undefined ? {} : { sourceName: value.sourceName }),
+  };
+}
+
+function parseRootTokenDeclarations(css: string): Map<string, string> {
+  const rootBody = css.replace(/\/\*[\s\S]*?\*\//g, "").match(/:root(?!\[)\s*\{([\s\S]*?)\}/)?.[1];
+  const declarations = new Map<string, string>();
+  if (rootBody === undefined) return declarations;
+  for (const rawDeclaration of rootBody.split(";")) {
+    const declaration = rawDeclaration.trim();
+    if (!declaration.startsWith("--")) continue;
+    const colonIndex = declaration.indexOf(":");
+    if (colonIndex === -1) continue;
+    declarations.set(
+      declaration.slice(0, colonIndex).trim(),
+      normalizeTokenValue(declaration.slice(colonIndex + 1)),
+    );
+  }
+  return declarations;
+}
+
+function normalizeTokenValue(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
 }
 
 async function discoverCraftSlugs(): Promise<Set<string>> {

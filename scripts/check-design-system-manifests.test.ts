@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -9,7 +9,71 @@ import {
   type DesignSystemProjectManifest,
   validateDesignSystemProjectManifest,
 } from "../design-systems/_schema/manifest.schema.ts";
-import { validateManifestSemantics, validateTailwindV4Css } from "./check-design-system-manifests.ts";
+import { TOKEN_SCHEMA } from "../design-systems/_schema/tokens.schema.ts";
+import {
+  renderDesignTokensJson,
+  renderTailwindV4Css,
+  type DerivedDesignTokenBinding,
+} from "../packages/contracts/src/design-systems/derived-token-outputs.ts";
+import { validateDesignTokensJson, validateManifestSemantics, validateTailwindV4Css } from "./check-design-system-manifests.ts";
+
+const REPORT_PATH = "source/token-contract.report.json";
+
+function writeDerivedTokenFixture(root: string): void {
+  const bindings = TOKEN_SCHEMA.map((spec, index): DerivedDesignTokenBinding => ({
+    name: spec.name,
+    layer: spec.layer,
+    value: tokenValueForIndex(index),
+    confidence: "high",
+    reason: `Fixture source matched ${spec.name}.`,
+    sources: [`tokens.css:${index + 2}`],
+    sourceName: spec.name,
+  }));
+  const report = {
+    schemaVersion: 1,
+    contract: "TOKEN_SCHEMA",
+    generatedAt: "2026-05-19T00:00:00.000Z",
+    summary: {
+      totalTokens: bindings.length,
+      declaredTokens: bindings.length,
+      sourceBackedTokens: bindings.length,
+      sourceBackedA1: bindings.length,
+      requiredA1: bindings.length,
+      fallbackTokens: 0,
+      aliasTokens: 0,
+      score: 100,
+      grade: "excellent",
+      recommendRebuild: false,
+    },
+    tokens: bindings,
+  };
+  mkdirSync(path.join(root, "source"), { recursive: true });
+  writeFileSync(path.join(root, "tokens.css"), `:root {\n${bindings.map((binding) => `  ${binding.name}: ${binding.value};`).join("\n")}\n}\n`);
+  writeFileSync(path.join(root, REPORT_PATH), `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(path.join(root, "design-tokens.json"), renderDesignTokensJson({ bindings, report }));
+  writeFileSync(path.join(root, "tailwind-v4.css"), renderTailwindV4Css(bindings));
+}
+
+function tokenValueForIndex(index: number): string {
+  const token = TOKEN_SCHEMA[index]!;
+  if (token.name.startsWith("--font-")) return '"Inter", sans-serif';
+  if (token.name.startsWith("--leading-")) return "1.4";
+  if (token.name.startsWith("--tracking-")) return "0";
+  if (token.name.startsWith("--motion-")) return "150ms";
+  if (token.name === "--ease-standard") return "cubic-bezier(0.2, 0, 0, 1)";
+  if (token.name.startsWith("--elev-")) return "none";
+  if (token.name === "--focus-ring") return "0 0 0 2px #111111";
+  if (
+    token.name.startsWith("--text-")
+    || token.name.startsWith("--space-")
+    || token.name.startsWith("--section-y-")
+    || token.name.startsWith("--radius-")
+    || token.name.startsWith("--container-")
+  ) {
+    return `${index + 1}px`;
+  }
+  return `#${(index + 1).toString(16).padStart(6, "0").slice(0, 6)}`;
+}
 
 test("design-system project manifest schema accepts the v1 minimum shape", () => {
   const result = validateDesignSystemProjectManifest({
@@ -167,22 +231,46 @@ test("design-system project manifest schema accepts import-project optional inde
   }
 });
 
-test("design-system tailwind v4 guard only allows aliases to schema tokens", async () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "od-tailwind-guard-"));
+test("design-system design tokens guard rejects stale derived JSON", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "od-design-tokens-guard-"));
   try {
-    const filePath = path.join(root, "tailwind-v4.css");
-    writeFileSync(filePath, '@import "tailwindcss";\n@import "./tokens.css";\n\n@theme {\n  --color-accent: var(--accent);\n}\n');
+    writeDerivedTokenFixture(root);
     const okViolations: string[] = [];
-    await validateTailwindV4Css(okViolations, "design-systems/test/manifest.json", root, "tailwind-v4.css");
+    await validateDesignTokensJson(okViolations, "design-systems/test/manifest.json", root, "tokens.css", "design-tokens.json", REPORT_PATH);
     assert.deepEqual(okViolations, []);
 
-    writeFileSync(filePath, '@import "tailwindcss";\n@theme {\n  --color-accent: #fff;\n  --color-custom: var(--custom);\n}\n');
+    const stale = JSON.parse(readFileSync(path.join(root, "design-tokens.json"), "utf8")) as {
+      tokens: Array<{ value: string }>;
+    };
+    stale.tokens[0]!.value = "#abcdef";
+    writeFileSync(path.join(root, "design-tokens.json"), `${JSON.stringify(stale, null, 2)}\n`);
     const violations: string[] = [];
-    await validateTailwindV4Css(violations, "design-systems/test/manifest.json", root, "tailwind-v4.css");
+    await validateDesignTokensJson(violations, "design-systems/test/manifest.json", root, "tokens.css", "design-tokens.json", REPORT_PATH);
     assert.deepEqual(violations, [
-      "design-systems/test/manifest.json: tailwind-v4.css must import ./tokens.css",
-      "design-systems/test/manifest.json: tailwind-v4.css @theme declarations must be var(--token) aliases",
-      "design-systems/test/manifest.json: tailwind-v4.css maps --color-custom to non-schema token --custom",
+      "design-systems/test/manifest.json: design-tokens.json is stale; regenerate it from source/token-contract.report.json",
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("design-system tailwind v4 guard rejects swapped canonical mappings", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "od-tailwind-guard-"));
+  try {
+    writeDerivedTokenFixture(root);
+    const okViolations: string[] = [];
+    await validateTailwindV4Css(okViolations, "design-systems/test/manifest.json", root, "tokens.css", "tailwind-v4.css");
+    assert.deepEqual(okViolations, []);
+
+    const filePath = path.join(root, "tailwind-v4.css");
+    writeFileSync(
+      filePath,
+      readFileSync(filePath, "utf8").replace("  --color-accent: var(--accent);", "  --color-accent: var(--bg);"),
+    );
+    const violations: string[] = [];
+    await validateTailwindV4Css(violations, "design-systems/test/manifest.json", root, "tokens.css", "tailwind-v4.css");
+    assert.deepEqual(violations, [
+      "design-systems/test/manifest.json: tailwind-v4.css is stale; regenerate it from tokens.css",
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });

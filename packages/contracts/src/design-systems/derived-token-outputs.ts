@@ -1,8 +1,21 @@
-import type { DesignTokenBinding, DesignTokenContractReport } from './design-token-contract.js';
+export type DerivedDesignTokenBinding = {
+  name: string;
+  layer: string;
+  value: string;
+  confidence: string;
+  reason: string;
+  sources: readonly string[];
+  sourceName?: string;
+};
+
+export type DerivedDesignTokenReport = {
+  generatedAt: string;
+  summary: unknown;
+};
 
 export function renderDesignTokensJson(input: {
-  bindings: readonly DesignTokenBinding[];
-  report: DesignTokenContractReport;
+  bindings: readonly DerivedDesignTokenBinding[];
+  report: DerivedDesignTokenReport;
 }): string {
   return `${JSON.stringify({
     schemaVersion: 1,
@@ -27,7 +40,7 @@ export function renderDesignTokensJson(input: {
   }, null, 2)}\n`;
 }
 
-export function renderTailwindV4Css(bindings: readonly DesignTokenBinding[]): string {
+export function renderTailwindV4Css(bindings: readonly Pick<DerivedDesignTokenBinding, 'name'>[]): string {
   const declared = new Set(bindings.map((binding) => binding.name));
   const lines = [
     '/* Derived from tokens.css. Keep tokens.css as the source of truth. */',
@@ -36,7 +49,7 @@ export function renderTailwindV4Css(bindings: readonly DesignTokenBinding[]): st
     '',
     '@theme {',
   ];
-  for (const [tailwindName, odToken] of tailwindThemeBindings) {
+  for (const [tailwindName, odToken] of TAILWIND_V4_THEME_BINDINGS) {
     if (declared.has(odToken)) lines.push(`  ${tailwindName}: var(${odToken});`);
   }
   lines.push('}', '');
@@ -84,7 +97,7 @@ function inferDesignTokenType(name: string): string {
   return 'other';
 }
 
-const tailwindThemeBindings: ReadonlyArray<readonly [string, string]> = [
+export const TAILWIND_V4_THEME_BINDINGS: ReadonlyArray<readonly [string, string]> = [
   ['--color-bg', '--bg'],
   ['--color-surface', '--surface'],
   ['--color-surface-warm', '--surface-warm'],

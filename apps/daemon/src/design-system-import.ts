@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, readdir, realpath, stat, writeFile } from 'n
 import path from 'node:path';
 
 import { extractComponentsManifest } from '@open-design/contracts/design-systems/components-manifest';
+import { renderDesignTokensJson, renderTailwindV4Css } from '@open-design/contracts/design-systems/derived-token-outputs';
 import {
   buildDesignTokenContract,
   buildReportWithSelfCheck,
@@ -9,7 +10,6 @@ import {
   type DesignTokenBinding,
   type DesignTokenContractReport,
 } from './design-token-contract.js';
-import { renderDesignTokensJson, renderTailwindV4Css } from './design-token-derived-outputs.js';
 import { extractCssCustomProperties } from './design-token-evidence.js';
 
 export type LocalDesignSystemImportResult = {
