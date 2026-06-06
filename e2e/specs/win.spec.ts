@@ -63,12 +63,29 @@ const clickUpdaterInstallExpression = `
   })()
 `;
 const clickUpdaterRailExpression = `
-  (() => {
+  (async () => {
+    const host = window.__od__;
+    let hostStatus = null;
+    if (host?.updater?.status instanceof Function) {
+      hostStatus = await host.updater.status({ payload: { source: 'e2e-open-ready-updater-prompt' } });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
     const button = document.querySelector('[data-testid="entry-nav-updater"]');
-    if (!(button instanceof HTMLButtonElement)) return { clicked: false, reason: 'missing-updater-rail' };
-    if (button.getAttribute('aria-disabled') === 'true') return { clicked: false, reason: 'updater-rail-disabled' };
+    if (!(button instanceof HTMLButtonElement)) {
+      const candidates = Array.from(document.querySelectorAll('button,[role="button"],a'))
+        .map((element) => ({
+          aria: element.getAttribute('aria-label'),
+          disabled: element instanceof HTMLButtonElement ? element.disabled : element.getAttribute('aria-disabled'),
+          testid: element.getAttribute('data-testid'),
+          text: element.textContent?.trim() ?? '',
+        }))
+        .filter((candidate) => candidate.testid != null || /update|install|restart|更新|安装|重启/i.test([candidate.aria, candidate.text].join(' ')))
+        .slice(0, 40);
+      return { candidates, clicked: false, hostStatus, reason: 'missing-updater-rail' };
+    }
+    if (button.getAttribute('aria-disabled') === 'true') return { clicked: false, hostStatus, reason: 'updater-rail-disabled' };
     button.click();
-    return { clicked: true };
+    return { clicked: true, hostStatus };
   })()
 `;
 
