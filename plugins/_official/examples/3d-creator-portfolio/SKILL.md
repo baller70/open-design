@@ -24,7 +24,7 @@ This is the authoritative build brief. Follow it exactly — the named colors, g
 ## Stack
 
 - Default output: a single self-contained HTML file (the `example.html` seed) using vanilla CSS + JS. It already includes everything inline.
-- If the user explicitly asks for the React project: port the seed faithfully to **React 18 + TypeScript + Vite + Tailwind CSS + Framer Motion + lucide-react**. Same tokens, same markup structure, same animations. Section order: `HeroSection → MarqueeSection → AboutSection → ServicesSection → ProjectsSection`. Do not change the design while porting.
+- If the user explicitly asks for the React project: port the seed faithfully to **React 18 + TypeScript + Vite + Tailwind CSS + Framer Motion + lucide-react**. Same tokens, same markup structure, same animations. Section order: `HeroSection → MarqueeSection → AboutSection → ServicesSection → ProjectsSection → ContactSection (footer)`. Do not change the design while porting.
 
 ## Global styles — locked
 
@@ -37,7 +37,7 @@ This is the authoritative build brief. Follow it exactly — the named colors, g
 
 ## 1. Hero Section (`h-screen`, flex column, `overflow-x: clip`)
 
-- **Navbar:** flex `justify-between`, 4 links — "About", "Price", "Projects", "Contact". Color `#D7E2EA`, font-medium, uppercase, `tracking-wider`. Sizes `text-sm md:text-lg lg:text-[1.4rem]`. Padding `px-6 md:px-10 pt-6 md:pt-8`. Hover: opacity 70%, 200ms.
+- **Navbar:** flex `justify-between`, 4 links — "About", "Price", "Projects", "Contact". Color `#D7E2EA`, font-medium, uppercase, `tracking-wider`. Sizes `text-sm md:text-lg lg:text-[1.4rem]`. Padding `px-6 md:px-10 pt-6 md:pt-8`. Hover: opacity 70%, 200ms. The four links map to anchors that must ALL resolve: "About" → `#about`, "Price" → the Services section (`id="price"`), "Projects" → `#projects`, "Contact" → the Contact footer (`id="contact"`). No dead anchors.
 - **Hero heading:** massive `<h1>` "Hi, i'm jack" (lowercase "i", curly apostrophe `&apos;`). `.hero-heading` gradient, font-black, uppercase, tracking-tight, leading-none, whitespace-nowrap, `w-full`. Sizes `text-[14vw] sm:text-[15vw] md:text-[16vw] lg:text-[17.5vw]`. Margin top `mt-6 sm:mt-4 md:-mt-5`. Wrapped in an `overflow-hidden` container.
 - **Bottom bar:** flex `justify-between items-end`, `pb-7 sm:pb-8 md:pb-10`.
   - Left: paragraph "a 3d creator driven by crafting striking and unforgettable projects", color `#D7E2EA`, font-light, uppercase, tracking-wide, leading-snug, `font-size: clamp(0.75rem, 1.4vw, 1.5rem)`, `max-w-[160px] sm:max-w-[220px] md:max-w-[260px]`.
@@ -93,6 +93,10 @@ Padding `px-5 sm:px-8 md:px-10 py-20 sm:py-24 md:py-32`.
   - `01 — Nextlevel Studio` (Client)
   - `02 — Aura Brand Identity` (Personal)
   - `03 — Solaris Digital` (Client)
+
+## 6. Contact Section (footer)
+
+A closing `<footer id="contact">` so the navbar's **Contact** link resolves to a real target. Dark background `#0C0C0C`, centered column, generous padding (e.g. `80px 24px 120px`, `gap` ~32px). Contains a large gradient headline using `.hero-heading` (e.g. "Let's talk") and a **ContactButton** ("Contact Me"). Keep it minimal — its job is to be a real, scrollable anchor target consistent with the bundled `example.html`.
 
 ## Reusable Components
 
