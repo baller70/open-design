@@ -129,6 +129,8 @@ type DesignSystemProjectManifest = {
   files: {
     design: 'DESIGN.md';
     tokens: 'tokens.css';
+    designTokens?: 'design-tokens.json';
+    tailwind?: 'tailwind-v4.css';
     components?: 'components.html';
   };
   assetsDir?: 'assets';
@@ -628,6 +630,8 @@ function buildDesignSystemPullIndex(
   add(manifest.sourceFiles?.tokens, 'source-token evidence');
   add(manifest.sourceFiles?.report, 'token contract quality report');
   add(manifest.sourceFiles?.snippets, 'source snippet index');
+  add(manifest.files.designTokens, 'derived Design Tokens JSON');
+  add(manifest.files.tailwind, 'derived Tailwind v4 theme CSS');
 
   if (entries.length === 0) return undefined;
   return ['Additional design-system files declared by manifest.json:', ...entries].join('\n');
@@ -649,6 +653,8 @@ async function buildDesignSystemPullFileAllowlist(
   add(manifest.sourceFiles?.tokens);
   add(manifest.sourceFiles?.report);
   add(manifest.sourceFiles?.snippets);
+  add(manifest.files.designTokens);
+  add(manifest.files.tailwind);
 
   if (manifest.assetsDir === 'assets') {
     await addFilesUnderDeclaredDir(brandRoot, 'assets', allowed);
@@ -2961,6 +2967,8 @@ function isProjectManifest(value: unknown, expectedId: string): value is DesignS
   return (
     fileRecord.design === 'DESIGN.md' &&
     fileRecord.tokens === 'tokens.css' &&
+    (fileRecord.designTokens === undefined || fileRecord.designTokens === 'design-tokens.json') &&
+    (fileRecord.tailwind === undefined || fileRecord.tailwind === 'tailwind-v4.css') &&
     (fileRecord.components === undefined || fileRecord.components === 'components.html')
   );
 }

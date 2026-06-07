@@ -298,6 +298,8 @@ export interface DesignSystemPackageInfo {
     files?: {
       design?: string;
       tokens?: string;
+      designTokens?: string;
+      tailwind?: string;
       components?: string;
     };
     usage?: string;

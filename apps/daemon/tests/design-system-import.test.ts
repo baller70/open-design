@@ -59,6 +59,8 @@ describe('importLocalDesignSystemProject', () => {
         'USAGE.md',
         'DESIGN.md',
         'tokens.css',
+        'design-tokens.json',
+        'tailwind-v4.css',
         'components.html',
         'components.manifest.json',
         'manifest.json',
@@ -93,6 +95,8 @@ describe('importLocalDesignSystemProject', () => {
       files: {
         design: 'DESIGN.md',
         tokens: 'tokens.css',
+        designTokens: 'design-tokens.json',
+        tailwind: 'tailwind-v4.css',
         components: 'components.html',
       },
       usage: 'USAGE.md',
@@ -128,6 +132,30 @@ describe('importLocalDesignSystemProject', () => {
     expect(usage).toContain('## Read Order');
     expect(usage).toContain('source/tokens.source.json');
     expect(usage).toContain('source/token-contract.report.json');
+
+    const designTokens = JSON.parse(
+      fs.readFileSync(path.join(result.dir, 'design-tokens.json'), 'utf8'),
+    ) as {
+      format: string;
+      contract: string;
+      tokens: Array<{ name: string; value: string; type: string; confidence: string; sourceName?: string }>;
+    };
+    expect(designTokens).toMatchObject({
+      format: 'od-design-tokens/v1',
+      contract: 'TOKEN_SCHEMA',
+    });
+    expect(designTokens.tokens).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: '--accent', value: '#ff3366', type: 'color', sourceName: '--color-primary' }),
+        expect.objectContaining({ name: '--bg', value: '#101014', type: 'color', sourceName: '--color-background' }),
+      ]),
+    );
+
+    const tailwindV4 = fs.readFileSync(path.join(result.dir, 'tailwind-v4.css'), 'utf8');
+    expect(tailwindV4).toContain('@import "tailwindcss";');
+    expect(tailwindV4).toContain('@import "./tokens.css";');
+    expect(tailwindV4).toContain('--color-accent: var(--accent);');
+    expect(tailwindV4).toContain('--radius-md: var(--radius-md);');
 
     const componentsManifest = JSON.parse(
       fs.readFileSync(path.join(result.dir, 'components.manifest.json'), 'utf8'),

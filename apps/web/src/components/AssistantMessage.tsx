@@ -623,17 +623,10 @@ function AssistantMessageImpl({
     canFork;
   // Pre-output vs working: before any real content (text / thinking / tools /
   // files) the footer shimmers "Preparing…"; the moment content lands it
-  // flips to "Working" and the elapsed clock restarts from that instant.
+  // flips to "Working". The elapsed clock stays anchored to the persisted run
+  // start so switching project tabs or remounting the message cannot restart it.
   const hasContent = blocks.some((b) => b.kind !== "status") || fileOps.length > 0;
   const preparing = streaming && !hasContent;
-  const [outputStartedAt, setOutputStartedAt] = useState<number | undefined>(undefined);
-  useEffect(() => {
-    if (streaming && hasContent) {
-      setOutputStartedAt((prev) => prev ?? Date.now());
-    } else if (!streaming) {
-      setOutputStartedAt(undefined);
-    }
-  }, [streaming, hasContent]);
   const [dismissedCandidateIds, setDismissedCandidateIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -843,7 +836,6 @@ function AssistantMessageImpl({
                   hasUnfinishedTodos: unfinishedTodos.length > 0,
                   hasEmptyResponse,
                   preparing,
-                  outputStartedAt,
                   copyMarkdown,
                   onFork: canFork ? onForkFromMessage : undefined,
                   forking,
@@ -861,7 +853,6 @@ function AssistantMessageImpl({
                 hasUnfinishedTodos={unfinishedTodos.length > 0}
                 hasEmptyResponse={hasEmptyResponse}
                 preparing={preparing}
-                outputStartedAt={outputStartedAt}
                 copyMarkdown={copyMarkdown}
                 onFork={canFork ? onForkFromMessage : undefined}
                 forking={forking}
@@ -1045,10 +1036,8 @@ interface AssistantFooterProps {
   hasUnfinishedTodos: boolean;
   hasEmptyResponse: boolean;
   // Pre-output phase: streaming but nothing rendered yet. The label shimmers
-  // "Preparing…"; once content lands it flips to "Working" and the elapsed
-  // counter restarts from `outputStartedAt` (the moment content appeared).
+  // "Preparing…"; once content lands it flips to "Working".
   preparing?: boolean;
-  outputStartedAt?: number | undefined;
   copyMarkdown?: string;
   onFork?: () => void;
   forking?: boolean;
@@ -1068,7 +1057,6 @@ function AssistantFooter({
   hasUnfinishedTodos,
   hasEmptyResponse,
   preparing = false,
-  outputStartedAt,
   copyMarkdown,
   onFork,
   forking = false,
@@ -1078,12 +1066,7 @@ function AssistantFooter({
   isLast = false,
 }: AssistantFooterProps) {
   const t = useT();
-  // While "working" (streaming with content) the timer counts from when
-  // content first appeared, not from the run start, so it reads as a fresh
-  // generation clock. Preparing and the final done state both use startedAt.
-  const elapsedStart =
-    streaming && !preparing ? outputStartedAt ?? startedAt : startedAt;
-  const elapsed = useLiveElapsed(streaming, elapsedStart, endedAt, usage?.durationMs);
+  const elapsed = useLiveElapsed(streaming, startedAt, endedAt, usage?.durationMs);
   const formattedCost =
     typeof usage?.costUsd === "number" &&
     Number.isFinite(usage.costUsd) &&
