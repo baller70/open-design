@@ -12,8 +12,11 @@ import type { RuntimeAgentDef } from '../types.js';
 // --oauth` and the resulting `~/.grok/auth.json` is what every spawned
 // invocation reads.
 //
-// Headless mode follows Claude Code's pattern (`-p <PROMPT>` for single-
-// turn, `--output-format streaming-json` for structured streaming), but
+// Headless mode uses `--prompt-file <PATH>` because recent Grok CLI builds
+// require `-p/--single` to receive the prompt as an argv value and no longer
+// read piped stdin. OD's composed prompts often exceed safe argv limits, so
+// the daemon stages the prompt in a temp file and passes that path here. The
+// CLI also exposes `--output-format streaming-json`, but
 // the streaming-json schema is xAI-specific and we do not yet have a
 // daemon-side parser for it. To ship the runtime now and let users at
 // least chat with grok inside OD, this defaults to `plain` streamFormat
@@ -49,10 +52,14 @@ export const grokBuildAgentDef = {
       label: 'grok-4.20-multi-agent (xAI · orchestration)',
     },
   ],
-  // Grok Build CLI v0.1.212 enforces `-p, --single <PROMPT>` as value-
-  // required — stdin piping no longer satisfies it. Inline the prompt.
-  buildArgs: (prompt, _imagePaths, _extra = [], options = {}) => {
-    const args = ['-p', prompt];
+  // Grok Build CLI v0.1.212+ enforces `-p, --single <PROMPT>` as value-
+  // required, while normal OD composed prompts exceed safe argv budgets.
+  // Use the CLI's explicit prompt-file transport instead.
+  buildArgs: (_prompt, _imagePaths, _extra = [], options = {}, runtimeContext = {}) => {
+    if (!runtimeContext.promptFilePath) {
+      throw new Error('grok-build requires runtimeContext.promptFilePath');
+    }
+    const args = ['--prompt-file', runtimeContext.promptFilePath];
     if (options.model && options.model !== DEFAULT_MODEL_OPTION.id) {
       args.push('--model', options.model);
     }
@@ -68,21 +75,8 @@ export const grokBuildAgentDef = {
     { id: 'xhigh', label: 'xhigh' },
     { id: 'max', label: 'max' },
   ],
+  promptViaFile: true,
   promptViaStdin: false,
-  // Guard against prompts that would blow Windows' ~32 KB CreateProcess
-  // limit (or Linux MAX_ARG_STRLEN on extreme edges) before spawn. Same
-  // shape as the DeepSeek adapter — the previous stdin path is gone (CLI
-  // 0.1.212 enforces `-p <value>`), so the composed prompt now rides
-  // argv and a sufficiently large one — system text + history + skills/
-  // design-system content + user message — could surface as a generic
-  // spawn ENAMETOOLONG / E2BIG instead of a Grok-specific, user-
-  // actionable message. The /api/chat spawn path checks this byte
-  // budget against the composed prompt and emits AGENT_PROMPT_TOO_LARGE
-  // ("reduce skills/design-system context, or pick an adapter with
-  // stdin support") before calling `spawn`. 30_000 bytes leaves ~2.7 KB
-  // of argv headroom under the Windows command-line limit for `-p
-  // --model <id> --effort <level>` and internal quoting.
-  maxPromptArgBytes: 30_000,
   streamFormat: 'plain',
   installUrl: 'https://x.ai/cli',
   docsUrl: 'https://x.ai/cli',
