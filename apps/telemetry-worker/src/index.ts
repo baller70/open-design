@@ -42,6 +42,7 @@ export interface Env {
   TRACE_OBJECT_MAX_BYTES?: string;
   TRACE_OBJECT_BATCH_MAX_BYTES?: string;
   TRACE_OBJECT_UPLOAD_SECRET?: string;
+  TRACE_OBJECT_AUTHORIZE_TEST_ONLY?: string;
   TELEMETRY_CLIENT_RATE_LIMITER?: RateLimitBinding;
   TELEMETRY_IP_RATE_LIMITER?: RateLimitBinding;
 }
@@ -363,6 +364,10 @@ function hasObjectRelayConfig(env: Env): boolean {
   return Boolean(env.TRACE_OBJECT_BUCKET && env.TRACE_OBJECT_UPLOAD_SECRET?.trim());
 }
 
+function allowTestObjectAuthorize(env: Env): boolean {
+  return env.TRACE_OBJECT_AUTHORIZE_TEST_ONLY === '1';
+}
+
 function isHealthPath(request: Request): boolean {
   const { pathname } = new URL(request.url);
   return pathname === '/api/langfuse' || pathname === '/health';
@@ -471,6 +476,9 @@ async function handleObjectAuthorizeRequest(request: Request, env: Env): Promise
   }
   if (!hasObjectRelayConfig(env)) {
     return jsonResponse(503, { error: 'object relay upload authority is not configured' });
+  }
+  if (!allowTestObjectAuthorize(env)) {
+    return jsonResponse(403, { error: 'object upload authorization is disabled' });
   }
   const contentType = request.headers.get('content-type') ?? '';
   if (!contentType.toLowerCase().includes('application/json')) {

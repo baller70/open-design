@@ -17,10 +17,10 @@ attachments, produced artifacts, and over-threshold input text snapshots, writes
 them through the `TRACE_OBJECT_BUCKET` R2 binding, and returns trace-safe
 `storage_ref` / `sha256` / size metadata for Langfuse manifests.
 
-Object ingest uses a Worker-issued short-lived upload token. Released daemon
-telemetry first requests authorization with object metadata only, then uploads
-only objects covered by that token. The long-lived signing secret stays in the
-Worker and is never packaged into the daemon/client.
+Object ingest accepts a short-lived upload token signed by Worker-held
+authority. Public metadata-only authorization is disabled until the Worker can
+verify a trusted telemetry authority for the requested objects. The long-lived
+signing secret stays in the Worker and is never packaged into the daemon/client.
 
 Local development can bypass the relay by setting direct `LANGFUSE_PUBLIC_KEY`
 and `LANGFUSE_SECRET_KEY` environment variables for the daemon. Packaged
@@ -38,12 +38,12 @@ Rate Limiting bindings for two independent keys:
   minute.
 
 Object ingest uses the same rate limit bindings with a separate marker value,
-`X-Open-Design-Telemetry: object-ingestion-v1`. The daemon calls
-`POST /api/objects/authorize` with `client_id`, `project_id`, `run_id`, and the
-object metadata (`storage_ref`, object class, size, and sha256); the Worker signs
-a 5-minute token scoped to exactly those objects. `POST /api/objects/batch`
-must include that token, and the Worker re-checks the namespace, size, and
-sha256 before writing to R2. The Worker also applies IP rate limiting before
+`X-Open-Design-Telemetry: object-ingestion-v1`. `POST /api/objects/batch` must
+include a signed upload token, and the Worker re-checks the namespace, size, and
+sha256 before writing to R2. `POST /api/objects/authorize` does not issue
+production upload tokens from caller-supplied metadata; it is limited to the
+explicit `TRACE_OBJECT_AUTHORIZE_TEST_ONLY=1` harness until a server-verifiable
+telemetry authority exists. The Worker also applies IP rate limiting before
 reading object bodies. It enforces a 10 MiB single-object limit and a 20 MiB
 request-body limit by default. Oversized objects are reported as unavailable
 instead of being written.

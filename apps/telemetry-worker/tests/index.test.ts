@@ -287,7 +287,7 @@ describe('telemetry worker', () => {
     fetchSpy.mockRestore();
   });
 
-  it('issues short-lived object upload tokens scoped to declared objects', async () => {
+  it('rejects public marker-only object authorization metadata', async () => {
     const content = 'hello object';
     const response = await worker.fetch(
       new Request('https://telemetry.open-design.ai/api/objects/authorize', {
@@ -315,6 +315,44 @@ describe('telemetry worker', () => {
         ...env,
         TRACE_OBJECT_BUCKET: { put: vi.fn() },
         TRACE_OBJECT_UPLOAD_SECRET: objectUploadSecret,
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: 'object upload authorization is disabled',
+    });
+  });
+
+  it('issues test-only short-lived object upload tokens scoped to declared objects', async () => {
+    const content = 'hello object';
+    const response = await worker.fetch(
+      new Request('https://telemetry.open-design.ai/api/objects/authorize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Open-Design-Telemetry': 'object-ingestion-v1',
+          'CF-Connecting-IP': '203.0.113.10',
+        },
+        body: JSON.stringify({
+          client_id: 'installation-1',
+          project_id: 'proj-1',
+          run_id: 'run-1',
+          objects: [
+            {
+              storage_ref: 'od://objects/workspaces/unknown/projects/proj-1/runs/run-1/attachment/att-1/brief.txt',
+              object_class: 'attachment',
+              size_bytes: content.length,
+              sha256: `sha256:${requireSha256(content)}`,
+            },
+          ],
+        }),
+      }),
+      {
+        ...env,
+        TRACE_OBJECT_BUCKET: { put: vi.fn() },
+        TRACE_OBJECT_UPLOAD_SECRET: objectUploadSecret,
+        TRACE_OBJECT_AUTHORIZE_TEST_ONLY: '1',
       },
     );
 
