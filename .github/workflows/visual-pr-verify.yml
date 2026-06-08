@@ -46,6 +46,12 @@ jobs:
         if: ${{ steps.changes.outputs.should_run == 'true' }}
         uses: ./.github/actions/visual-screenshot
 
+      - name: Run Playwright critical gate
+        if: ${{ steps.changes.outputs.should_run == 'true' }}
+        run: |
+          pnpm -C e2e exec tsx scripts/playwright.ts clean
+          pnpm -C e2e run test:ui:critical
+
       - name: Run strict visual Playwright suite
         if: ${{ steps.changes.outputs.should_run == 'true' }}
         env:
