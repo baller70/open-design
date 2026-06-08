@@ -91,6 +91,7 @@ vi.mock('../../src/analytics/provider', () => ({
 
 import { SettingsDialog } from '../../src/components/SettingsDialog';
 import type { AgentRefreshOptions, SettingsSection } from '../../src/components/SettingsDialog';
+import { reconcileAmrProfileEnv } from '../../src/components/SettingsDialog';
 import { I18nProvider } from '../../src/i18n';
 import { LOCALES } from '../../src/i18n/types';
 import { MAX_MAX_TOKENS, MIN_MAX_TOKENS } from '../../src/state/maxTokens';
@@ -3525,7 +3526,7 @@ describe('SettingsDialog appearance interactions', () => {
           amr: { OPEN_DESIGN_AMR_PROFILE: 'prod' },
         },
       },
-      { initialSection: 'appearance' },
+      { initialSection: 'appearance', agents: [amrAgent, ...availableAgents] },
     );
 
     view.rerender(
@@ -3539,7 +3540,7 @@ describe('SettingsDialog appearance interactions', () => {
             amr: { OPEN_DESIGN_AMR_PROFILE: 'local' },
           },
         }}
-        agents={availableAgents}
+        agents={[amrAgent, ...availableAgents]}
         daemonLive={true}
         appVersionInfo={null}
         initialSection="appearance"
@@ -3562,6 +3563,32 @@ describe('SettingsDialog appearance interactions', () => {
       }),
       {},
     );
+  });
+
+  it('preserves unrelated draft env entries when reconciling the AMR profile', () => {
+    expect(
+      reconcileAmrProfileEnv(
+        {
+          codex: { CODEX_BIN: '/tmp/codex-dev' },
+          amr: {
+            OPEN_DESIGN_AMR_PROFILE: 'prod',
+            AMR_API_BASE_URL: 'https://draft.example.test',
+          },
+        },
+        {
+          amr: {
+            OPEN_DESIGN_AMR_PROFILE: 'local',
+            AMR_API_BASE_URL: 'https://daemon.example.test',
+          },
+        },
+      ),
+    ).toEqual({
+      codex: { CODEX_BIN: '/tmp/codex-dev' },
+      amr: {
+        OPEN_DESIGN_AMR_PROFILE: 'local',
+        AMR_API_BASE_URL: 'https://draft.example.test',
+      },
+    });
   });
 
   it('switches back to the default accent color and persists it explicitly', async () => {

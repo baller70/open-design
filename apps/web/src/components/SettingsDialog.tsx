@@ -838,6 +838,37 @@ export function updateAgentCliEnvValue(
   };
 }
 
+const AMR_PROFILE_AGENT_ID = 'amr';
+const AMR_PROFILE_ENV_KEY = 'OPEN_DESIGN_AMR_PROFILE';
+
+export function reconcileAmrProfileEnv(
+  currentAgentCliEnv: AppConfig['agentCliEnv'] | undefined,
+  nextInitialAgentCliEnv: AppConfig['agentCliEnv'] | undefined,
+): AppConfig['agentCliEnv'] | undefined {
+  const nextAmrProfile = nextInitialAgentCliEnv?.[AMR_PROFILE_AGENT_ID]?.[AMR_PROFILE_ENV_KEY];
+  const currentAmrProfile = currentAgentCliEnv?.[AMR_PROFILE_AGENT_ID]?.[AMR_PROFILE_ENV_KEY];
+  if (currentAmrProfile === nextAmrProfile) {
+    return currentAgentCliEnv;
+  }
+
+  const nextAgentCliEnv = { ...(currentAgentCliEnv ?? {}) };
+  const nextAmrEnv = { ...(nextAgentCliEnv[AMR_PROFILE_AGENT_ID] ?? {}) };
+
+  if (typeof nextAmrProfile === 'string' && nextAmrProfile.length > 0) {
+    nextAmrEnv[AMR_PROFILE_ENV_KEY] = nextAmrProfile;
+  } else {
+    delete nextAmrEnv[AMR_PROFILE_ENV_KEY];
+  }
+
+  if (Object.keys(nextAmrEnv).length > 0) {
+    nextAgentCliEnv[AMR_PROFILE_AGENT_ID] = nextAmrEnv;
+  } else {
+    delete nextAgentCliEnv[AMR_PROFILE_AGENT_ID];
+  }
+
+  return Object.keys(nextAgentCliEnv).length > 0 ? nextAgentCliEnv : {};
+}
+
 export function agentRefreshOptionsForConfig(cfg: AppConfig): AgentRefreshOptions {
   return {
     throwOnError: true,
@@ -1034,15 +1065,19 @@ export function SettingsDialog({
 
   useEffect(() => {
     setCfg((current) => {
-      if (current.agentCliEnv === initial.agentCliEnv) return current;
+      const nextAgentCliEnv = reconcileAmrProfileEnv(current.agentCliEnv, initial.agentCliEnv);
+      if (nextAgentCliEnv === current.agentCliEnv) return current;
       return {
         ...current,
-        agentCliEnv: initial.agentCliEnv,
+        agentCliEnv: nextAgentCliEnv,
       };
     });
     autosaveLastSavedRef.current = {
       ...autosaveLastSavedRef.current,
-      agentCliEnv: initial.agentCliEnv,
+      agentCliEnv: reconcileAmrProfileEnv(
+        autosaveLastSavedRef.current.agentCliEnv,
+        initial.agentCliEnv,
+      ),
     };
   }, [initial.agentCliEnv]);
 
