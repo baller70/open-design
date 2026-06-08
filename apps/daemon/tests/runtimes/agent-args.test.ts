@@ -795,14 +795,31 @@ test('grok-build uses --prompt-file and never embeds the prompt in argv or stdin
     promptFilePath,
     '--model',
     'grok-4.3',
-    '--effort',
-    'high',
   ]);
   assert.equal(args.includes(prompt), false);
   assert.equal(args.includes('-'), false);
   assert.equal(args.includes('-p'), false);
   assert.equal(args.includes('--single'), false);
   assert.equal(args.filter((entry) => entry === '--prompt-file').length, 1);
+});
+
+test('grok-build omits effort for default/build models but keeps it for reasoning models', () => {
+  const promptFilePath = '/tmp/od-grok-prompt/prompt.md';
+  const defaultArgs = grokBuild.buildArgs('', [], [], { model: 'default', reasoning: 'high' }, { promptFilePath });
+  assert.equal(defaultArgs.includes('--effort'), false);
+
+  const buildArgs = grokBuild.buildArgs('', [], [], { model: 'grok-build', reasoning: 'high' }, { promptFilePath });
+  assert.equal(buildArgs.includes('--effort'), false);
+
+  const reasoningArgs = grokBuild.buildArgs('', [], [], { model: 'grok-4.20-reasoning', reasoning: 'high' }, { promptFilePath });
+  assert.deepEqual(reasoningArgs, [
+    '--prompt-file',
+    promptFilePath,
+    '--model',
+    'grok-4.20-reasoning',
+    '--effort',
+    'high',
+  ]);
 });
 
 test('grok-build requires a daemon-provided prompt file path', () => {
