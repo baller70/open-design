@@ -5459,6 +5459,7 @@ export function ProjectView({
                   <ProjectInstructionsControl
                     instructions={project.customInstructions ?? ''}
                     onSave={handleProjectInstructionsSave}
+                    t={t}
                   />
                   <WorkingDirPill
                     projectId={project.id}
@@ -5686,9 +5687,11 @@ export function ProjectView({
 function ProjectInstructionsControl({
   instructions,
   onSave,
+  t,
 }: {
   instructions: string;
   onSave: (instructions: string) => void;
+  t: ReturnType<typeof useI18n>['t'];
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(instructions);
@@ -5720,7 +5723,7 @@ function ProjectInstructionsControl({
         onClick={() => setEditing(true)}
         data-testid="project-instructions-add"
       >
-        Project instructions
+        {t('project.customInstructions')}
       </button>
     );
   }
@@ -5738,7 +5741,7 @@ function ProjectInstructionsControl({
         className="project-instructions__textarea"
         value={draft}
         onChange={(event) => setDraft(event.currentTarget.value)}
-        placeholder="Instructions for this project"
+        placeholder={t('project.customInstructionsPlaceholder')}
         data-testid="project-instructions-textarea"
       />
       <div className="project-instructions__actions">
@@ -5750,14 +5753,14 @@ function ProjectInstructionsControl({
             setEditing(false);
           }}
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="project-instructions__button project-instructions__button--primary"
           data-testid="project-instructions-save"
         >
-          Save
+          {t('common.save')}
         </button>
       </div>
     </form>
