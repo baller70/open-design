@@ -453,7 +453,11 @@ describe('DesignBrowserPanel <webview> navigation', () => {
     };
     webview.executeJavaScript = vi.fn(async () => []);
 
-    await waitFor(() => expect(webview.executeJavaScript).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(webview.executeJavaScript).not.toHaveBeenCalled();
     expect(container.querySelector('.db-comment-layer')).toBeNull();
     expect(container.querySelector('.db-comment-marker')).toBeNull();
   });

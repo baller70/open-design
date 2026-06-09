@@ -1114,11 +1114,6 @@ export function DesignBrowserPanel({
       return;
     }
 
-    const commentTargets = visibleComments.map((comment) => ({
-      elementId: comment.elementId,
-      key: `comment:${comment.id}`,
-      selector: comment.selector,
-    }));
     const activeTarget = activeCommentTarget
       ? [{
           elementId: activeCommentTarget.elementId,
@@ -1126,7 +1121,7 @@ export function DesignBrowserPanel({
           selector: activeCommentTarget.selector,
         }]
       : [];
-    const targets = [...commentTargets, ...activeTarget].filter((target) => target.elementId && target.selector);
+    const targets = activeTarget.filter((target) => target.elementId && target.selector);
     if (targets.length === 0) {
       setBrowserLiveCommentTargets((current) => (current.size > 0 ? new Map() : current));
       return;
@@ -1183,7 +1178,7 @@ export function DesignBrowserPanel({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [activeCommentTarget?.elementId, activeCommentTarget?.selector, activeTool, browserFilePath, isBlank, visibleComments, webviewNode]);
+  }, [activeCommentTarget?.elementId, activeCommentTarget?.selector, activeTool, browserFilePath, isBlank, webviewNode]);
 
   useEffect(() => {
     const next = browserImages.map((file) => ({ file, url: URL.createObjectURL(file) }));
