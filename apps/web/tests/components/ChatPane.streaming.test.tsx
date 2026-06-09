@@ -52,16 +52,35 @@ vi.mock('../../src/components/AssistantMessage', () => ({
     isLast,
     onShareToOpenDesign,
     shareToOpenDesignBusy,
+    showConversationTodoCard,
+    conversationTodoInput,
   }: {
     streaming: boolean;
     message: ChatMessage;
     isLast?: boolean;
     onShareToOpenDesign?: () => void;
     shareToOpenDesignBusy?: boolean;
+    showConversationTodoCard?: boolean;
+    conversationTodoInput?: {
+      todos?: Array<{ content: string; status?: string }>;
+      plan?: Array<{ content?: string; step?: string; status?: string }>;
+    } | null;
   }) => (
     <>
       <output data-testid={`assistant-streaming-${message.id}`}>{streaming ? 'streaming' : 'idle'}</output>
       <output data-testid={`assistant-last-${message.id}`}>{isLast ? 'last' : 'not-last'}</output>
+      {showConversationTodoCard && conversationTodoInput ? (
+        <div className="op-card op-todo">
+          {(conversationTodoInput.todos ?? conversationTodoInput.plan ?? []).map((todo, index) => {
+            const content = 'content' in todo ? todo.content : todo.step;
+            return (
+              <div key={`${content}-${index}`} className={`todo-${todo.status ?? 'pending'}`}>
+                <span className="todo-text">{content}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
       {onShareToOpenDesign ? (
         <button
           type="button"
