@@ -58,9 +58,13 @@ function loadManifest(dir: string): Record<string, BakeEntry> {
 export function bakedPreviewBlock(id: string, dir: string): BakedPreviewBlock | null {
   const entry = loadManifest(dir)[id];
   if (!entry || !entry.video || !entry.poster) return null;
+  // In production the clips live on R2 (OD_PLUGIN_PREVIEWS_BASE_URL =
+  // https://<r2-public-origin>/plugin-previews); locally they fall back to the
+  // daemon's own /api/plugin-previews static route over the on-disk dir.
+  const base = (process.env.OD_PLUGIN_PREVIEWS_BASE_URL?.replace(/\/+$/, '')) || PLUGIN_PREVIEWS_ROUTE;
   return {
-    poster: `${PLUGIN_PREVIEWS_ROUTE}/${entry.poster}`,
-    video: `${PLUGIN_PREVIEWS_ROUTE}/${entry.video}`,
+    poster: `${base}/${entry.poster}`,
+    video: `${base}/${entry.video}`,
     ...(typeof entry.holdMs === 'number' ? { holdMs: entry.holdMs } : {}),
   };
 }
