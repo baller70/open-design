@@ -41,7 +41,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          npm install --no-save puppeteer-core
+          # npm chokes on the workspace:* root manifest; use pnpm to drop
+          # puppeteer-core into the workspace node_modules (CI-only, not committed).
+          pnpm add -w puppeteer-core
 
       - name: Build daemon + tools
         run: |
