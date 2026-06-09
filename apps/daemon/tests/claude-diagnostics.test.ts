@@ -199,6 +199,7 @@ describe('diagnoseClaudeCliFailure', () => {
     expect(diagnostic?.detail).toContain('Retry');
     expect(diagnostic?.detail).not.toContain('/login');
     expect(diagnostic?.retryable).toBe(true);
+    expect(diagnostic?.code).toBe('AGENT_CONNECTION_DROPPED');
   });
 
   it('uses OpenClaude copy for OpenClaude mid-stream socket drops', () => {
@@ -233,6 +234,7 @@ describe('diagnoseClaudeCliFailure', () => {
     expect(diagnostic?.message).toContain('lost its connection to the Anthropic API');
     expect(diagnostic?.detail).not.toContain('/login');
     expect(diagnostic?.retryable).toBe(true);
+    expect(diagnostic?.code).toBe('AGENT_CONNECTION_DROPPED');
   });
 
   it('does not classify generic first-connect API failures as mid-stream drops', () => {

@@ -16,6 +16,13 @@ export interface ClaudeCliDiagnostic {
   message: string;
   detail: string;
   retryable: boolean;
+  /**
+   * Stable `ApiErrorCode` for this failure class, when one is more specific
+   * than the generic `AGENT_EXECUTION_FAILED`. Lets the web map the code to a
+   * localized message and lets triage count failures by class. Omitted for
+   * branches that have no dedicated code yet.
+   */
+  code?: string;
 }
 
 function envValue(
@@ -39,6 +46,7 @@ function withContext(
   message: string,
   detail: string,
   input: ClaudeCliDiagnosticInput,
+  code?: string,
 ): ClaudeCliDiagnostic {
   const configDir = envValue(input.env, 'CLAUDE_CONFIG_DIR');
   const baseUrl = envValue(input.env, 'ANTHROPIC_BASE_URL');
@@ -54,6 +62,7 @@ function withContext(
     message: redactSecrets(message),
     detail: redactSecrets(context.filter(Boolean).join(' ')),
     retryable: true,
+    ...(code ? { code } : {}),
   };
 }
 
@@ -130,12 +139,14 @@ export function diagnoseClaudeCliFailure(
         `${runtimeLabel} lost its connection to the configured custom Anthropic endpoint before the response finished.`,
         `The connection to ANTHROPIC_BASE_URL was closed mid-stream — often a proxy or relay that drops long-lived streaming requests, and most likely on large generations. Retry; if it keeps happening, raise the proxy idle/stream timeout, or ${customEndpointFallback}`,
         input,
+        'AGENT_CONNECTION_DROPPED',
       );
     }
     return withContext(
       `${runtimeLabel} lost its connection to ${defaultEndpointLabel} before the response finished.`,
       'The network connection was closed mid-response — common on unstable networks, VPNs, or proxies that drop long-lived streaming requests, and most likely on large generations. Retry the request.',
       input,
+      'AGENT_CONNECTION_DROPPED',
     );
   }
 
