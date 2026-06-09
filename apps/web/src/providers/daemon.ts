@@ -995,18 +995,16 @@ async function consumeDaemonRun({
           if (event.event === 'error') {
             onRunStatus?.('failed');
             const data = event.data as SseErrorPayload;
-            // The explicit error frame precedes the `end` frame (which DOES
-            // carry `resumable`), but we return here without reading `end`, so
-            // fetch the authoritative run status instead. The daemon computes
-            // `resumable` at finalize, just after emitting this error frame;
-            // its emit->finish path is synchronous and far faster than this
-            // network round-trip, so the fetched status reliably reflects the
-            // final flag. Cost: one extra HTTP round-trip per error-framed
-            // failure. (If this ever races, the worst case is a missed Continue
-            // affordance, never a wrong recovery.)
-            const failedStatus = await fetchChatRunStatus(runId).catch(() => null);
+            // The error frame is emitted from the daemon's child-close handler
+            // BEFORE `finishWithRetryDecision()` computes and persists
+            // `run.resumable`, and we return here without reading the later
+            // `end` frame (which would carry it). A single status fetch could
+            // therefore race the finalizer and read a not-yet-set `resumable`
+            // on the exact transient failures this feature targets. Poll the
+            // run status until it is terminal so we read the FINALIZED bit.
+            const terminal = await pollRunStatusUntilTerminal(runId);
             handlers.onError(
-              markErrorResumable(daemonSseError(data), failedStatus?.resumable === true),
+              markErrorResumable(daemonSseError(data), terminal?.resumable === true),
             );
             return;
           }
@@ -1109,6 +1107,30 @@ function isChatRunStatus(value: unknown): value is ChatRunStatus {
 function markErrorResumable(err: Error, resumable: boolean): Error {
   if (resumable) (err as Error & { resumable?: boolean }).resumable = true;
   return err;
+}
+
+/** Poll the run status until it reports a terminal state, so callers read the
+ *  daemon's FINALIZED record (e.g. the `resumable` bit computed at finalize)
+ *  rather than racing an in-flight finalizer after an early `error` frame.
+ *  Returns the last status seen if the run never goes terminal within the
+ *  bound (it almost always does within a couple of polls). */
+async function pollRunStatusUntilTerminal(
+  runId: string,
+  timeoutMs = 4000,
+): Promise<ChatRunStatusResponse | null> {
+  const startedAt = Date.now();
+  let last: ChatRunStatusResponse | null = null;
+  for (;;) {
+    last = await fetchChatRunStatus(runId).catch(() => null);
+    if (
+      last &&
+      (last.status === 'failed' || last.status === 'canceled' || last.status === 'succeeded')
+    ) {
+      return last;
+    }
+    if (Date.now() - startedAt >= timeoutMs) return last;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  }
 }
 
 function normalizeToolInput(input: unknown): unknown {

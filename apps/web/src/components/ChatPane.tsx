@@ -866,6 +866,18 @@ export function ChatPane({
   const runFailureUi = retryAssistant
     ? resolveRunFailureUi(failedRunErrorEvent?.code, retryAssistant.agentId)
     : null;
+  // Offer Continue (resume) only when the failed run is resumable AND the
+  // active agent still matches the agent that produced it. The daemon stores a
+  // resumable session per (conversation, agent); after an agent switch the new
+  // agent has no id for that session, so a resume would silently start fresh —
+  // fall back to the from-scratch Retry instead. `onResumeRun` is wired only on
+  // surfaces that can issue a resume (the primary project chat); elsewhere this
+  // is false and the existing Retry path renders.
+  const canResumeFailedRun =
+    !!retryAssistant?.resumable &&
+    !!onResumeRun &&
+    !!retryAssistant?.agentId &&
+    retryAssistant.agentId === config?.agentId;
   // Prefer a case-specific message (AMR auth / balance) over the raw upstream
   // string; fall back to the live global error (also covers conversation-load
   // / audio errors) then the persisted run error so a reload still shows it.
@@ -2049,7 +2061,7 @@ export function ChatPane({
                               {t('chat.amrError.rechargeCta')}
                             </button>
                           ) : null}
-                          {retryAssistant?.resumable && onResumeRun ? (
+                          {canResumeFailedRun && onResumeRun ? (
                             // Resumable failure: continue the agent's existing
                             // CLI session instead of restarting from scratch, so
                             // partial work is kept. Replaces the from-scratch

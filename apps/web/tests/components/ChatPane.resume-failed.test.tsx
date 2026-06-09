@@ -68,7 +68,11 @@ function resumableFailedMessage(): ChatMessage {
   };
 }
 
-function renderChat(onResumeRun: (m: ChatMessage) => void, onRetry: (m: ChatMessage) => void) {
+function renderChat(
+  onResumeRun: (m: ChatMessage) => void,
+  onRetry: (m: ChatMessage) => void,
+  activeAgentId = 'claude',
+) {
   return render(
     <ChatPane
       messages={[resumableFailedMessage()]}
@@ -87,7 +91,7 @@ function renderChat(onResumeRun: (m: ChatMessage) => void, onRetry: (m: ChatMess
       activeConversationId="conv-1"
       onSelectConversation={vi.fn()}
       onDeleteConversation={vi.fn()}
-      config={{ agentCliEnv: {} } as unknown as AppConfig}
+      config={{ agentId: activeAgentId, agentCliEnv: {} } as unknown as AppConfig}
     />,
   );
 }
@@ -96,7 +100,7 @@ describe('ChatPane resume-on-failure', () => {
   it('offers Continue (not from-scratch Retry) on a resumable failed run', () => {
     const onResumeRun = vi.fn();
     const onRetry = vi.fn();
-    renderChat(onResumeRun, onRetry);
+    renderChat(onResumeRun, onRetry, 'claude');
 
     const continueBtn = screen.getByText('chat.resumeRunCta');
     expect(continueBtn).toBeTruthy();
@@ -107,5 +111,17 @@ describe('ChatPane resume-on-failure', () => {
     expect(onResumeRun).toHaveBeenCalledTimes(1);
     expect(onResumeRun.mock.calls[0]![0]).toMatchObject({ id: 'msg-upstream' });
     expect(onRetry).not.toHaveBeenCalled();
+  });
+
+  it('falls back to Retry when the active agent no longer matches the failed run', () => {
+    // The failed message is from claude, but the user has since switched the
+    // active agent to opencode — the resumable session is keyed to claude, so
+    // Continue must NOT show (it would silently start fresh on the wrong agent).
+    const onResumeRun = vi.fn();
+    const onRetry = vi.fn();
+    renderChat(onResumeRun, onRetry, 'opencode');
+
+    expect(screen.queryByText('chat.resumeRunCta')).toBeNull();
+    expect(screen.getByText('promptTemplates.retry')).toBeTruthy();
   });
 });
