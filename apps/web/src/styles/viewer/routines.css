@@ -1512,14 +1512,21 @@
   box-shadow: var(--shadow-sm);
 }
 .chat-composer-fixed-layer .composer-shell {
-  /* Even inset so the staged-context chips, the input box and the toolbar all
-     sit off the card's rounded frame (incl. a side margin on + and Send).
-     Horizontal padding narrows the @container width that drives the toolbar
-     label-collapse, so its breakpoint is lowered to match (see chat.css). */
-  padding: 6px 8px;
+  /* Vertical breathing room only. The side inset is applied as a margin on the
+     children below instead of horizontal padding here, so the shell's
+     content-box width — which is what the shared label-collapse @container in
+     chat.css measures — stays full and that breakpoint can remain generic. */
+  padding: 6px 0;
   border-color: var(--border);
   border-radius: var(--radius-md);
   box-shadow: none;
+}
+/* Inset the staged chips, the input field and the toolbar off the card's
+   rounded frame (giving + and Send a real side margin) without shrinking the
+   @container width — see the .composer-shell padding note above. */
+.chat-composer-fixed-layer .composer-shell > * {
+  margin-left: 8px;
+  margin-right: 8px;
 }
 .app .composer-shell:focus-within {
   border-color: color-mix(in srgb, var(--accent) 34%, var(--border-strong));
