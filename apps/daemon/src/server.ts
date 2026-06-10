@@ -14434,10 +14434,22 @@ export async function startServer({
       // Without it, a run for an uninstalled agent would still report
       // `available` whenever any unrelated CLI was on PATH — see PR #2285
       // review.
+      // AMR sign-in state is daemon-visible (vela's config file), so the
+      // server-side captures can fill `amrAuthorized` even though BYOK
+      // stays web-only. Keeps the `amr` configure_type bucket consistent
+      // across web- and daemon-emitted run events.
+      const velaStatusForAnalytics = (() => {
+        try {
+          return readVelaLoginStatus(process.env);
+        } catch {
+          return null;
+        }
+      })();
       const configureGlobals = deriveConfigureGlobals({
         mode: 'daemon',
         agentId: typeof reqBody.agentId === 'string' ? reqBody.agentId : null,
         agents: detectedAgentsForAnalytics,
+        amrAuthorized: velaStatusForAnalytics?.loggedIn === true,
       });
       const promptText =
         typeof reqBody.currentPrompt === 'string'

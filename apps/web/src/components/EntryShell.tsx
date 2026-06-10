@@ -39,6 +39,10 @@ import {
 } from '../analytics/events';
 import { recordAmrEntry, type AmrEntryAttribution } from '../analytics/amr-attribution';
 import {
+  beginAmrAuthTracking,
+  resolveAmrAuthTracking,
+} from '../analytics/amr-auth';
+import {
   clearOnboardingSessionId,
   getOrCreateOnboardingSessionId,
 } from '../analytics/onboarding-session';
@@ -1458,8 +1462,10 @@ function OnboardingView({
         return;
       }
       if (amrLoginPollCancelledRef.current) return;
+      beginAmrAuthTracking(attribution);
       const loginResult = await startVelaLogin(attribution);
       if (amrLoginPollCancelledRef.current) {
+        resolveAmrAuthTracking(analytics.track, 'cancelled');
         if (loginResult.ok || loginResult.alreadyRunning) {
           const cancelResult = await cancelVelaLogin();
           closeAmrActivationWindowBestEffort();
@@ -1472,6 +1478,7 @@ function OnboardingView({
         return;
       }
       if (!loginResult.ok && !loginResult.alreadyRunning) {
+        resolveAmrAuthTracking(analytics.track, 'failed', 'spawn_failed');
         setAmrLoginError(loginResult.error || t('settings.amrLoginErrorCompact'));
         return;
       }
@@ -1486,6 +1493,7 @@ function OnboardingView({
   async function handleCancelAmrLogin() {
     if (!amrLoginPending || amrLoginCancelPending) return;
     amrLoginPollCancelledRef.current = true;
+    resolveAmrAuthTracking(analytics.track, 'cancelled');
     setAmrLoginError(null);
     setAmrLoginCancelPending(true);
     setAmrStatus((current) => (
@@ -1514,9 +1522,17 @@ function OnboardingView({
       const nextStatus = await fetchVelaLoginStatus();
       if (nextStatus) setAmrStatus(nextStatus);
       const outcome = amrLoginPollOutcome(nextStatus, startedAt);
-      if (outcome === 'signed-in') return true;
+      if (outcome === 'signed-in') {
+        resolveAmrAuthTracking(analytics.track, 'success');
+        return true;
+      }
       if (outcome === 'stopped' || outcome === 'timed-out') {
-        if (outcome === 'timed-out') void cancelVelaLogin();
+        if (outcome === 'timed-out') {
+          resolveAmrAuthTracking(analytics.track, 'timeout', 'login_timeout');
+          void cancelVelaLogin();
+        } else {
+          resolveAmrAuthTracking(analytics.track, 'failed', 'login_stopped');
+        }
         setAmrLoginError(t('settings.amrLoginErrorCompact'));
         return false;
       }
