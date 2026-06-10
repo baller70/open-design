@@ -52,6 +52,14 @@ async function createWorkspaceFixture(workspaceRoot: string): Promise<void> {
   await mkdir(join(workspaceRoot, "prompt-templates", "image"), {
     recursive: true,
   });
+  await mkdir(join(workspaceRoot, "data", "plugin-previews"), {
+    recursive: true,
+  });
+  await writeFile(
+    join(workspaceRoot, "data", "plugin-previews", "manifest.json"),
+    "{\"previews\":{}}\n",
+    "utf8",
+  );
   await mkdir(join(workspaceRoot, "plugins", "registry", "official"), {
     recursive: true,
   });

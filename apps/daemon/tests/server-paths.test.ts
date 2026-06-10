@@ -1,6 +1,11 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { resolveDaemonCliPath, resolveDaemonResourceRoot, resolveProjectRoot } from '../src/server.js';
+import {
+  resolveDaemonCliPath,
+  resolveDaemonPluginPreviewsDir,
+  resolveDaemonResourceRoot,
+  resolveProjectRoot,
+} from '../src/server.js';
 
 describe('resolveProjectRoot', () => {
   it('resolves the repository root from the source daemon directory', () => {
@@ -90,5 +95,26 @@ describe('resolveDaemonResourceRoot', () => {
     expect(() => resolveDaemonResourceRoot({ configured, safeBases: [safeBase] })).toThrow(
       /OD_RESOURCE_ROOT must be under/,
     );
+  });
+});
+
+describe('resolveDaemonPluginPreviewsDir', () => {
+  it('resolves under the resource root in the packaged layout', () => {
+    // Packaged: the prebundled daemon's PROJECT_ROOT is Resources/app (no data/),
+    // but the bundled manifest lives under OD_RESOURCE_ROOT (Resources/open-design).
+    const resourceRoot = '/Applications/Open Design.app/Contents/Resources/open-design';
+    const projectRoot = '/Applications/Open Design.app/Contents/Resources/app';
+
+    expect(
+      resolveDaemonPluginPreviewsDir({ env: {}, resourceRoot, projectRoot }),
+    ).toBe(path.join(resourceRoot, 'data', 'plugin-previews'));
+  });
+
+  it('falls back to the project root in the dev layout (no resource root)', () => {
+    const projectRoot = path.resolve(import.meta.dirname, '../../..');
+
+    expect(
+      resolveDaemonPluginPreviewsDir({ env: {}, resourceRoot: undefined, projectRoot }),
+    ).toBe(path.join(projectRoot, 'data', 'plugin-previews'));
   });
 });
