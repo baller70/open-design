@@ -198,9 +198,12 @@ test('[P2] captures the home plugin use with query surface', async ({ page }) =>
   await home.getByTestId('plugins-home-pill-category-deck').click();
   const card = home.locator('article.plugins-home__card[data-plugin-id="visual-deck-writer"]');
   await expect(card).toBeVisible();
-  await card.hover();
-  await home.getByTestId('plugins-home-use-menu-visual-deck-writer').click({ force: true });
-  await home.getByTestId('plugins-home-use-with-query-visual-deck-writer').click();
+  // Community gallery tiles carry no inline Use actions — use-with-query
+  // lives behind the detail modal's split Use button.
+  await home.getByTestId('plugins-home-details-visual-deck-writer').click({ force: true });
+  await expect(page.getByRole('dialog', { name: /Deck Writer details/i })).toBeVisible();
+  await page.getByTestId('plugin-details-use-visual-deck-writer-menu').click();
+  await page.getByTestId('plugin-details-use-with-query-visual-deck-writer').click();
   // use-with-query now seeds the rendered preset text (placeholders filled in),
   // not the raw `{{...}}` query — matching the example-prompt card path.
   await expect(page.getByTestId('home-hero-input')).toContainText('Draft a topic deck.');
