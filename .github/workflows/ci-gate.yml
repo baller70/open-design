@@ -95,12 +95,12 @@ jobs:
           # run ids. ci-gate can only bootstrap fresh child runs for the current
           # ref / workflow_dispatch event, so a looser combination would just
           # poll until timeout.
-          if [ "$has_target_override" = "1" ] && [ -z "$runner_run_id" -o -z "$hosted_run_id" ]; then
+          if [ "$has_target_override" = "1" ] && { [ -z "$runner_run_id" ] || [ -z "$hosted_run_id" ]; }; then
             echo "target_sha/target_event overrides require both runner_run_id and hosted_run_id" >&2
             exit 1
           fi
 
-          if [ "$has_run_id_override" = "1" ] && [ -z "$runner_run_id" -o -z "$hosted_run_id" ]; then
+          if [ "$has_run_id_override" = "1" ] && { [ -z "$runner_run_id" ] || [ -z "$hosted_run_id" ]; }; then
             echo "runner_run_id and hosted_run_id must be supplied together" >&2
             exit 1
           fi
