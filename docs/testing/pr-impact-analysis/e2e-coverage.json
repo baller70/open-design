@@ -7,7 +7,7 @@
       "priority": "P0",
       "confidence": "high",
       "reason": "Direct composer component changes should run the project-workspace shard.",
-      "pathGlobs": ["apps/web/src/components/*Composer*.tsx", "apps/web/src/components/composer/**/*.tsx", "apps/web/src/components/composer/**/*.ts", "apps/web/src/App.tsx"],
+      "pathGlobs": ["apps/web/src/components/*Composer*.tsx", "apps/web/src/components/composer-*.ts", "apps/web/src/components/composer/**/*.tsx", "apps/web/src/components/composer/**/*.ts", "apps/web/src/App.tsx"],
       "testPathGlobs": ["e2e/ui/app.test.ts", "e2e/ui/app-restoration.test.ts", "e2e/ui/chat-*.test.ts", "e2e/ui/composer-*.test.ts"],
       "validation": {
         "required": ["pnpm -C e2e exec tsx scripts/ui-p0-shards.ts project-workspace"],

@@ -82,6 +82,7 @@
       "ownerRole": "p0-ui-qa",
       "pathGlobs": [
         { "glob": "apps/web/src/components/*Composer*.tsx", "weight": 5, "reason": "Direct composer component surface." },
+        { "glob": "apps/web/src/components/composer-*.ts", "weight": 4, "reason": "Sibling composer helper modules can directly change menu and flyout positioning." },
         { "glob": "apps/web/src/components/composer/**/*.tsx", "weight": 4, "reason": "Nested composer input, caret, and keyboard interaction components." },
         { "glob": "apps/web/src/components/composer/**/*.ts", "weight": 4, "reason": "Nested composer serialization and mention helpers." },
         { "glob": "apps/web/src/App.tsx", "weight": 1, "reason": "Broad safety-net for top-level composer visibility and transitions; analyzer should prefer direct component matches." }
