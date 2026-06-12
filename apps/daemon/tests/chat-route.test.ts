@@ -2022,6 +2022,46 @@ process.exit(0);
     );
   });
 
+  it('forwards Antigravity plain stdout JSONL when it lacks the Gemini init marker', async () => {
+    await withFakeAgent(
+      'agy',
+      `
+const args = process.argv.slice(2);
+if (args[0] === '--version') {
+  console.log('1.107.0-test');
+  process.exit(0);
+}
+process.stdout.write(JSON.stringify({ type: 'error', message: 'requested JSONL output' }) + '\\n');
+process.exit(0);
+`,
+      async () => {
+        const createResponse = await fetch(`${baseUrl}/api/runs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agentId: 'antigravity',
+            message: 'return JSONL',
+          }),
+        });
+        expect(createResponse.status).toBe(202);
+        const { runId } = await createResponse.json() as { runId: string };
+
+        const eventsController = new AbortController();
+        const eventsResponse = await fetch(`${baseUrl}/api/runs/${runId}/events`, {
+          signal: eventsController.signal,
+        });
+        const eventsBody = await readSseUntil(eventsResponse, 'event: final');
+        eventsController.abort();
+        const statusBody = await waitForRunStatus(baseUrl, runId);
+
+        expect(eventsBody).toContain('event: stdout');
+        expect(eventsBody).toContain('requested JSONL output');
+        expect(eventsBody).not.toContain('event: error');
+        expect(statusBody.status).toBe('succeeded');
+      },
+    );
+  });
+
   it('fails Antigravity Gemini JSONL output with no visible assistant content', async () => {
     await withFakeAgent(
       'agy',

@@ -13251,22 +13251,37 @@ export async function startServer({
         .map((line) => line.trim())
         .filter(Boolean);
       if (lines.length === 0) return false;
-      return lines.every((line) => {
+      const events: Record<string, unknown>[] = [];
+      for (const line of lines) {
         try {
           const obj = JSON.parse(line);
           if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
-          const type = obj.type;
-          return (
-            type === 'init' ||
-            type === 'message' ||
-            type === 'tool_use' ||
-            type === 'tool_result' ||
-            type === 'error' ||
-            type === 'result'
-          );
+          events.push(obj as Record<string, unknown>);
         } catch {
           return false;
         }
+      }
+      const [firstEvent] = events;
+      if (
+        !firstEvent ||
+        firstEvent.type !== 'init' ||
+        typeof firstEvent.session_id !== 'string' ||
+        firstEvent.session_id.length === 0 ||
+        typeof firstEvent.model !== 'string' ||
+        firstEvent.model.length === 0
+      ) {
+        return false;
+      }
+      return events.every((obj) => {
+        const type = obj?.type;
+        return (
+          type === 'init' ||
+          type === 'message' ||
+          type === 'tool_use' ||
+          type === 'tool_result' ||
+          type === 'error' ||
+          type === 'result'
+        );
       });
     };
     // Event types that count as "the agent actually produced something the
