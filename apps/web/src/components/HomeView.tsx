@@ -65,6 +65,7 @@ import { smoothScrollToTop } from '../utils/smoothScrollToTop';
 import { missingRequiredInputs, pluginInputsAreValid } from '../utils/pluginRequiredInputs';
 import { HomeHero, type ExamplePromptInfo, type HomeHeroHandle } from './HomeHero';
 import { findChip, HOME_HERO_CHIPS, type HomeHeroChip } from './home-hero/chips';
+import { consumePendingHomeChip, HOME_CHIP_INTENT_EVENT } from '../runtime/home-intent';
 import {
   buildHomeMediaComposer,
   homeMediaSurfaceForChipId,
@@ -1417,6 +1418,28 @@ export function HomeView({
       }
     }
   }
+
+  // Consume a one-shot Home composer chip intent (e.g. "Use in new chat" on the
+  // Brands tab requesting the Prototype scenario). The entry shell keeps
+  // HomeView mounted across view switches, so we react to the intent event
+  // rather than to mount. Guard on the plugin catalog being loaded — chip
+  // dispatch resolves a bundled plugin — and re-run when `plugins` arrives so an
+  // intent queued before the catalog loaded is still honored once it does.
+  useEffect(() => {
+    function applyPendingChip() {
+      if (plugins.length === 0) return;
+      const chipId = consumePendingHomeChip();
+      if (!chipId) return;
+      const chip = findChip(chipId);
+      if (chip) pickChip(chip);
+    }
+    applyPendingChip();
+    window.addEventListener(HOME_CHIP_INTENT_EVENT, applyPendingChip);
+    return () => window.removeEventListener(HOME_CHIP_INTENT_EVENT, applyPendingChip);
+    // pickChip is recreated each render but only needs the current plugin
+    // catalog; re-subscribing on `plugins` keeps the closure fresh enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plugins]);
 
   async function submit() {
     const trimmed = prompt.trim();

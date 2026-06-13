@@ -877,7 +877,7 @@ export function EntryShell({
               )}
             </div>
             <div data-testid="entry-view-brands" data-active={view === 'brands' ? 'true' : 'false'} {...inactiveViewProps(view === 'brands')}>
-              <BrandsTab />
+              <BrandsTab onApplyDesignSystem={onChangeDefaultDesignSystem} />
             </div>
             {view === 'integrations' ? (
               <IntegrationsView

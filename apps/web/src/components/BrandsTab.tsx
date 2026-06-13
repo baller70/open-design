@@ -4,8 +4,20 @@ import type { BrandFontSpec, BrandImagerySample, BrandSummary } from '@open-desi
 import { useT } from '../i18n';
 import { navigate, useRoute } from '../router';
 import { projectRawUrl } from '../providers/registry';
+import { requestHomeChip } from '../runtime/home-intent';
 import { NewBrandModal } from './NewBrandModal';
 import styles from './BrandsTab.module.css';
+
+export interface BrandsTabProps {
+  /**
+   * Apply a brand's registered design system as the global default through the
+   * web config channel (localStorage + daemon sync + React state) instead of a
+   * raw daemon PATCH. Threaded from App via EntryShell so "Use in new chat"
+   * actually surfaces the design system in the Home composer; a raw PATCH left
+   * web config stale and could be clobbered by a later config sync.
+   */
+  onApplyDesignSystem?: (designSystemId: string) => void;
+}
 
 // Best-effort hostname for the brand's domain line. Brand names come from the
 // extracted kit, but the source URL is always present in meta, so even an
@@ -29,7 +41,7 @@ async function fetchBrands(): Promise<BrandSummary[]> {
   }
 }
 
-export function BrandsTab() {
+export function BrandsTab({ onApplyDesignSystem }: BrandsTabProps = {}) {
   const t = useT();
   const route = useRoute();
   // A `/brands/:id` deep-link (from the rail, a chat link, or a shared URL)
@@ -166,7 +178,12 @@ export function BrandsTab() {
 
       <section className={styles.preview} data-testid="brands-preview">
         {selected ? (
-          <BrandPreview key={selected.meta.id} summary={selected} onChanged={refresh} />
+          <BrandPreview
+            key={selected.meta.id}
+            summary={selected}
+            onChanged={refresh}
+            onApplyDesignSystem={onApplyDesignSystem}
+          />
         ) : (
           <div className={styles.previewEmpty}>
             <span className={styles.previewEmptyMark} aria-hidden>
@@ -298,6 +315,8 @@ interface PreviewProps {
   summary: BrandSummary;
   /** Called after a mutation (delete) so the parent can refresh the list. */
   onChanged: () => void | Promise<void>;
+  /** Apply this brand's design system as the global default via web config. */
+  onApplyDesignSystem?: (designSystemId: string) => void;
 }
 
 /** How many imagery samples render inline before the rest are gated behind a
@@ -409,7 +428,7 @@ function useBrandFonts(projectId: string | undefined, fonts: BrandFontSpec[]): v
   }, [projectId]);
 }
 
-function BrandPreview({ summary, onChanged }: PreviewProps) {
+function BrandPreview({ summary, onChanged, onApplyDesignSystem }: PreviewProps) {
   const t = useT();
   const { meta, brand } = summary;
   const host = hostnameOf(meta.sourceUrl);
@@ -509,21 +528,34 @@ function BrandPreview({ summary, onChanged }: PreviewProps) {
   }, [showSystem, projectId]);
 
   const useInChat = useCallback(async () => {
-    if (!meta.designSystemId || busy) return;
+    const designSystemId = meta.designSystemId;
+    if (!designSystemId || busy) return;
     setBusy(true);
     try {
-      // The brand registered a `user:<id>` design system; reuse the existing
-      // design-system apply flow by writing the global default into app-config.
-      await fetch('/api/app-config', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ designSystemId: meta.designSystemId }),
-      });
+      // The brand registered a `user:<id>` design system. Apply it as the
+      // global default through the web config channel so the Home composer
+      // immediately preselects it; a bare daemon PATCH left React config stale
+      // (composer kept showing "No design system") and a later config sync
+      // could clobber it back. Fall back to a direct PATCH if the parent did
+      // not thread the setter (e.g. a standalone mount).
+      if (onApplyDesignSystem) {
+        onApplyDesignSystem(designSystemId);
+      } else {
+        await fetch('/api/app-config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ designSystemId }),
+        });
+      }
+      // Default the new chat to the Prototype scenario: it surfaces the design
+      // system field and is the most common brand-applied build, so the user
+      // lands ready to generate with the brand instead of in the generic path.
+      requestHomeChip('prototype');
       navigate({ kind: 'home', view: 'home' });
     } catch {
       setBusy(false);
     }
-  }, [meta.designSystemId, busy]);
+  }, [meta.designSystemId, busy, onApplyDesignSystem]);
 
   const openProject = useCallback(() => {
     if (!projectId) return;
