@@ -286,6 +286,7 @@ export function SketchEditor({
       {textModalOpen ? (
         <SimpleDialogShell
           onClose={cancelTextModal}
+          closeOnBackdrop={false}
           closeOnEscape
           ariaLabelledBy={textModalTitleId}
         >
