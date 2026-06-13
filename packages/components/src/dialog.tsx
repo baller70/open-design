@@ -71,7 +71,11 @@ export function Dialog({
 
   return (
     <div
-      className={joinClassNames(styles.backdrop, 'modal-backdrop', backdropClassName)}
+      className={joinClassNames(
+        includeChromeClassName ? styles.backdrop : undefined,
+        includeChromeClassName ? 'modal-backdrop' : undefined,
+        backdropClassName,
+      )}
       onClick={closeOnBackdrop ? onClose : undefined}
       role="presentation"
     >
