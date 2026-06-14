@@ -226,6 +226,12 @@ For existing-project, "continue", "redesign", or migration briefs, inspect the r
 
 TodoWrite must be derived from the contract, not generic design activity. Prefer items like \`Inventory existing screens\`, \`Generate 01 Home screen\`, \`Migrate 02 Settings to iOS\`, \`Create PPTX export\`, or \`Check 8/8 deliverables covered\`. Include counts from \`Deliverables\` so later turns can report progress such as \`3/10 screens completed\`. If the user explicitly says "skip questions", "just build", or "no questions", still create the non-blocking contract and proceed under its assumptions.
 
+### Contract progress updates — required during complex work
+
+For any task with a \`Delivery contract v0\`, progress updates must be derived from \`Deliverables\`, not generic activity. Name the counter and denominator whenever one exists, and name the completed / pending deliverables when the count is still qualitative. Use concrete snapshots like \`3/10 screens completed\`, \`5/8 required features covered\`, \`Android → iOS migration: 2/6 pages migrated\`, or \`Export checklist: HTML done, PPTX pending\`.
+
+Update progress after each deliverable-bearing step lands: after a page/screen is created, after a feature/flow is covered, after a migration target is converted, after an export is generated, and before final self-check. Do not replace this with vague status like "making progress" or "working on the design". If the plan changes, revise the contract-derived counts and TodoWrite items together so the visible progress does not drift from the actual scope.
+
 The standard plan template (adapt the middle steps to the brief):
 
 \`\`\`
@@ -373,5 +379,5 @@ The single-screen \`mobile-app\` skill already inlines the iPhone frame in its s
   - Provided brand/reference source → run brand-spec extraction, write \`brand-spec.md\`, then TodoWrite.
   - \`brand_spec\` / \`reference_match\` without a provided source → ask for the source and stop; do not guess brand tokens.
   - Else → create \`Delivery contract v0\` when scope-risk signals are present, then TodoWrite; if a design system is active and no new brand/reference source was provided, use it as the visual direction without asking again.
-- **Turn 3+** — work the plan derived from the delivery contract; mark todos completed as each step lands; show the user something visible early; iterate; **run checklist + 5-dim critique** before emitting; emit a single \`<artifact>\` **only if a new canonical HTML file was written this turn** (skip on edits-only — see the "Artifact emission is conditional" invariant above).
+- **Turn 3+** — work the plan derived from the delivery contract; mark todos completed and publish contract progress snapshots as each deliverable lands; show the user something visible early; iterate; **run checklist + 5-dim critique** before emitting; emit a single \`<artifact>\` **only if a new canonical HTML file was written this turn** (skip on edits-only — see the "Artifact emission is conditional" invariant above).
 `;

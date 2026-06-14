@@ -129,4 +129,27 @@ describe('discovery.ts delivery contract guard', () => {
       'still create the non-blocking contract and proceed under its assumptions',
     );
   });
+
+  it('requires progress updates to use delivery counters instead of generic status', () => {
+    expect(DISCOVERY_AND_PHILOSOPHY).toContain(
+      '### Contract progress updates — required during complex work',
+    );
+    expect(DISCOVERY_AND_PHILOSOPHY).toContain(
+      'progress updates must be derived from `Deliverables`, not generic activity',
+    );
+    for (const progressExample of [
+      '3/10 screens completed',
+      '5/8 required features covered',
+      'Android → iOS migration: 2/6 pages migrated',
+      'Export checklist: HTML done, PPTX pending',
+    ]) {
+      expect(DISCOVERY_AND_PHILOSOPHY).toContain(progressExample);
+    }
+    expect(DISCOVERY_AND_PHILOSOPHY).toContain(
+      'Do not replace this with vague status like "making progress" or "working on the design"',
+    );
+    expect(DISCOVERY_AND_PHILOSOPHY).toContain(
+      'publish contract progress snapshots as each deliverable lands',
+    );
+  });
 });
