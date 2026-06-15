@@ -268,6 +268,70 @@ test('[P0] @critical onboarding signed-in AMR path finishes setup with the selec
   });
 });
 
+test('[P0] onboarding AMR model selection carries into the first Home run request', async ({ page }) => {
+  const config = await wireOnboardingMocks(page, {
+    amrAvailable: true,
+    initialLoggedIn: true,
+    amrModels: [
+      { id: 'claude-opus-4.8', label: 'Claude Opus 4.8' },
+      { id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' },
+    ],
+  });
+
+  await seedOnboardingConfig(page, config);
+  await gotoOnboarding(page);
+
+  const amrCard = page.locator('.onboarding-view__amr-cloud-card');
+  await selectOnboardingOption(amrCard, 'Model', 'DeepSeek V4 Flash');
+  await page.getByRole('button', { name: /^Continue$/i }).click();
+  await page.getByRole('button', { name: /^Continue$/i }).click();
+  await page.getByRole('button', { name: /Finish setup/i }).click();
+  await expectOnboardingFinished(page);
+
+  let runBody: Record<string, unknown> | null = null;
+  await page.route('**/api/runs', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    runBody = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({ runId: 'amr-onboarding-first-run' }),
+    });
+  });
+  await page.route('**/api/runs/amr-onboarding-first-run/events', async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache',
+      },
+      body: [
+        'event: start',
+        'data: {"bin":"vela"}',
+        '',
+        'event: end',
+        'data: {"code":0,"status":"succeeded"}',
+        '',
+        '',
+      ].join('\n'),
+    });
+  });
+
+  const input = page.getByTestId('home-hero-input');
+  await expect(input).toBeVisible();
+  await input.fill('Create an AMR onboarding carryover smoke artifact.');
+  await expect(page.getByTestId('home-hero-submit')).toBeEnabled();
+  await page.getByTestId('home-hero-submit').click();
+
+  await expect.poll(() => runBody, { timeout: 10_000 }).toMatchObject({
+    agentId: 'amr',
+    model: 'deepseek-v4-flash',
+  });
+});
+
 test('[P0] onboarding skip exits to home and marks onboarding completed', async ({ page }) => {
   const config = await wireOnboardingMocks(page, {
     amrAvailable: true,

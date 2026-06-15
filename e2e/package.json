@@ -9,6 +9,8 @@
     "test:p0p1": "vitest run -c vitest.config.ts tests specs -t '\\[P[01]\\]'",
     "test:p1": "vitest run -c vitest.config.ts tests specs -t '\\[P1\\]'",
     "test:p2": "vitest run -c vitest.config.ts tests specs -t '\\[P2\\]'",
+    "test:packaged:mac:onboarding": "OD_PACKAGED_E2E_MAC=1 OD_PACKAGED_E2E_MAC_ONBOARDING_SMOKE=1 vitest run -c vitest.config.ts specs/mac.spec.ts -t 'packaged mac onboarding AMR smoke'",
+    "test:packaged:win:onboarding": "OD_PACKAGED_E2E_WIN=1 OD_PACKAGED_E2E_WIN_ONBOARDING_SMOKE=1 vitest run -c vitest.config.ts specs/win.spec.ts -t 'packaged windows onboarding AMR smoke'",
     "test:ui": "playwright test -c playwright.config.ts ui",
     "test:ui:p0": "playwright test -c playwright.config.ts ui --grep '\\[P0\\]'",
     "test:ui:p0p1": "playwright test -c playwright.config.ts ui --grep '\\[P[01]\\]'",
