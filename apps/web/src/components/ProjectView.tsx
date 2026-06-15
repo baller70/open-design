@@ -3217,7 +3217,7 @@ export function ProjectView({
       if (!retryTarget && historyBase.length === 0) {
         const title = isDesignSystemWorkspacePrompt(prompt)
           ? DESIGN_SYSTEM_WORKSPACE_DISPLAY_TITLE
-          : prompt.slice(0, 60).trim();
+          : summarizeProjectNameFromPrompt(prompt) || prompt.slice(0, 60).trim();
         if (title) {
           setConversations((curr) =>
             curr.map((c) =>
@@ -3230,7 +3230,7 @@ export function ProjectView({
         if (
           projectName &&
           projectName !== project.name &&
-          canAutoRenameProjectFromPrompt(project)
+          canAutoRenameProjectFromPrompt(project, prompt)
         ) {
           const metadata = project.metadata
             ? { ...project.metadata, nameSource: 'prompt' as const }
