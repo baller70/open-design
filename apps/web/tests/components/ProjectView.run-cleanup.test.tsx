@@ -1467,4 +1467,70 @@ describe('ProjectView daemon cleanup', () => {
     );
     expect(writeProjectTextFile).not.toHaveBeenCalled();
   });
+
+  it('does not keep retrying reload artifact recovery after persistence produces no file', async () => {
+    const runCreatedAt = Date.now();
+    const artifactContent =
+      '<artifact identifier="real-daemon-smoke" type="text/html" title="Real Daemon Smoke">' +
+      '<!doctype html><html><body><h1>Real Daemon Smoke</h1></body></html>' +
+      '</artifact>';
+
+    listConversations.mockResolvedValue([{ id: 'conv-1', title: 'Conversation' }]);
+    listMessages.mockResolvedValue([
+      {
+        id: 'msg-recover-failed',
+        role: 'assistant',
+        content: artifactContent,
+        createdAt: runCreatedAt + 1,
+        runId: 'run-recover-failed',
+        runStatus: 'succeeded',
+        producedFiles: [],
+      },
+    ]);
+    fetchPreviewComments.mockResolvedValue([]);
+    loadTabs.mockResolvedValue({ tabs: [], activeTabId: null });
+    fetchProjectFiles.mockResolvedValue([]);
+    fetchProjectDesignSystemPackageAudit.mockResolvedValue(null);
+    fetchLiveArtifacts.mockResolvedValue([]);
+    fetchSkill.mockResolvedValue(null);
+    fetchDesignSystem.mockResolvedValue(null);
+    getTemplate.mockResolvedValue(null);
+    fetchChatRunStatus.mockResolvedValue({
+      id: 'run-recover-failed',
+      status: 'succeeded',
+      createdAt: runCreatedAt,
+      updatedAt: runCreatedAt + 1,
+      exitCode: 0,
+      signal: null,
+    });
+    listActiveChatRuns.mockResolvedValue([]);
+    writeProjectTextFile.mockResolvedValue(null);
+
+    render(
+      <ProjectView
+        project={{ id: 'project-recover-failed', name: 'Project', skillId: null, designSystemId: null } as never}
+        routeFileName={null}
+        config={{ mode: 'daemon', agentId: 'agent-1', notifications: undefined, agentModels: {} } as never}
+        agents={[{ id: 'agent-1', name: 'OpenCode', models: [] } as never]}
+        skills={[]}
+        designTemplates={[]}
+        designSystems={[]}
+        daemonLive
+        onModeChange={() => {}}
+        onAgentChange={() => {}}
+        onAgentModelChange={() => {}}
+        onRefreshAgents={() => {}}
+        onOpenSettings={() => {}}
+        onBack={() => {}}
+        onClearPendingPrompt={() => {}}
+        onTouchProject={() => {}}
+        onProjectChange={() => {}}
+        onProjectsRefresh={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(writeProjectTextFile).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => window.setTimeout(resolve, 1_100));
+    expect(writeProjectTextFile).toHaveBeenCalledTimes(1);
+  });
 });
