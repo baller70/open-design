@@ -802,6 +802,20 @@ function projectEventToAgentEvent(evt: ProjectEvent): LiveArtifactEventItem['eve
   };
 }
 
+function artifactWithHtml(
+  artifact: Artifact | null,
+  fallbackIdentifier: string,
+  html: string,
+): Artifact {
+  return artifact
+    ? { ...artifact, html }
+    : {
+        identifier: fallbackIdentifier,
+        title: '',
+        html,
+      };
+}
+
 export function ProjectView({
   project,
   routeFileName,
@@ -2655,31 +2669,15 @@ export function ProjectView({
                 setArtifact(parsedArtifact);
               } else if (ev.type === 'artifact:chunk') {
                 liveHtml += ev.delta;
-                parsedArtifact = parsedArtifact
-                  ? { ...parsedArtifact, html: liveHtml }
-                  : {
-                      identifier: ev.identifier,
-                      title: '',
-                      html: liveHtml,
-                    };
+                parsedArtifact = artifactWithHtml(parsedArtifact, ev.identifier, liveHtml);
                 setArtifact((prev) =>
-                  prev
-                    ? { ...prev, html: liveHtml }
-                    : {
-                        identifier: ev.identifier,
-                        title: '',
-                        html: liveHtml,
-                      },
+                  artifactWithHtml(prev, ev.identifier, liveHtml),
                 );
               } else if (ev.type === 'artifact:end') {
-                parsedArtifact = parsedArtifact
-                  ? { ...parsedArtifact, html: ev.fullContent }
-                  : {
-                      identifier: ev.identifier,
-                      title: '',
-                      html: ev.fullContent,
-                    };
-                setArtifact((prev) => (prev ? { ...prev, html: ev.fullContent } : null));
+                parsedArtifact = artifactWithHtml(parsedArtifact, ev.identifier, ev.fullContent);
+                setArtifact((prev) =>
+                  prev ? artifactWithHtml(prev, ev.identifier, ev.fullContent) : null,
+                );
               }
             }
 
@@ -3110,31 +3108,15 @@ export function ProjectView({
             setArtifact(parsedArtifact);
           } else if (ev.type === 'artifact:chunk') {
             liveHtml += ev.delta;
-            parsedArtifact = parsedArtifact
-              ? { ...parsedArtifact, html: liveHtml }
-              : {
-                  identifier: ev.identifier,
-                  title: '',
-                  html: liveHtml,
-                };
+            parsedArtifact = artifactWithHtml(parsedArtifact, ev.identifier, liveHtml);
             setArtifact((prev) =>
-              prev
-                ? { ...prev, html: liveHtml }
-                : {
-                    identifier: ev.identifier,
-                    title: '',
-                    html: liveHtml,
-                  },
+              artifactWithHtml(prev, ev.identifier, liveHtml),
             );
           } else if (ev.type === 'artifact:end') {
-            parsedArtifact = parsedArtifact
-              ? { ...parsedArtifact, html: ev.fullContent }
-              : {
-                  identifier: ev.identifier,
-                  title: '',
-                  html: ev.fullContent,
-                };
-            setArtifact((prev) => (prev ? { ...prev, html: ev.fullContent } : null));
+            parsedArtifact = artifactWithHtml(parsedArtifact, ev.identifier, ev.fullContent);
+            setArtifact((prev) =>
+              prev ? artifactWithHtml(prev, ev.identifier, ev.fullContent) : null,
+            );
           }
         }
 
