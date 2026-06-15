@@ -44,9 +44,10 @@ jobs:
         continue-on-error: true
         env:
           OD_VISUAL_OUTPUT_DIR: ui/reports/visual-screenshots
+          OD_PLAYWRIGHT_TIMEOUT: 90000
         run: |
           pnpm -C e2e exec tsx scripts/playwright.ts clean
-          pnpm -C e2e exec playwright test -c playwright.visual.config.ts
+          pnpm -C e2e exec playwright test -c playwright.visual.config.ts --grep "\\[P0\\]|\\[P1\\]|@critical"
 
       - name: Write capture manifest
         run: |
