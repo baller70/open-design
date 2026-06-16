@@ -184,7 +184,7 @@ test('[P0] real daemon run restores a delayed artifact turn after reload', async
   });
 });
 
-test('[P0] real daemon run reconnects after reload while the run is still active', async ({ page }) => {
+test('[P1] real daemon run reconnects after reload while the run is still active', async ({ page }) => {
   test.setTimeout(90_000);
 
   await page.goto('/');
