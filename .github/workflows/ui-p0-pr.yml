@@ -127,7 +127,9 @@ jobs:
         run: pnpm -C e2e exec tsx scripts/playwright.ts clean
 
       - name: Run UI P0 domain
-        run: pnpm -C e2e exec tsx scripts/ui-p0-shards.ts ${{ matrix.shard }}
+        env:
+          SHARD: ${{ github.event_name == 'pull_request' && format('{0}-critical', matrix.shard) || matrix.shard }}
+        run: pnpm -C e2e exec tsx scripts/ui-p0-shards.ts "$SHARD"
 
       - name: Upload Playwright debug artifact
         if: ${{ always() }}

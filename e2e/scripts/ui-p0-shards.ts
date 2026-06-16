@@ -56,6 +56,14 @@ const shards: Record<string, Shard> = {
   },
 };
 
+for (const [name, shard] of Object.entries(shards)) {
+  if (name === 'smoke' || name.endsWith('-critical')) continue;
+  shards[`${name}-critical`] = {
+    ...shard,
+    grep: String.raw`\[P0\].*@critical`,
+  };
+}
+
 const commandName = process.argv[2] ?? 'help';
 
 if (commandName === 'help') {
