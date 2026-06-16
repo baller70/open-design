@@ -140,6 +140,7 @@ export function applyPlugin(input: ApplyInput): ApplyComputed {
     pipeline: pipelineResolution.pipeline,
     taskKind,
     mode: manifest.od?.mode,
+    source: pipelineResolution.source,
   });
 
   const declaredSurfaces = manifest.od?.genui?.surfaces ?? [];

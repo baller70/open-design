@@ -194,6 +194,95 @@ describe('core quality-stage floor', () => {
     expect(ids).toEqual(['plan', 'generate', 'critique', 'handoff']);
   });
 
+  // Regression: a media manifest that omits `od.pipeline` falls back to
+  // the new-generation scenario (the fallback keys on taskKind only,
+  // ignoring mode), arriving as discovery -> plan -> generate -> critique.
+  // The media guard must collapse that scenario-derived pipeline back to
+  // generate-only, otherwise "pure media stays generate-only" is broken
+  // for fallback-driven media plugins.
+  it('collapses a scenario-fallback media pipeline back to generate-only', () => {
+    const plugin: InstalledPluginRecord = {
+      ...templateFixture({ stages: [] }),
+      manifest: {
+        name: 'media-no-pipeline',
+        title: 'Media No Pipeline',
+        version: '1.0.0',
+        description: 'A media plugin that omits od.pipeline.',
+        od: {
+          kind: 'skill',
+          taskKind: 'new-generation',
+          mode: 'image',
+          useCase: { query: 'Make a poster.' },
+          capabilities: ['prompt:inject', 'fs:write'],
+          // deliberately no `pipeline` — forces scenario fallback
+        },
+      },
+    } as InstalledPluginRecord;
+
+    const registryWithScenario = {
+      ...REGISTRY,
+      scenarios: [
+        {
+          id: 'od-new-generation',
+          taskKind: 'new-generation' as const,
+          pipeline: {
+            stages: [
+              { id: 'discovery', atoms: ['question-form'] },
+              { id: 'plan', atoms: ['todo-write'] },
+              { id: 'generate', atoms: ['file-write', 'live-artifact'] },
+              { id: 'critique', atoms: ['critique-theater'], repeat: true, until: 'critique.score>=4 || iterations>=3' },
+            ],
+          },
+        },
+      ],
+    };
+
+    const { result } = applyPlugin({ plugin, inputs: {}, registry: registryWithScenario });
+    expect(stageIds(result.pipeline)).toEqual(['generate']);
+  });
+
+  // Control: a NON-media manifest that omits od.pipeline keeps the full
+  // scenario fallback untouched (plan + critique already present → no-op).
+  it('leaves a non-media scenario-fallback pipeline intact', () => {
+    const plugin: InstalledPluginRecord = {
+      ...templateFixture({ stages: [] }),
+      manifest: {
+        name: 'web-no-pipeline',
+        title: 'Web No Pipeline',
+        version: '1.0.0',
+        description: 'A web plugin that omits od.pipeline.',
+        od: {
+          kind: 'skill',
+          taskKind: 'new-generation',
+          mode: 'web',
+          useCase: { query: 'Build a landing page.' },
+          capabilities: ['prompt:inject', 'fs:write'],
+        },
+      },
+    } as InstalledPluginRecord;
+
+    const registryWithScenario = {
+      ...REGISTRY,
+      scenarios: [
+        {
+          id: 'od-new-generation',
+          taskKind: 'new-generation' as const,
+          pipeline: {
+            stages: [
+              { id: 'discovery', atoms: ['question-form'] },
+              { id: 'plan', atoms: ['todo-write'] },
+              { id: 'generate', atoms: ['file-write', 'live-artifact'] },
+              { id: 'critique', atoms: ['critique-theater'], repeat: true, until: 'critique.score>=4 || iterations>=3' },
+            ],
+          },
+        },
+      ],
+    };
+
+    const { result } = applyPlugin({ plugin, inputs: {}, registry: registryWithScenario });
+    expect(stageIds(result.pipeline)).toEqual(['discovery', 'plan', 'generate', 'critique']);
+  });
+
   it('does not duplicate stages a template already declares', () => {
     const plugin = templateFixture({
       stages: [

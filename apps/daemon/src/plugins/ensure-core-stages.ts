@@ -71,21 +71,41 @@ export interface EnsureCoreStagesInput {
   // Manifest `od.mode` (image/video/audio/web/deck/...). Media modes are
   // excluded from injection regardless of atom shape.
   mode?: string | undefined;
+  // How `resolveAppliedPipeline` produced `pipeline`: 'declared' (the
+  // manifest carried `od.pipeline`) vs 'scenario' (it omitted it and we
+  // fell back to a bundled scenario). The fallback keys on `taskKind`
+  // ONLY (see pipeline-fallback.ts), so a media manifest with no
+  // `od.pipeline` falls back to the full new-generation scenario
+  // (discovery -> plan -> generate -> critique). We need `source` to
+  // collapse that scenario-derived media pipeline back to generate-only.
+  source?: 'declared' | 'scenario' | 'none' | undefined;
 }
 
 // Returns the pipeline with `plan` + `critique` guaranteed when the
 // pipeline produces a design artifact; otherwise returns it unchanged
 // (same reference when nothing is injected).
 export function ensureCoreQualityStages(input: EnsureCoreStagesInput): PluginPipeline | undefined {
-  const { pipeline, taskKind, mode } = input;
+  const { pipeline, taskKind, mode, source } = input;
   if (!pipeline || !Array.isArray(pipeline.stages)) return pipeline;
   // Scope to the design-generation taskKind; migration / authoring /
   // media-generation flows own their own stage contracts.
   if (taskKind !== 'new-generation') return pipeline;
-  // Pure media (image/video/audio) stays generate-only even when the
-  // pipeline's atoms look like a code artifact — bundled media scenarios
-  // ship an example-driven `file-write`/`live-artifact` pipeline.
-  if (mode && MEDIA_MODES.has(mode)) return pipeline;
+  // Pure media (image/video/audio) stays generate-only. Two shapes reach
+  // here for a media manifest:
+  //   - It DECLARED its own pipeline (every shipped media plugin ships an
+  //     example-driven generate-only pipeline) — leave it verbatim; never
+  //     inject plan/critique even though the atoms look like a code artifact.
+  //   - It OMITTED `od.pipeline` and fell back to the new-generation
+  //     scenario (the fallback keys on taskKind only, ignoring mode), so it
+  //     arrives as discovery -> plan -> generate -> critique. Collapse that
+  //     back to the generate stage so media stays generate-only as promised.
+  if (mode && MEDIA_MODES.has(mode)) {
+    if (source === 'scenario') {
+      const generate = pipeline.stages.find((s) => s.id === 'generate');
+      if (generate) return { ...pipeline, stages: [generate] };
+    }
+    return pipeline;
+  }
 
   const stages = pipeline.stages;
   const generateIdx = stages.findIndex(
