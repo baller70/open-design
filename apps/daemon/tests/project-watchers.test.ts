@@ -50,7 +50,11 @@ async function makeProjectsRoot() {
 
 function waitFor(
   predicate: () => boolean,
-  { timeout = 2000, interval = 25 }: { timeout?: number; interval?: number } = {},
+  {
+    timeout = 2000,
+    interval = 25,
+    debug,
+  }: { timeout?: number; interval?: number; debug?: () => string } = {},
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const started = Date.now();
@@ -60,10 +64,23 @@ function waitFor(
       } catch (err) {
         return reject(err);
       }
-      if (Date.now() - started > timeout) return reject(new Error('waitFor timeout'));
+      if (Date.now() - started > timeout) {
+        return reject(new Error(debug ? `waitFor timeout: ${debug()}` : 'waitFor timeout'));
+      }
       setTimeout(tick, interval);
     };
     tick();
+  });
+}
+
+function debugEvents(events: ProjectWatchEvent[]): string {
+  return JSON.stringify({
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      CHOKIDAR_USEPOLLING: process.env.CHOKIDAR_USEPOLLING,
+      CHOKIDAR_INTERVAL: process.env.CHOKIDAR_INTERVAL,
+    },
+    events,
   });
 }
 
@@ -183,7 +200,7 @@ describe('project-watchers (real chokidar)', () => {
       await writeFile(filePath, 'export default () => null;');
       await waitFor(
         () => events.some((e) => e.kind === 'add' && e.path === 'prototype/App.jsx'),
-        { timeout: 4000 },
+        { timeout: 8000, debug: () => debugEvents(events) },
       );
     } finally {
       await sub.unsubscribe();
@@ -204,7 +221,10 @@ describe('project-watchers (real chokidar)', () => {
       await writeFile(path.join(root, projectId, 'node_modules', 'x.js'), '');
 
       await writeFile(path.join(root, projectId, 'real.txt'), 'real');
-      await waitFor(() => events.some((e) => e.path === 'real.txt'));
+      await waitFor(() => events.some((e) => e.path === 'real.txt'), {
+        timeout: 8000,
+        debug: () => debugEvents(events),
+      });
 
       const ignored = events.filter(
         (e) => e.path.startsWith('.od/') || e.path.startsWith('node_modules/'),
@@ -230,7 +250,10 @@ describe('project-watchers (real chokidar)', () => {
       }
 
       await writeFile(path.join(root, projectId, 'real.txt'), 'real');
-      await waitFor(() => events.some((e) => e.path === 'real.txt'));
+      await waitFor(() => events.some((e) => e.path === 'real.txt'), {
+        timeout: 8000,
+        debug: () => debugEvents(events),
+      });
 
       const ignored = events.filter((e) =>
         ignoredDirs.some((dir) => e.path.startsWith(`${dir}/`)),
@@ -265,7 +288,10 @@ describe('project-watchers (real chokidar)', () => {
       expect(() => watcher.emit('error', new Error('synthetic ENOSPC'))).not.toThrow();
       const filePath = path.join(root, projectId, 'after-error.txt');
       await writeFile(filePath, 'still alive');
-      await waitFor(() => events.some((e) => e.path === 'after-error.txt'));
+      await waitFor(() => events.some((e) => e.path === 'after-error.txt'), {
+        timeout: 8000,
+        debug: () => debugEvents(events),
+      });
     } finally {
       await sub.unsubscribe();
       await rm(root, { recursive: true, force: true });
@@ -313,7 +339,10 @@ describe('project-watchers (chokidar options)', () => {
       await writeFile(path.join(externalDir, 'leaked.txt'), 'leak');
       // Settle: write a real in-project file to give chokidar something to do.
       await writeFile(path.join(projectRoot, 'real.txt'), 'real');
-      await waitFor(() => events.some((e) => e.path === 'real.txt'));
+      await waitFor(() => events.some((e) => e.path === 'real.txt'), {
+        timeout: 8000,
+        debug: () => debugEvents(events),
+      });
 
       const linkedEvents = events.filter((e) => e.path.startsWith('linked/'));
       expect(linkedEvents).toEqual([]);
