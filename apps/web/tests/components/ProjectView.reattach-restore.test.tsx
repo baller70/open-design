@@ -220,6 +220,17 @@ describe('computeTraceObjectFiles', () => {
     ]);
   });
 
+  it('ignores slash-containing external paths that only share a basename with a project file', () => {
+    const before = ['existing.html'];
+    const next = [
+      { name: 'existing.html', path: 'existing.html', size: 10, mtime: 2, kind: 'html', mime: 'text/html' },
+    ];
+
+    const files = computeTraceObjectFiles(before, next as never, ['/tmp/existing.html']);
+
+    expect(files).toEqual([]);
+  });
+
   it('recovers successful write paths from persisted tool events', () => {
     const touched = extractTouchedFilePathsFromEvents([
       { kind: 'tool_use', id: 'tool-1', name: 'Edit', input: { file_path: 'existing.html' } },

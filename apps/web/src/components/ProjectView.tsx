@@ -6326,6 +6326,7 @@ export function computeTraceObjectFiles(
 function findTouchedProjectFile(rawPath: string, files: readonly ProjectFile[]): ProjectFile | null {
   const normalized = normalizeComparableFilePath(rawPath);
   if (!normalized) return null;
+  const hasPathSeparator = normalized.includes('/');
   const basename = normalized.split('/').pop() ?? normalized;
   const normalizedFiles = files.map((file) => ({
     file,
@@ -6334,14 +6335,28 @@ function findTouchedProjectFile(rawPath: string, files: readonly ProjectFile[]):
       normalizeComparableFilePath(file.name),
     ].filter(Boolean),
   }));
-  const exact = normalizedFiles.find(({ candidates }) =>
-    candidates.some((candidate) =>
-      candidate === normalized ||
-      candidate.endsWith(`/${normalized}`) ||
-      normalized.endsWith(`/${candidate}`),
-    ),
+
+  const matches = (predicate: (candidate: string) => boolean): ProjectFile[] => {
+    const matched: ProjectFile[] = [];
+    for (const { file, candidates } of normalizedFiles) {
+      if (candidates.some(predicate)) matched.push(file);
+    }
+    return matched;
+  };
+
+  const exact = matches((candidate) => candidate === normalized);
+  if (exact.length === 1) return exact[0]!;
+  if (exact.length > 1) return null;
+
+  const suffix = matches((candidate) =>
+    candidate.includes('/') &&
+    (candidate.endsWith(`/${normalized}`) || normalized.endsWith(`/${candidate}`)),
   );
-  if (exact) return exact.file;
+  if (suffix.length === 1) return suffix[0]!;
+  if (suffix.length > 1) return null;
+
+  if (hasPathSeparator) return null;
+
   const basenameMatches = normalizedFiles.filter(({ candidates }) =>
     candidates.some((candidate) => candidate.split('/').pop() === basename),
   );
