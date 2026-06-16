@@ -3046,91 +3046,87 @@ describe('FileViewer tweaks toolbar', () => {
     });
   });
 
-  it('pre-warms the hidden srcDoc iframe so the first annotation entry has no flash', async () => {
+  it('materializes the srcDoc iframe only on first mode entry (not while hidden), then keeps it warm', async () => {
     const { container } = render(
       <FileViewer projectId="project-1" projectKind="prototype" file={htmlPreviewFile()}
-        liveHtml='<html><body><main data-od-id="hero">Prewarm me</main></body></html>'
+        liveHtml='<html><body><main data-od-id="hero">Materialize me</main></body></html>'
       />,
     );
 
-    const srcDocFrame = container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement;
-    // Initially the hidden srcDoc iframe holds only the lightweight lazy shell.
-    expect(srcDocFrame.getAttribute('data-od-active')).toBe('false');
-    expect(srcDocFrame.srcdoc).toContain('data-od-lazy-srcdoc-transport');
+    // Passive preview: the hidden srcDoc iframe stays on the lazy shell. The
+    // artifact must NOT be rendered a second time while hidden — that ran a
+    // duplicate live mount and rendered scroll/reveal-animated content while
+    // invisible (the white-on-enter bug). Give any stray async a beat.
+    const before = container.querySelector('iframe[data-od-render-mode="srcdoc"]');
+    expect((before as HTMLIFrameElement).getAttribute('data-od-active')).toBe('false');
+    await new Promise((r) => setTimeout(r, 50));
+    {
+      const f = container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement;
+      expect(f.srcdoc).toContain('data-od-lazy-srcdoc-transport');
+      expect(f.srcdoc).not.toContain('Materialize me');
+    }
 
-    // After the URL-load preview settles, the srcDoc iframe warms in the
-    // background to the real artifact while staying hidden — so the first Draw/
-    // Edit/Comment entry is an instant visibility swap, not a first-time
-    // materialization flash.
+    // First mode entry materializes the srcDoc WHILE VISIBLE (reveal animations
+    // fire correctly there).
+    clickAgentTool('draw-overlay-toggle');
     await waitFor(() => {
       const f = container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement;
-      expect(f.srcdoc).toContain('Prewarm me');
-      expect(f.srcdoc).not.toContain('data-od-lazy-srcdoc-transport');
-      expect(f.getAttribute('data-od-active')).toBe('false');
-    }, { timeout: 3000 });
+      expect(f.getAttribute('data-od-active')).toBe('true');
+      expect(f.srcdoc).toContain('Materialize me');
+    });
 
-    // The URL-load frame stayed the visible one throughout — no switch/flash.
-    const urlFrame = container.querySelector('iframe[data-od-render-mode="url-load"]') as HTMLIFrameElement;
-    expect(urlFrame.getAttribute('data-od-active')).toBe('true');
+    // Exit then re-enter: the iframe is the SAME DOM node (no remount) and stays
+    // materialized (sticky) — so every later toggle is an instant visibility
+    // swap, no re-load.
+    clickAgentTool('draw-overlay-toggle');
+    await waitFor(() => {
+      expect((container.querySelector('iframe[data-od-render-mode="url-load"]') as HTMLIFrameElement).getAttribute('data-od-active')).toBe('true');
+    });
+    const hiddenAfterExit = container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement;
+    expect(hiddenAfterExit).toBe(before);
+    expect(hiddenAfterExit.srcdoc).toContain('Materialize me');
   });
 
-  it('always injects the manual-edit bridge into the preview srcDoc so entering Edit does not reload the document', async () => {
+  it('always injects the manual-edit bridge into the preview srcDoc so entering Edit after materialization does not reload', async () => {
     const { container } = render(
       <FileViewer projectId="project-1" projectKind="prototype" file={htmlPreviewFile()}
         liveHtml='<html><body><main data-od-id="hero">Stable doc</main></body></html>'
       />,
     );
 
-    // The edit bridge must be present in the preview srcDoc even though Edit is
-    // NOT active — so the document is byte-identical across modes. (Boots
-    // dormant; only acts on the host's od-edit-mode message.)
-    const srcDocBefore = await waitFor(() => {
+    // Passive preview still uses the lazy shell; the first real materialization
+    // happens only after the user enters an interactive mode.
+    const initialSrcDocFrame = container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement;
+    expect(initialSrcDocFrame.srcdoc).toContain('data-od-lazy-srcdoc-transport');
+
+    // Materialize once via Draw. The manual-edit bridge must already be present
+    // even though Edit is NOT active — it boots dormant and only acts on the
+    // host's od-edit-mode message.
+    clickAgentTool('draw-overlay-toggle');
+    const materializedSrcDoc = await waitFor(() => {
       const f = container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement;
+      expect(f.getAttribute('data-od-active')).toBe('true');
       expect(f.srcdoc).toContain('Stable doc');
       expect(f.srcdoc).toContain('data-od-edit-bridge');
       return f.srcdoc;
-    }, { timeout: 3000 });
+    });
 
-    // Entering Edit must NOT change the srcDoc document — same string means the
-    // browser does not re-parse/reload it; editing activates via postMessage.
+    // Leave Draw and enter Edit. Because the edit bridge was already in the
+    // materialized srcDoc, entering Edit must NOT change the document string —
+    // same string means the browser does not re-parse/reload it; editing
+    // activates via postMessage.
+    clickAgentTool('draw-overlay-toggle');
+    await waitFor(() => {
+      const urlFrame = container.querySelector('iframe[data-od-render-mode="url-load"]') as HTMLIFrameElement;
+      expect(urlFrame.getAttribute('data-od-active')).toBe('true');
+    });
     clickAgentTool('manual-edit-mode-toggle');
     await waitFor(() => {
       const active = container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement;
       expect(active.getAttribute('data-od-active')).toBe('true');
     });
     const srcDocAfter = (container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement).srcdoc;
-    expect(srcDocAfter).toBe(srcDocBefore);
-  });
-
-  it('keeps the srcDoc iframe mounted across an annotation toggle once prewarmed (no remount/reload)', async () => {
-    const { container } = render(
-      <FileViewer projectId="project-1" projectKind="prototype" file={htmlPreviewFile()}
-        liveHtml='<html><body><main data-od-id="hero">Stay mounted</main></body></html>'
-      />,
-    );
-
-    // Wait for the background prewarm to direct-mount the srcDoc iframe.
-    await waitFor(() => {
-      const f = container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement;
-      expect(f.srcdoc).toContain('Stay mounted');
-    }, { timeout: 3000 });
-
-    // `data-od-render-mode` is a static per-iframe attribute, so this selector
-    // returns the SAME DOM node unless React remounts it (key bump). Toggling
-    // an annotation mode flips URL-load ↔ srcDoc; once direct-mounted the
-    // srcDoc iframe must survive that flip rather than remount + reload — the
-    // thrash users hit toggling Comment ↔ Mark.
-    const before = container.querySelector('iframe[data-od-render-mode="srcdoc"]');
-    clickAgentTool('draw-overlay-toggle');
-    await waitFor(() => {
-      expect((container.querySelector('iframe[data-od-render-mode="srcdoc"]') as HTMLIFrameElement).getAttribute('data-od-active')).toBe('true');
-    });
-    clickAgentTool('draw-overlay-toggle');
-    await waitFor(() => {
-      expect((container.querySelector('iframe[data-od-render-mode="url-load"]') as HTMLIFrameElement).getAttribute('data-od-active')).toBe('true');
-    });
-    const after = container.querySelector('iframe[data-od-render-mode="srcdoc"]');
-    expect(after).toBe(before);
+    expect(srcDocAfter).toBe(materializedSrcDoc);
   });
 
   // The freeze / deferred-flush logic covers every interactive preview mode
