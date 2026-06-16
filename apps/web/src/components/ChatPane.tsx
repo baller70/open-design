@@ -762,6 +762,12 @@ export function ChatPane({
   // failed run exactly once (the pill's onStatusChange fires loggedIn on every
   // poll). Keyed by the failed assistant's id.
   const amrAuthRetriedRef = useRef<string | null>(null);
+  // Tracks the last observed AMR login state so we retry only on a real
+  // signed-out -> signed-in transition. Without this, a run that keeps failing
+  // AMR_AUTH_REQUIRED while /status already reports signed-in would auto-retry
+  // forever (each retry is a new assistant id, so the id guard alone never
+  // converges).
+  const amrAuthPrevLoggedInRef = useRef<boolean | undefined>(undefined);
   const chatLogScrollIdleTimerRef = useRef<number | null>(null);
   const historyWrapRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<ChatComposerHandle | null>(null);
@@ -901,10 +907,22 @@ export function ChatPane({
     let stopped = false;
     const retryIfSignedIn = async () => {
       const next = await refreshInlineAmrLoginStatus();
-      if (stopped || !next?.loggedIn) return;
-      if (amrAuthRetriedRef.current === retryAssistant.id) return;
-      amrAuthRetriedRef.current = retryAssistant.id;
-      onRetry(retryAssistant);
+      if (stopped) return;
+      // Retry only on a real signed-out -> signed-in transition. A null/unknown
+      // status is NOT treated as signed-out, so it can't fabricate a transition;
+      // and once signed-in we never retry again until an explicit signed-out is
+      // seen. Otherwise a run that keeps failing auth while /status reports
+      // signed-in would retry forever (each retry is a new assistant id).
+      if (next?.loggedIn === true) {
+        const wasSignedOut = amrAuthPrevLoggedInRef.current === false;
+        amrAuthPrevLoggedInRef.current = true;
+        if (wasSignedOut && amrAuthRetriedRef.current !== retryAssistant.id) {
+          amrAuthRetriedRef.current = retryAssistant.id;
+          onRetry(retryAssistant);
+        }
+      } else if (next && next.loggedIn === false) {
+        amrAuthPrevLoggedInRef.current = false;
+      }
     };
     void retryIfSignedIn();
     const interval = window.setInterval(() => {
@@ -2063,12 +2081,24 @@ export function ChatPane({
                               hideSignedOutStatus
                               revealPendingCancelAction
                               onStatusChange={(loginStatus) => {
-                                if (
-                                  loginStatus?.loggedIn &&
-                                  amrAuthRetriedRef.current !== retryAssistant.id
+                                // Retry only on a real signed-out -> signed-in
+                                // transition (see amrAuthPrevLoggedInRef).
+                                if (loginStatus?.loggedIn === true) {
+                                  const wasSignedOut =
+                                    amrAuthPrevLoggedInRef.current === false;
+                                  amrAuthPrevLoggedInRef.current = true;
+                                  if (
+                                    wasSignedOut &&
+                                    amrAuthRetriedRef.current !== retryAssistant.id
+                                  ) {
+                                    amrAuthRetriedRef.current = retryAssistant.id;
+                                    onRetry(retryAssistant);
+                                  }
+                                } else if (
+                                  loginStatus &&
+                                  loginStatus.loggedIn === false
                                 ) {
-                                  amrAuthRetriedRef.current = retryAssistant.id;
-                                  onRetry(retryAssistant);
+                                  amrAuthPrevLoggedInRef.current = false;
                                 }
                               }}
                             />

@@ -144,6 +144,21 @@ test('[P0] @critical AMR auth failures offer inline Authorize & retry sign-in', 
 });
 
 test('[P0] after an AMR failure the user can switch to Codex and complete a fresh run', async ({ page }) => {
+  // AMR_AUTH_REQUIRED means the AMR session is invalid, so /status reports
+  // signed-out — the inline auth card then offers the Authorize & retry action.
+  await page.route('**/api/integrations/vela/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        loggedIn: false,
+        profile: 'local',
+        configPath: '/tmp/.amr/config.json',
+        user: null,
+      }),
+    });
+  });
+
   const amr = await setupAmrWorkspace(page, { failAuthAtPrompt: true, selectedAgentId: 'amr' });
 
   await gotoProject(page, amr.projectId);

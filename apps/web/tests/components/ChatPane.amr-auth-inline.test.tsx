@@ -9,7 +9,7 @@
  * AmrLoginPill.test.tsx; here we only assert ChatPane's wiring.
  */
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { forwardRef, useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -148,11 +148,20 @@ describe('ChatPane inline AMR auth', () => {
     expect(lastPillProps?.showActivationDetails).toBe(true);
   });
 
-  it('retries the failed run exactly once when sign-in succeeds', () => {
+  it('retries the failed run exactly once on a signed-out -> signed-in transition', () => {
     const onRetry = vi.fn();
     renderChat(onRetry);
 
-    // Two polls both report loggedIn — the run must be retried only once.
+    const signedOut: VelaLoginStatus = {
+      loggedIn: false,
+      loginInFlight: true,
+      profile: 'prod',
+      user: null,
+      configPath: '',
+    };
+    // Establish the signed-out baseline, then the sign-in transition retries
+    // once; a repeated signed-in poll must NOT retry again (loop guard).
+    lastPillProps?.onStatusChange?.(signedOut);
     lastPillProps?.onStatusChange?.(signedIn);
     lastPillProps?.onStatusChange?.(signedIn);
 
@@ -175,15 +184,18 @@ describe('ChatPane inline AMR auth', () => {
     expect(onRetry).not.toHaveBeenCalled();
   });
 
-  it('retries promptly when the shared AMR status refresh reports signed in', async () => {
+  it('does not auto-retry when the shared AMR status already reports signed in', async () => {
+    // Loop guard: when /status reports signed-in from the start (no signed-out
+    // -> signed-in transition), a run that keeps failing AMR_AUTH_REQUIRED must
+    // NOT auto-retry — otherwise each retry spawns a new run that fails again.
     fetchVelaLoginStatusMock.mockResolvedValue(signedIn);
     const onRetry = vi.fn();
     renderChat(onRetry);
 
-    await waitFor(() => {
-      expect(onRetry).toHaveBeenCalledTimes(1);
-    });
-    expect(lastPillProps?.initialStatus).toMatchObject({ loggedIn: true });
-    expect(onRetry.mock.calls[0]![0]).toMatchObject({ id: 'msg-amr-auth' });
+    // Let the shared poll + the pill's mount status callback settle.
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    lastPillProps?.onStatusChange?.(signedIn);
+
+    expect(onRetry).not.toHaveBeenCalled();
   });
 });
