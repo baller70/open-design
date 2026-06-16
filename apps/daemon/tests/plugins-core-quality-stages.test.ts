@@ -109,6 +109,7 @@ describe('core quality-stage floor', () => {
   // them to plan -> generate -> critique.
   it.each([
     ['image', 'plugins/_official/examples/image-poster/open-design.json'],
+    ['video', 'plugins/_official/examples/vfx-text-cursor/open-design.json'],
     ['audio', 'plugins/_official/examples/audio-jingle/open-design.json'],
   ])('leaves the bundled %s media template generate-only despite file-write/live-artifact atoms', (mode, relPath) => {
     const manifest = JSON.parse(
