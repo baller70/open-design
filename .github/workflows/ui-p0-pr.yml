@@ -160,7 +160,21 @@ jobs:
         run: |
           set -euo pipefail
           jobs_json="$RUNNER_TEMP/ui-p0-jobs.json"
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" > "$jobs_json"
+          jobs_api="repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100"
+          for attempt in 1 2 3; do
+            if gh api "$jobs_api" > "$jobs_json"; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              {
+                echo "## UI P0 PR summary"
+                echo
+                echo "> Warning: unable to fetch UI P0 job details from the GitHub API after $attempt attempts; skipping diagnostic summary."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$((attempt * 5))"
+          done
           {
             echo "## UI P0 PR summary"
             echo
