@@ -583,21 +583,15 @@ jobs:
           - target: daemon-watcher
             runner: blacksmith-4vcpu-ubuntu-2404-arm
             runner_label: 4vcpu-arm
-          - target: daemon-watcher
-            runner: blacksmith-8vcpu-ubuntu-2404-arm
-            runner_label: 8vcpu-arm
           - target: preflight
             runner: blacksmith-4vcpu-ubuntu-2404-arm
             runner_label: 4vcpu-arm
-          - target: preflight
-            runner: blacksmith-8vcpu-ubuntu-2404-arm
-            runner_label: 8vcpu-arm
           - target: browser-critical
-            runner: blacksmith-4vcpu-ubuntu-2404-arm
-            runner_label: 4vcpu-arm
+            runner: blacksmith-4vcpu-ubuntu-2404
+            runner_label: 4vcpu-x64
           - target: browser-critical
-            runner: blacksmith-8vcpu-ubuntu-2404-arm
-            runner_label: 8vcpu-arm
+            runner: blacksmith-8vcpu-ubuntu-2404
+            runner_label: 8vcpu-x64
 
     steps:
       - name: Checkout
@@ -630,15 +624,24 @@ jobs:
           pnpm guard
           pnpm i18n:check
 
-      - name: Browser critical probe
+      - name: Browser prebuild workspace type declarations
         if: ${{ matrix.target == 'browser-critical' }}
         run: |
           pnpm --filter @open-design/daemon build
           pnpm --filter @open-design/desktop build
           pnpm --filter @open-design/web build:sidecar
-          pnpm --filter @open-design/e2e test
-          pnpm -C e2e exec tsx scripts/playwright.ts clean
-          pnpm -C e2e run test:ui:critical
+
+      - name: E2E vitest
+        if: ${{ matrix.target == 'browser-critical' }}
+        run: pnpm --filter @open-design/e2e test
+
+      - name: Clean Playwright state
+        if: ${{ matrix.target == 'browser-critical' }}
+        run: pnpm -C e2e exec tsx scripts/playwright.ts clean
+
+      - name: Playwright critical
+        if: ${{ matrix.target == 'browser-critical' }}
+        run: pnpm -C e2e run test:ui:critical
 
   validate:
     # Legacy `ci` remains the current factual gate surface. Keep this job on
