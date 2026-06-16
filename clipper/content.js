@@ -769,7 +769,6 @@
   }
 
   let imagePickerHost = null;
-  let imagePickerIO = null; // defers thumbnail decode to visible cells
   let locateCleanup = null; // tears down an in-progress "find on page" highlight
 
   function clearLocate() {
@@ -781,10 +780,6 @@
 
   function closeImagePicker() {
     clearLocate();
-    if (imagePickerIO) {
-      imagePickerIO.disconnect();
-      imagePickerIO = null;
-    }
     if (imagePickerHost) {
       imagePickerHost.remove();
       imagePickerHost = null;
@@ -811,32 +806,32 @@
     }
   }
 
-  // Materialize one cell's thumbnail: a canvas drawn from the source <img> when
-  // it's decoded, else a lazily-loaded <img>. Called by the IntersectionObserver
-  // only when the cell nears the viewport, so opening the picker never decodes
-  // hundreds of images up front.
-  function renderCellThumb(cell) {
-    if (!cell || cell.__odRendered) return;
-    cell.__odRendered = true;
-    const item = cell.__odItem;
-    if (!item) return;
-    const ph = cell.querySelector('.ph');
+  // Build a cell's thumbnail node. Two cheap paths, no extra full-res decode:
+  //   • The image is already a decoded <img> on the page → draw it once into a
+  //     tiny canvas (instant, no network, ~116px of memory).
+  //   • Otherwise (CSS background, not-yet-decoded <img>) → a real <img> with
+  //     native loading="lazy", so off-screen cells defer their fetch and the
+  //     browser cache usually serves it (the page already loaded it).
+  // Returning the node directly (rather than mutating a cell via an observer)
+  // keeps rendering synchronous and reliable — nothing can get stuck pending.
+  function makeThumb(item) {
     const el = item.el;
-    let node = null;
     if (el && el.tagName === 'IMG' && el.complete && el.naturalWidth > 0) {
-      node = drawThumbCanvas(el, el.naturalWidth, el.naturalHeight);
+      const canvas = drawThumbCanvas(el, el.naturalWidth, el.naturalHeight);
+      if (canvas) {
+        canvas.className = 'thumb';
+        return canvas;
+      }
     }
-    if (!node) {
-      node = document.createElement('img');
-      node.decoding = 'async';
-      node.loading = 'lazy';
-      node.referrerPolicy = 'no-referrer';
-      node.addEventListener('error', () => node.remove(), { once: true });
-      node.src = item.src;
-    }
-    node.className = 'thumb';
-    if (ph) ph.replaceWith(node);
-    else cell.insertBefore(node, cell.querySelector('.dim'));
+    const img = document.createElement('img');
+    img.className = 'thumb shim'; // shimmer until the bytes arrive
+    img.decoding = 'async';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('load', () => img.classList.remove('shim'), { once: true });
+    img.addEventListener('error', () => img.classList.remove('shim'), { once: true });
+    img.src = item.src;
+    return img;
   }
 
   // "Find on page": dim the picker, smooth-scroll the source element into view,
@@ -961,18 +956,13 @@
           overflow: hidden; cursor: pointer; background: #f4f5f7;
           transition: outline-color 120ms cubic-bezier(0.23,1,0.32,1), border-color 120ms cubic-bezier(0.23,1,0.32,1);
           outline: 2px solid transparent; outline-offset: -2px;
-          /* Skip layout + paint for off-screen cells. The fixed 116px track means
-             the intrinsic size matches the real size, so this never shifts the
-             scroll. Complements the IntersectionObserver that defers thumbnail
-             decode — content-visibility saves render work, the observer saves
-             network/decode work. */
-          content-visibility: auto; contain-intrinsic-size: 116px 116px;
         }
         .cell:hover { border-color: #c9d0da; }
         .cell:has(input:checked) { outline-color: #c96442; border-color: #c96442; }
         .cell .thumb { width: 100%; height: 100%; object-fit: contain; display: block; }
-        .ph {
-          position: absolute; inset: 0;
+        /* Lazy <img> thumbnails shimmer until their bytes land (canvas thumbs
+           never get this class — they're drawn synchronously). */
+        .thumb.shim {
           background: linear-gradient(100deg, #eef0f3 30%, #f7f8fa 50%, #eef0f3 70%) #eef0f3;
           background-size: 200% 100%; animation: od-shimmer 1.1s linear infinite;
         }
@@ -1014,7 +1004,7 @@
           .cell:hover { border-color: #46433c; }
           .cell:has(input:checked) { outline-color: #d97a56; border-color: #d97a56; }
           .cell input { accent-color: #d97a56; }
-          .ph { background: linear-gradient(100deg, #2a2825 30%, #332f2c 50%, #2a2825 70%) #2a2825; background-size: 200% 100%; }
+          .thumb.shim { background: linear-gradient(100deg, #2a2825 30%, #332f2c 50%, #2a2825 70%) #2a2825; background-size: 200% 100%; }
           .loc { background: rgba(0,0,0,0.55); }
           .loc:hover { background: #d97a56; }
           .foot { border-top-color: #2a2825; }
@@ -1048,9 +1038,9 @@
     // Crosshair "find on page" glyph, reused per cell.
     const LOC_SVG =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg>';
-    // Build all cells in the detached shadow tree (no reflow until attach). Each
-    // cell starts as a shimmer placeholder; the IntersectionObserver below swaps
-    // in the real thumbnail only when the cell nears the viewport.
+    // Build all cells in the detached shadow tree (no reflow until attach).
+    // Thumbnails render synchronously: a canvas drawn from the page's decoded
+    // <img> (cheap, bounded memory) or a native lazy <img> for URL-load cases.
     const checkboxes = [];
     images.forEach((img, i) => {
       const cell = document.createElement('div');
@@ -1060,8 +1050,7 @@
       checkbox.type = 'checkbox';
       checkbox.dataset.i = String(i);
       checkbox.setAttribute('aria-label', img.alt || `Image ${i + 1}`);
-      const ph = document.createElement('div');
-      ph.className = 'ph';
+      const thumb = makeThumb(img);
       const loc = document.createElement('button');
       loc.type = 'button';
       loc.className = 'loc';
@@ -1070,7 +1059,7 @@
       const dim = document.createElement('span');
       dim.className = 'dim';
       dim.textContent = img.w && img.h ? `${img.w}×${img.h}` : '';
-      cell.append(checkbox, ph, loc, dim);
+      cell.append(checkbox, thumb, loc, dim);
       grid.appendChild(cell);
       checkboxes.push(checkbox);
     });
@@ -1157,22 +1146,6 @@
     });
 
     document.documentElement.appendChild(imagePickerHost);
-
-    // Lazy-render thumbnails: only cells that scroll within range decode their
-    // image, so opening the picker on a 200+ image page costs a handful of
-    // decodes instead of all of them. `grid` is the scroll container, so it's
-    // the observer root. Each cell is rendered once, then unobserved.
-    imagePickerIO = new IntersectionObserver(
-      (entries, obs) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          obs.unobserve(entry.target);
-          renderCellThumb(entry.target);
-        }
-      },
-      { root: grid, rootMargin: '400px 0px' },
-    );
-    grid.querySelectorAll('.cell').forEach((cell) => imagePickerIO.observe(cell));
   }
 
   // --- region picker (drag a box → crop the visible tab) -------------------

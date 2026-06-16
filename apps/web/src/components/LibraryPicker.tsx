@@ -27,6 +27,7 @@ import {
 } from './LibraryAssetMeta';
 import type { BadgeKind } from './LibraryAssetMeta';
 import { Icon } from './Icon';
+import { useInView } from './plugins-home/useInView';
 import styles from './LibraryPicker.module.css';
 
 // Mirrors the Library grid's chips. `element` is a badge-only identity (an image
@@ -62,6 +63,10 @@ export function LibraryPicker({ onClose, onConfirm, title, confirmLabel }: Props
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState<BadgeKind | ''>('');
   const [search, setSearch] = useState('');
+  // Debounced mirror of `search` so the (potentially large) filter pass runs
+  // once per typing pause, not on every keystroke. The input stays bound to
+  // `search` for instant feedback.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState(false);
 
@@ -86,8 +91,13 @@ export function LibraryPicker({ onClose, onConfirm, title, confirmLabel }: Props
     return () => document.removeEventListener('keydown', onKey);
   }, [busy, onClose]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return assets.filter((asset) => {
       if (!matchesKindFilter(asset, kind)) return false;
       if (!q) return true;
@@ -96,7 +106,7 @@ export function LibraryPicker({ onClose, onConfirm, title, confirmLabel }: Props
       } ${asset.ocrText ?? ''}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [assets, kind, search]);
+  }, [assets, kind, debouncedSearch]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -255,21 +265,40 @@ export function LibraryPicker({ onClose, onConfirm, title, confirmLabel }: Props
   );
 }
 
+// Kinds whose thumbnail pulls full bytes over the network (a grid cell loads
+// the original image/video). They mount lazily so opening the picker doesn't
+// fire one full-bytes request per asset; a kind glyph holds the box until the
+// card scrolls in. `once: true` keeps it mounted after first reveal.
+const PICKER_LAZY_KINDS = new Set<string>(['image', 'video']);
+
 function AssetThumb({ asset }: { asset: LibraryAsset }) {
-  if (asset.kind === 'image') {
+  const lazy = PICKER_LAZY_KINDS.has(asset.kind);
+  const { ref, inView } = useInView<HTMLSpanElement>({ once: true, rootMargin: '240px' });
+  if (lazy) {
     return (
-      <img src={libraryAssetRawUrl(asset.id)} alt="" loading="lazy" className={styles.thumbImg} />
-    );
-  }
-  if (asset.kind === 'video') {
-    return (
-      <video
-        src={libraryAssetRawUrl(asset.id)}
-        muted
-        playsInline
-        preload="metadata"
-        className={styles.thumbImg}
-      />
+      <span ref={ref} className={styles.thumbLazy}>
+        {!inView ? (
+          <span className={styles.glyph} aria-hidden>
+            <KindIcon kind={badgeKind(asset)} size={26} />
+          </span>
+        ) : asset.kind === 'image' ? (
+          <img
+            src={libraryAssetRawUrl(asset.id)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className={styles.thumbImg}
+          />
+        ) : (
+          <video
+            src={libraryAssetRawUrl(asset.id)}
+            muted
+            playsInline
+            preload="metadata"
+            className={styles.thumbImg}
+          />
+        )}
+      </span>
     );
   }
   if (asset.kind === 'color') {

@@ -198,8 +198,23 @@ function LibraryThumb({ asset }: { asset: LibraryAsset }) {
   );
 }
 
+/**
+ * Merge freshly-fetched library assets into the current list for an incremental
+ * SSE update. Assets already present are refreshed in place (a dedup re-ingest
+ * does NOT bump `created_at`, so it must not reorder); genuinely new assets are
+ * prepended, latest-first, to match the server's `created_at DESC` order.
+ */
+export function mergeIngestedAssets(prev: LibraryAsset[], fetched: LibraryAsset[]): LibraryAsset[] {
+  if (fetched.length === 0) return prev;
+  const byId = new Map(fetched.map((a) => [a.id, a]));
+  const present = new Set(prev.map((a) => a.id));
+  const merged = prev.map((a) => byId.get(a.id) ?? a);
+  const fresh = [...byId.values()].filter((a) => !present.has(a.id)).reverse();
+  return fresh.length ? [...fresh, ...merged] : merged;
+}
+
 /** Parse `{ assetId }` out of a library SSE `data:` payload, or null. */
-function parseEventAssetId(data: unknown): string | null {
+export function parseEventAssetId(data: unknown): string | null {
   if (typeof data !== 'string') return null;
   try {
     const parsed = JSON.parse(data) as { assetId?: unknown };
@@ -210,7 +225,7 @@ function parseEventAssetId(data: unknown): string | null {
 }
 
 /** A card's viewport-space box, snapshotted for hit-testing during a drag. */
-interface CardRect {
+export interface CardRect {
   id: string;
   left: number;
   top: number;
@@ -219,7 +234,7 @@ interface CardRect {
 }
 
 /** Snapshot every rendered card's viewport rect (id + bounds) under `grid`. */
-function snapshotCardRects(grid: HTMLElement | null): CardRect[] {
+export function snapshotCardRects(grid: HTMLElement | null): CardRect[] {
   const out: CardRect[] = [];
   if (!grid) return out;
   grid.querySelectorAll<HTMLElement>('[data-asset-card]').forEach((el) => {
@@ -232,7 +247,7 @@ function snapshotCardRects(grid: HTMLElement | null): CardRect[] {
 }
 
 /** Ids of cards whose snapshotted rect intersects the band rectangle. */
-function cardIdsInBand(rects: CardRect[], band: Band): string[] {
+export function cardIdsInBand(rects: CardRect[], band: Band): string[] {
   const left = band.x;
   const top = band.y;
   const right = band.x + band.w;
@@ -244,7 +259,7 @@ function cardIdsInBand(rects: CardRect[], band: Band): string[] {
   return ids;
 }
 
-interface Band {
+export interface Band {
   x: number;
   y: number;
   w: number;
@@ -382,19 +397,8 @@ export function LibrarySection({ active, onOpenProject }: Props) {
           await loadRef.current();
           return;
         }
-        const byId = new Map(
-          fetched.filter((a): a is LibraryAsset => a !== null).map((a) => [a.id, a]),
-        );
-        setAssets((prev) => {
-          const present = new Set(prev.map((a) => a.id));
-          // Existing ids (incl. dedup re-ingests) refresh in place — dedup does
-          // not bump created_at, so they must NOT reorder.
-          const merged = prev.map((a) => byId.get(a.id) ?? a);
-          // Genuinely new ids prepend (server order is created_at DESC, so the
-          // newest sits first); reverse so the latest event in the burst leads.
-          const fresh = [...byId.values()].filter((a) => !present.has(a.id)).reverse();
-          return fresh.length ? [...fresh, ...merged] : merged;
-        });
+        const resolved = fetched.filter((a): a is LibraryAsset => a !== null);
+        setAssets((prev) => mergeIngestedAssets(prev, resolved));
       }
     };
 
@@ -693,6 +697,11 @@ export function LibrarySection({ active, onOpenProject }: Props) {
         additive,
         base: new Set(additive ? selectedIds : []),
         moved: false,
+        // Snapshot every card's box ONCE here, while the whole grid is laid out
+        // (content-visibility reserves the same box for off-screen cards). The
+        // move handler then hit-tests these cached rects instead of forcing a
+        // querySelectorAll + getBoundingClientRect reflow on every mouse move.
+        rects: snapshotCardRects(gridRef.current),
       };
       setBand({ x: e.clientX, y: e.clientY, w: 0, h: 0 });
       setDragging(true);
@@ -702,29 +711,44 @@ export function LibrarySection({ active, onOpenProject }: Props) {
 
   useEffect(() => {
     if (!dragging) return;
+    let raf = 0;
+    let lastX = dragRef.current?.startX ?? 0;
+    let lastY = dragRef.current?.startY ?? 0;
+
+    const apply = () => {
+      raf = 0;
+      const d = dragRef.current;
+      if (!d) return;
+      const band: Band = {
+        x: Math.min(d.startX, lastX),
+        y: Math.min(d.startY, lastY),
+        w: Math.abs(lastX - d.startX),
+        h: Math.abs(lastY - d.startY),
+      };
+      setBand(band);
+      const next = new Set(d.base);
+      // `.band` is position:fixed, so the snapshotted viewport rects and the
+      // band share a coordinate space; the scroll handler re-snapshots so the
+      // selection still tracks content that scrolls under a stationary band.
+      for (const id of cardIdsInBand(d.rects, band)) next.add(id);
+      setSelectedIds(next);
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
     const move = (e: MouseEvent) => {
       const d = dragRef.current;
       if (!d) return;
       d.moved = true;
-      const x = Math.min(d.startX, e.clientX);
-      const y = Math.min(d.startY, e.clientY);
-      const w = Math.abs(e.clientX - d.startX);
-      const h = Math.abs(e.clientY - d.startY);
-      setBand({ x, y, w, h });
-      const grid = gridRef.current;
-      if (!grid) return;
-      const next = new Set(d.base);
-      const left = x;
-      const top = y;
-      const right = x + w;
-      const bottom = y + h;
-      grid.querySelectorAll<HTMLElement>('[data-asset-card]').forEach((el) => {
-        const id = el.dataset.assetId;
-        if (!id) return;
-        const r = el.getBoundingClientRect();
-        if (r.left < right && r.right > left && r.top < bottom && r.bottom > top) next.add(id);
-      });
-      setSelectedIds(next);
+      lastX = e.clientX;
+      lastY = e.clientY;
+      schedule();
+    };
+    const onScroll = () => {
+      const d = dragRef.current;
+      if (!d) return;
+      d.rects = snapshotCardRects(gridRef.current);
+      schedule();
     };
     const up = () => {
       const d = dragRef.current;
@@ -736,11 +760,15 @@ export function LibrarySection({ active, onOpenProject }: Props) {
     };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
+    // Capture so a scrolling inner pane (not just the window) re-snapshots.
+    window.addEventListener('scroll', onScroll, true);
     const prevUserSelect = document.body.style.userSelect;
     document.body.style.userSelect = 'none';
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
+      window.removeEventListener('scroll', onScroll, true);
       document.body.style.userSelect = prevUserSelect;
     };
   }, [dragging]);
@@ -824,7 +852,7 @@ export function LibrarySection({ active, onOpenProject }: Props) {
         data-selected={selected ? 'true' : 'false'}
       >
         <div className={styles.thumb}>
-          <Thumb asset={asset} />
+          <LibraryThumb asset={asset} />
           <button
             type="button"
             className={styles.thumbButton}

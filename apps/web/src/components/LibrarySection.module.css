@@ -236,6 +236,15 @@
   overflow: hidden;
   background: var(--bg-panel);
   transition: box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1);
+  /* Skip layout + paint of cards scrolled off-screen so a large grid stays
+     responsive. The reserved intrinsic size keeps the scrollbar and the
+     box-select rect snapshot stable; `auto` lets each card remember its real
+     rendered height once seen. Mirrors the plugins-home gallery
+     (styles/home/plugins-home.css). Applied to `.card` only — never the grid /
+     timeline / root scroll containers. */
+  content-visibility: auto;
+  contain: layout paint style;
+  contain-intrinsic-size: auto 248px;
 }
 .card:hover {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
@@ -265,6 +274,17 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+/* Fills the 4:3 thumb box and centers its child — a faint kind glyph while the
+   real thumbnail (img / video / iframe / font specimen) is deferred, then the
+   thumbnail itself once the card scrolls in. Lives below the transparent
+   preview button (z-index:1) so clicks still open the preview. */
+.thumbLazy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .thumbImg {
   width: 100%;
