@@ -20,11 +20,13 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
   # Prefer current-head signal over preserving superseded logs: PR authors often
   # push fixups while this workflow is still running, and stale runs can report
   # failures for commits reviewers no longer need to evaluate. Release workflows
   # use cancel-in-progress: false where preserving build evidence matters more.
+  # Manual comparison runs need isolated groups so queued/stuck experiments do
+  # not block the next measurement on this branch.
   cancel-in-progress: true
 
 jobs:
