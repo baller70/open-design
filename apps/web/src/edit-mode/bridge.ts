@@ -68,7 +68,8 @@ export function manualEditElementHasOnlyInlineContent(el: Element): boolean {
   if (!text) return false;
   const children = el.children;
   for (let i = 0; i < children.length; i++) {
-    const tag = children[i].tagName ? children[i].tagName.toLowerCase() : '';
+    const child = children[i];
+    const tag = child && child.tagName ? child.tagName.toLowerCase() : '';
     if (!MANUAL_EDIT_INLINE_TAGS.has(tag)) return false;
   }
   return true;

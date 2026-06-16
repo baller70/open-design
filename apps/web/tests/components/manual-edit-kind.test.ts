@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { manualEditKindForElement } from '../../src/edit-mode/bridge';
 
@@ -27,7 +28,9 @@ describe('manualEditKindForElement', () => {
   });
 
   it('treats table cells as editable text', () => {
-    expect(manualEditKindForElement(makeEl('<td>3 pts</td>'))).toBe('text');
+    const table = document.createElement('table');
+    table.innerHTML = '<tbody><tr><td>3 pts</td></tr></tbody>';
+    expect(manualEditKindForElement(table.querySelector('td')!)).toBe('text');
   });
 
   it('treats h4/h5/h6 headings as editable text', () => {
