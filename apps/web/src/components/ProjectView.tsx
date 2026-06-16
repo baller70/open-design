@@ -3171,13 +3171,11 @@ export function ProjectView({
             nextFiles,
             { minMtime: runStartedAt },
           );
-          let attemptedArtifactPersist = false;
           if (recoveredExistingArtifact) {
             savedArtifactRef.current = recoveredExistingArtifact.name;
             requestOpenFile(recoveredExistingArtifact.name);
           } else {
             savedArtifactRef.current = null;
-            attemptedArtifactPersist = true;
             await persistArtifact(artifactToPersist, nextFiles, sourceText);
             nextFiles = await refreshProjectFiles();
             recoveredExistingArtifact = findExistingArtifactProjectFile(
@@ -3190,9 +3188,6 @@ export function ProjectView({
           const diff = computeProducedFiles(beforeFileNames, nextFiles) ?? [];
           const produced = mergeRecoveredArtifact(diff, recoveredExistingArtifact);
           if (produced.length === 0) {
-            if (attemptedArtifactPersist) {
-              recoveredArtifactMessagesRef.current.add(message.id);
-            }
             continue;
           }
           recoveredArtifactMessagesRef.current.add(message.id);

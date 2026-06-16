@@ -1493,8 +1493,9 @@ describe('ProjectView daemon cleanup', () => {
     expect(writeProjectTextFile).not.toHaveBeenCalled();
   });
 
-  it('does not keep retrying reload artifact recovery after persistence produces no file', async () => {
+  it('keeps reload artifact recovery retryable after a transient persistence miss', async () => {
     const runCreatedAt = Date.now();
+    const recoveredArtifact = artifactProjectFile('real-daemon-smoke.html', runCreatedAt + 2);
     const artifactContent =
       '<artifact identifier="real-daemon-smoke" type="text/html" title="Real Daemon Smoke">' +
       '<!doctype html><html><body><h1>Real Daemon Smoke</h1></body></html>' +
@@ -1514,7 +1515,10 @@ describe('ProjectView daemon cleanup', () => {
     ]);
     fetchPreviewComments.mockResolvedValue([]);
     loadTabs.mockResolvedValue({ tabs: [], activeTabId: null });
-    fetchProjectFiles.mockResolvedValue([]);
+    let persistAttempts = 0;
+    fetchProjectFiles.mockImplementation(async () =>
+      persistAttempts >= 2 ? [recoveredArtifact] : [],
+    );
     fetchProjectDesignSystemPackageAudit.mockResolvedValue(null);
     fetchLiveArtifacts.mockResolvedValue([]);
     fetchSkill.mockResolvedValue(null);
@@ -1529,7 +1533,10 @@ describe('ProjectView daemon cleanup', () => {
       signal: null,
     });
     listActiveChatRuns.mockResolvedValue([]);
-    writeProjectTextFile.mockResolvedValue(null);
+    writeProjectTextFile.mockImplementation(async () => {
+      persistAttempts += 1;
+      return persistAttempts >= 2 ? recoveredArtifact : null;
+    });
 
     render(
       <ProjectView
@@ -1555,7 +1562,17 @@ describe('ProjectView daemon cleanup', () => {
     );
 
     await waitFor(() => expect(writeProjectTextFile).toHaveBeenCalledTimes(1));
-    await new Promise((resolve) => window.setTimeout(resolve, 1_100));
-    expect(writeProjectTextFile).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(writeProjectTextFile).toHaveBeenCalledTimes(2), { timeout: 2_500 });
+    await waitFor(() => {
+      expect(saveMessage).toHaveBeenCalledWith(
+        'project-recover-failed',
+        'conv-1',
+        expect.objectContaining({
+          id: 'msg-recover-failed',
+          producedFiles: [recoveredArtifact],
+        }),
+        expect.objectContaining({ telemetryFinalized: true }),
+      );
+    });
   });
 });
