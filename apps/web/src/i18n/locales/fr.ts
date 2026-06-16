@@ -16,7 +16,7 @@ export const fr: Dict = {
   'chat.connectionDropped': 'La connexion au service de modèle a été interrompue avant la fin de la réponse — généralement un réseau ou un proxy instable. Veuillez réessayer.',
   'common.cancel': 'Annuler',
   'chat.selectFromLibrary': 'Importer depuis la bibliothèque',
-  'designFiles.library.label': 'Bibliothèque',
+  'designFiles.library.label': 'Importer depuis la bibliothèque',
   'designFiles.library.title': 'Importer depuis la bibliothèque',
   'libraryPicker.title': 'Importer depuis la bibliothèque',
   'libraryPicker.searchPlaceholder': 'Rechercher dans la bibliothèque…',

@@ -52,13 +52,15 @@ nothing to misconfigure.
 - **Pick images** → an on-page overlay grid of every image on the page with
   checkboxes, *Select all* / *Clear*, and *Save N to Library* — so you choose
   exactly which images to save instead of grabbing them all.
-- **On-page toolbar** → an optional floating 📄 / ✦ / 📸 / 🖼️ / 🎯 launcher at
-  the bottom-right of the page. It's **hidden by default**; turn it on with
+- **On-page toolbar** → an optional floating 📄 / ✦ / 📸 / 🖼️ / 🎯 launcher
+  anchored **top-center** of the page (Figma-style), with a gap from the edge so
+  it reads as a deliberate surface. It's **hidden by default**; turn it on with
   *Show on-page bar* in the popup (the preference is remembered, and the bar's
-  ✕ hides it again). Grab the dotted **handle** on its left edge to drag the bar
-  anywhere on the page — its position is remembered across reloads. The launcher
-  is automatically pulled out of frame while a capture is taken, so it never
-  ends up inside the snapshot.
+  ✕ hides it again). Each control shows a **hover tooltip** naming what it does.
+  Grab the dotted **handle** on its left edge to drag the bar anywhere on the
+  page — its position is remembered across reloads. The launcher is automatically
+  pulled out of frame while a capture is taken, so it never ends up inside the
+  snapshot.
 - **Right-click an image** → *Save image to Open Design Library*.
 
 ### Page → Figma

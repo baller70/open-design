@@ -16,7 +16,7 @@ export const ko: Dict = {
   'chat.connectionDropped': '응답이 끝나기 전에 모델 서비스 연결이 끊겼습니다. 대개 불안정한 네트워크나 프록시가 원인입니다. 다시 시도해 주세요.',
   'common.cancel': '취소',
   'chat.selectFromLibrary': '라이브러리에서 가져오기',
-  'designFiles.library.label': '라이브러리',
+  'designFiles.library.label': '라이브러리에서 가져오기',
   'designFiles.library.title': '라이브러리에서 가져오기',
   'libraryPicker.title': '라이브러리에서 가져오기',
   'libraryPicker.searchPlaceholder': '라이브러리 검색…',

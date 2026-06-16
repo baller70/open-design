@@ -42,6 +42,24 @@ function isImage(file: File): boolean {
   return file.type.startsWith('image/');
 }
 
+/** Object URL for an image preview, or null where unavailable (e.g. jsdom). */
+function createPreviewUrl(file: File): string | null {
+  try {
+    if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return null;
+    return URL.createObjectURL(file);
+  } catch {
+    return null;
+  }
+}
+
+function revokePreviewUrl(url: string): void {
+  try {
+    URL.revokeObjectURL?.(url);
+  } catch {
+    /* no-op */
+  }
+}
+
 function fileExt(file: File): string {
   const match = /\.([a-z0-9]+)$/i.exec(file.name);
   return (match?.[1] ?? 'file').toUpperCase().slice(0, 4);
@@ -84,10 +102,11 @@ export function DesignSystemAssetDropzone({
     const next = new Map<File, string>();
     for (const file of files) {
       if (!isImage(file)) continue;
-      next.set(file, cache.get(file) ?? URL.createObjectURL(file));
+      const url = cache.get(file) ?? createPreviewUrl(file);
+      if (url) next.set(file, url);
     }
     for (const [file, url] of cache) {
-      if (!next.has(file)) URL.revokeObjectURL(url);
+      if (!next.has(file)) revokePreviewUrl(url);
     }
     urlCacheRef.current = next;
     return next;
@@ -95,7 +114,7 @@ export function DesignSystemAssetDropzone({
 
   useEffect(
     () => () => {
-      for (const url of urlCacheRef.current.values()) URL.revokeObjectURL(url);
+      for (const url of urlCacheRef.current.values()) revokePreviewUrl(url);
       urlCacheRef.current = new Map();
     },
     [],
@@ -185,7 +204,7 @@ export function DesignSystemAssetDropzone({
       </div>
 
       <div className={styles.alt}>
-        <span className={styles.altText}>or pull from assets you already saved</span>
+        <span className={styles.altText}>or reuse an asset you’ve already saved</span>
         <button
           type="button"
           className={styles.libraryBtn}

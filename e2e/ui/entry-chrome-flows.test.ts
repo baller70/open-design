@@ -228,6 +228,9 @@ test('[P1] design systems page is reachable from entry nav and supports search, 
   await expect(page.getByTestId('design-system-card-agentic')).toHaveCount(0);
   await page.getByTestId('design-systems-surface-all').click();
 
+  // Master-detail: selecting a list row renders that system in the right
+  // preview pane, where the full-preview and "set as default" actions live.
+  await page.getByTestId('design-system-card-airbnb').click();
   await page.getByTestId('design-system-preview-airbnb').click();
   const preview = page.getByRole('dialog', { name: /Airbnb preview/i });
   await expect(preview).toBeVisible();

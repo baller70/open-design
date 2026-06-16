@@ -16,7 +16,7 @@ export const ja: Dict = {
   'chat.connectionDropped': '応答が完了する前にモデルサービスへの接続が切断されました。多くはネットワークやプロキシの不安定が原因です。再試行してください。',
   'common.cancel': 'キャンセル',
   'chat.selectFromLibrary': 'ライブラリからインポート',
-  'designFiles.library.label': 'ライブラリ',
+  'designFiles.library.label': 'ライブラリからインポート',
   'designFiles.library.title': 'ライブラリからインポート',
   'libraryPicker.title': 'ライブラリからインポート',
   'libraryPicker.searchPlaceholder': 'ライブラリを検索…',

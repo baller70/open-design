@@ -85,7 +85,12 @@
   // --- launcher toolbar ----------------------------------------------------
   const host = document.createElement('div');
   host.id = 'od-clipper-root';
-  host.style.cssText = 'position:fixed;z-index:2147483646;right:16px;bottom:16px;display:none;background:transparent;margin:0;padding:0;border:0;';
+  // Ships anchored TOP-CENTER with a gap from the edge (Figma-style) so the bar
+  // reads as a deliberate, prominent surface rather than a corner afterthought.
+  // `left:50%` + `translateX(-50%)` keeps it centered through window resizes; the
+  // first drag swaps to explicit left/top px and clears the transform (see
+  // applyPosition).
+  host.style.cssText = 'position:fixed;z-index:2147483646;top:24px;left:50%;transform:translateX(-50%);display:none;background:transparent;margin:0;padding:0;border:0;';
   const shadow = host.attachShadow({ mode: 'open' });
   const ICON = {
     page: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M8 13h8"/><path d="M8 17h5"/>',
@@ -96,8 +101,11 @@
     element: '<circle cx="12" cy="12" r="3.5"/><path d="M12 2v3.5"/><path d="M12 18.5V22"/><path d="M2 12h3.5"/><path d="M18.5 12H22"/>',
     close: '<path d="M18 6 6 18"/><path d="M6 6l12 12"/>',
   };
+  // `data-tip` drives the custom on-hover tooltip below; `aria-label` keeps the
+  // control named for assistive tech. We deliberately drop the native `title`
+  // so there's no slow, duplicate OS tooltip stacked on ours.
   const btn = (act, title) =>
-    `<button data-act="${act}" title="${title}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICON[act]}</svg></button>`;
+    `<button data-act="${act}" data-tip="${title}" aria-label="${title}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICON[act]}</svg></button>`;
   setHTML(shadow, `
     <style>
       .bar {
@@ -148,16 +156,56 @@
       .grip:hover { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.92); }
       .bar.dragging, .bar.dragging .grip { cursor: grabbing; }
       .bar.dragging .grip { background: rgba(255,255,255,0.16); color: #fff; }
+      /* Hover tooltips: a dark pill naming each control, since the icons alone
+         don't say what they do. The bar rests at the TOP of the page, so tips
+         drop DOWNWARD and never clip off-screen. A short reveal delay keeps them
+         from flickering as the pointer sweeps across the row; the bar hides them
+         outright mid-drag. These rules sit last so 'position: relative' wins over
+         each control's 'all: unset' reset. */
+      [data-tip] { position: relative; }
+      [data-tip]::after {
+        content: attr(data-tip);
+        position: absolute; top: calc(100% + 9px); left: 50%;
+        transform: translateX(-50%) translateY(-4px);
+        padding: 5px 9px; border-radius: 7px;
+        background: #202020; color: #fff;
+        font: 600 11px/1.3 -apple-system, system-ui, sans-serif;
+        letter-spacing: 0.01em; white-space: nowrap;
+        border: 1px solid rgba(255,255,255,0.10);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.34);
+        opacity: 0; pointer-events: none; z-index: 20;
+        transition: opacity 160ms cubic-bezier(0.23,1,0.32,1), transform 160ms cubic-bezier(0.23,1,0.32,1);
+      }
+      [data-tip]:hover::after {
+        opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 240ms;
+      }
+      .bar.dragging [data-tip]::after { opacity: 0; transition-delay: 0ms; }
+      /* Busy veil: while a capture is being saved, a spinner covers the bar and
+         its controls go inert — so the bar stays put as a steady reference point
+         instead of vanishing for the whole capture-and-save round-trip. */
+      .busy-veil {
+        position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+        border-radius: inherit; background: rgba(32,32,32,0.62);
+        -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+      }
+      .bar.busy .busy-veil { display: flex; }
+      .bar.busy > :not(.busy-veil) { pointer-events: none; }
+      .spinner {
+        width: 16px; height: 16px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.22); border-top-color: #fff;
+        animation: odSpin 640ms linear infinite;
+      }
+      @keyframes odSpin { to { transform: rotate(360deg); } }
     </style>
     <div class="bar">
-      <div class="grip" title="Drag to move" aria-label="Drag the Open Design bar">
+      <div class="grip" data-tip="Drag to move" aria-label="Drag the Open Design bar">
         <svg viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
           <circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/>
           <circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/>
           <circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/>
         </svg>
       </div>
-      <a class="brand" href="https://open-design.ai" target="_blank" rel="noopener noreferrer" title="Open Design — open-design.ai" aria-label="Open Design home">
+      <a class="brand" href="https://open-design.ai" target="_blank" rel="noopener noreferrer" data-tip="Open Design — open-design.ai" aria-label="Open Design home">
         <svg viewBox="0 0 93 93" fill="#fff" xmlns="http://www.w3.org/2000/svg">
           <path fill-rule="evenodd" clip-rule="evenodd" d="M46.38 17.5c15.85 0 28.7 12.85 28.7 28.7 0 15.85-12.85 28.7-28.7 28.7H21.5a3.82 3.82 0 0 1-3.82-3.82V46.19c0-15.85 12.85-28.7 28.7-28.7Zm0 5.74c-12.68 0-22.96 10.28-22.96 22.96 0 12.68 10.28 22.96 22.96 22.96 12.68 0 22.96-10.28 22.96-22.96 0-12.68-10.28-22.96-22.96-22.96Z"/>
           <path d="M44.59 59.66 35.84 36.64a.94.94 0 0 1 1.18-1.19l23.04 8.91c.95.37.69 1.78-.33 1.78H46.36v13.19c0 1.03-1.41 1.29-1.77.33Z"/>
@@ -171,7 +219,8 @@
       ${btn('imgs', 'Pick images to save')}
       ${btn('element', 'Pick an element to capture')}
       <span class="sep"></span>
-      <button class="close" data-act="close" title="Hide Open Design bar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON.close}</svg></button>
+      <button class="close" data-act="close" data-tip="Hide Open Design bar" aria-label="Hide Open Design bar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON.close}</svg></button>
+      <div class="busy-veil" aria-hidden="true"><span class="spinner"></span></div>
     </div>`);
   document.documentElement.appendChild(host);
 
@@ -281,6 +330,8 @@
   function applyPosition(pos) {
     host.style.right = 'auto';
     host.style.bottom = 'auto';
+    // Drop the top-center centering transform so left/top are honored literally.
+    host.style.transform = 'none';
     host.style.left = `${pos.left}px`;
     host.style.top = `${pos.top}px`;
     savedPos = pos;

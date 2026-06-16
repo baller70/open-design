@@ -16,7 +16,7 @@ export const zhTW: Dict = {
   'chat.connectionDropped': '與模型服務的連線在回應完成前中斷了——通常是網路或代理不穩定。請重試。',
   'common.cancel': '取消',
   'chat.selectFromLibrary': '從資源庫匯入',
-  'designFiles.library.label': '資源庫',
+  'designFiles.library.label': '從資源庫匯入',
   'designFiles.library.title': '從資源庫匯入',
   'libraryPicker.title': '從資源庫匯入',
   'libraryPicker.searchPlaceholder': '搜尋資源庫…',

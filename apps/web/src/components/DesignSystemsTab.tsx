@@ -12,6 +12,7 @@ import type {
   TrackingDesignSystemStatusValue,
 } from '@open-design/contracts/analytics';
 import { useI18n } from '../i18n';
+import type { Locale } from '../i18n/types';
 import {
   localizeDesignSystemCategory,
   localizeDesignSystemSummary,
@@ -109,7 +110,7 @@ function formatShortDate(value: number | string | undefined): string {
 }
 
 function systemMatchesQuery(
-  locale: string,
+  locale: Locale,
   system: DesignSystemSummary,
   query: string,
 ): boolean {
@@ -285,7 +286,7 @@ export function DesignSystemsTab({
       setPreviewId(null);
       return;
     }
-    setPreviewId((cur) => (cur && activeIds.includes(cur) ? cur : activeIds[0]));
+    setPreviewId((cur) => (cur && activeIds.includes(cur) ? cur : activeIds[0] ?? null));
   }, [activeIds]);
 
   const selectedSystem = useMemo(() => {

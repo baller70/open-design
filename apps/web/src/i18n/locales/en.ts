@@ -16,7 +16,7 @@ export const en: Dict = {
   'chat.connectionDropped': 'The connection to the model service dropped before the response finished — usually an unstable network or proxy. Please retry.',
   'common.cancel': 'Cancel',
   'chat.selectFromLibrary': 'Import from library',
-  'designFiles.library.label': 'Library',
+  'designFiles.library.label': 'Import from library',
   'designFiles.library.title': 'Import from library',
   'libraryPicker.title': 'Import from library',
   'libraryPicker.searchPlaceholder': 'Search library…',

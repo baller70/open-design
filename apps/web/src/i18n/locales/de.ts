@@ -16,7 +16,7 @@ export const de: Dict = {
   'chat.connectionDropped': 'Die Verbindung zum Modelldienst wurde vor dem Ende der Antwort unterbrochen – meist ein instabiles Netzwerk oder ein Proxy. Bitte erneut versuchen.',
   'common.cancel': 'Abbrechen',
   'chat.selectFromLibrary': 'Aus Bibliothek importieren',
-  'designFiles.library.label': 'Bibliothek',
+  'designFiles.library.label': 'Aus Bibliothek importieren',
   'designFiles.library.title': 'Aus Bibliothek importieren',
   'libraryPicker.title': 'Aus Bibliothek importieren',
   'libraryPicker.searchPlaceholder': 'Bibliothek durchsuchen…',

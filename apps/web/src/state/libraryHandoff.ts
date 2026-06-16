@@ -55,3 +55,27 @@ export function takeComposerSeedFor(projectId: string): ComposerSeed | null {
   }
   return null;
 }
+
+// --- Path C: seed the Home chat composer ------------------------------------
+// Selected Library assets, fetched into File objects, to pre-attach to the Home
+// chat composer ("Chat to design"). The user lands in the creation composer
+// with the assets staged, describes what to build, and Runs to spawn a new
+// project. Mirrors Path A's File hand-off, but the consumer is HomeView rather
+// than the design-system flow.
+
+export interface HomeComposerAssetSeed {
+  files: File[];
+}
+
+let homeComposerSeed: HomeComposerAssetSeed | null = null;
+
+export function setHomeComposerAssetSeed(seed: HomeComposerAssetSeed | null): void {
+  homeComposerSeed = seed;
+}
+
+/** Consume the Home composer asset seed (single-shot). */
+export function takeHomeComposerAssetSeed(): HomeComposerAssetSeed | null {
+  const seed = homeComposerSeed;
+  homeComposerSeed = null;
+  return seed;
+}

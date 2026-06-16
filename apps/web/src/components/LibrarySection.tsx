@@ -30,7 +30,7 @@ import {
   type LibraryAssetQuery,
 } from '../providers/registry';
 import { navigate } from '../router';
-import { setComposerSeed, setDesignSystemAssetSeed } from '../state/libraryHandoff';
+import { setComposerSeed, setDesignSystemAssetSeed, setHomeComposerAssetSeed } from '../state/libraryHandoff';
 import { Button, Dialog, DialogDescription, DialogFooter, DialogTitle } from '@open-design/components';
 import { Icon } from './Icon';
 import {
@@ -337,6 +337,28 @@ export function LibrarySection({ active, onOpenProject }: Props) {
       setDsMenuOpen(false);
       setSelectedIds(new Set());
       navigate({ kind: 'design-system-create' });
+    } finally {
+      setDsBusy(false);
+    }
+  }, [assets, selectedIds]);
+
+  // "Chat to design": fetch the selected assets into File objects, hand them to
+  // the Home chat composer, and navigate there. The user lands in the creation
+  // composer with the assets staged, describes what to build, and Runs to spawn
+  // a new project — the assets ride the normal upload-on-Run path. Mirrors the
+  // create-design-system File hand-off above, but the destination is Home.
+  const chatToDesignFromSelection = useCallback(async () => {
+    const chosen = assets.filter((a) => selectedIds.has(a.id));
+    if (!chosen.length) return;
+    setDsBusy(true);
+    try {
+      const files = (await Promise.all(chosen.map((a) => fetchLibraryAssetAsFile(a)))).filter(
+        (f): f is File => f !== null,
+      );
+      if (!files.length) return;
+      setHomeComposerAssetSeed({ files });
+      setSelectedIds(new Set());
+      navigate({ kind: 'home', view: 'home' });
     } finally {
       setDsBusy(false);
     }
@@ -792,6 +814,18 @@ export function LibrarySection({ active, onOpenProject }: Props) {
             Clear
           </button>
           <span className={styles.selectionSpacer} />
+          <button
+            type="button"
+            className={styles.chatBtn}
+            onClick={() => void chatToDesignFromSelection()}
+            disabled={dsBusy}
+            title={`Start a chat to turn ${selectedCount} into a design`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Chat to design
+          </button>
           <div className={styles.dsMenuWrap} ref={dsMenuWrapRef}>
             <button
               type="button"

@@ -16,7 +16,7 @@ export const uk: Dict = {
   'chat.connectionDropped': 'З’єднання зі службою моделі обірвалося до завершення відповіді — зазвичай через нестабільну мережу або проксі. Повторіть спробу.',
   'common.cancel': 'Скасувати',
   'chat.selectFromLibrary': 'Імпортувати з бібліотеки',
-  'designFiles.library.label': 'Бібліотека',
+  'designFiles.library.label': 'Імпортувати з бібліотеки',
   'designFiles.library.title': 'Імпортувати з бібліотеки',
   'libraryPicker.title': 'Імпортувати з бібліотеки',
   'libraryPicker.searchPlaceholder': 'Пошук у бібліотеці…',

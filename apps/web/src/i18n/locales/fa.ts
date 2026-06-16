@@ -16,7 +16,7 @@ export const fa: Dict = {
   'chat.connectionDropped': 'اتصال به سرویس مدل پیش از پایان پاسخ قطع شد — معمولاً به دلیل شبکه یا پراکسی ناپایدار. لطفاً دوباره تلاش کنید.',
   'common.cancel': 'لغو',
   'chat.selectFromLibrary': 'وارد کردن از کتابخانه',
-  'designFiles.library.label': 'کتابخانه',
+  'designFiles.library.label': 'وارد کردن از کتابخانه',
   'designFiles.library.title': 'وارد کردن از کتابخانه',
   'libraryPicker.title': 'وارد کردن از کتابخانه',
   'libraryPicker.searchPlaceholder': 'جست‌وجو در کتابخانه…',

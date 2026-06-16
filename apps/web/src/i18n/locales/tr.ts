@@ -16,7 +16,7 @@ export const tr: Dict = {
   'chat.connectionDropped': 'Yanıt tamamlanmadan model hizmetiyle bağlantı koptu — genellikle kararsız bir ağ veya proxy nedeniyle. Lütfen yeniden deneyin.',
   'common.cancel': 'İptal et',
   'chat.selectFromLibrary': 'Kitaplıktan içe aktar',
-  'designFiles.library.label': 'Kitaplık',
+  'designFiles.library.label': 'Kitaplıktan içe aktar',
   'designFiles.library.title': 'Kitaplıktan içe aktar',
   'libraryPicker.title': 'Kitaplıktan içe aktar',
   'libraryPicker.searchPlaceholder': 'Kitaplıkta ara…',

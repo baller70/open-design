@@ -16,7 +16,7 @@ export const ar: Dict = {
   'chat.connectionDropped': 'انقطع الاتصال بخدمة النموذج قبل اكتمال الاستجابة — عادةً بسبب شبكة أو وكيل (proxy) غير مستقر. يرجى إعادة المحاولة.',
   'common.cancel': 'إلغاء',
   'chat.selectFromLibrary': 'استيراد من المكتبة',
-  'designFiles.library.label': 'المكتبة',
+  'designFiles.library.label': 'استيراد من المكتبة',
   'designFiles.library.title': 'استيراد من المكتبة',
   'libraryPicker.title': 'استيراد من المكتبة',
   'libraryPicker.searchPlaceholder': 'البحث في المكتبة…',

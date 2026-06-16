@@ -16,7 +16,7 @@ export const pl: Dict = {
   'chat.connectionDropped': 'Połączenie z usługą modelu zostało przerwane przed zakończeniem odpowiedzi — zwykle z powodu niestabilnej sieci lub serwera proxy. Spróbuj ponownie.',
   'common.cancel': 'Anuluj',
   'chat.selectFromLibrary': 'Importuj z biblioteki',
-  'designFiles.library.label': 'Biblioteka',
+  'designFiles.library.label': 'Importuj z biblioteki',
   'designFiles.library.title': 'Importuj z biblioteki',
   'libraryPicker.title': 'Importuj z biblioteki',
   'libraryPicker.searchPlaceholder': 'Szukaj w bibliotece…',

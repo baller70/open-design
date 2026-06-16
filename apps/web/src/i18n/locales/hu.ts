@@ -16,7 +16,7 @@ export const hu: Dict = {
   'chat.connectionDropped': 'A modellszolgáltatáshoz való kapcsolat megszakadt a válasz befejezése előtt – általában instabil hálózat vagy proxy miatt. Kérjük, próbáld újra.',
   'common.cancel': 'Mégse',
   'chat.selectFromLibrary': 'Importálás a könyvtárból',
-  'designFiles.library.label': 'Könyvtár',
+  'designFiles.library.label': 'Importálás a könyvtárból',
   'designFiles.library.title': 'Importálás a könyvtárból',
   'libraryPicker.title': 'Importálás a könyvtárból',
   'libraryPicker.searchPlaceholder': 'Keresés a könyvtárban…',

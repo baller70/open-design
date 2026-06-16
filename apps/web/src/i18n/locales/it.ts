@@ -16,7 +16,7 @@ export const it: Dict = {
   'chat.connectionDropped': 'La connessione al servizio del modello è caduta prima del completamento della risposta, di solito a causa di una rete o di un proxy instabili. Riprova.',
   'common.cancel': 'Annulla',
   'chat.selectFromLibrary': 'Importa dalla libreria',
-  'designFiles.library.label': 'Libreria',
+  'designFiles.library.label': 'Importa dalla libreria',
   'designFiles.library.title': 'Importa dalla libreria',
   'libraryPicker.title': 'Importa dalla libreria',
   'libraryPicker.searchPlaceholder': 'Cerca nella libreria…',

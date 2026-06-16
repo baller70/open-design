@@ -73,7 +73,7 @@ describe('DesignSystemsTab', () => {
     );
 
     // "Your systems" is the default scope: Acme shows, Linear (a preset) does not.
-    expect(screen.getByTestId('design-systems-create')).toHaveTextContent('Create');
+    expect(screen.getByTestId('design-systems-create').textContent).toContain('Create');
     expect(screen.getByTestId('design-system-card-user:acme')).toBeTruthy();
     expect(screen.queryByTestId('design-system-card-linear')).toBeNull();
 

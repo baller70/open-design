@@ -16,7 +16,7 @@ export const th: Dict = {
   'chat.connectionDropped': 'การเชื่อมต่อกับบริการโมเดลหลุดก่อนที่การตอบกลับจะเสร็จสิ้น — มักเกิดจากเครือข่ายหรือพร็อกซีที่ไม่เสถียร โปรดลองอีกครั้ง',
   'common.cancel': 'ยกเลิก',
   'chat.selectFromLibrary': 'นำเข้าจากไลบรารี',
-  'designFiles.library.label': 'ไลบรารี',
+  'designFiles.library.label': 'นำเข้าจากไลบรารี',
   'designFiles.library.title': 'นำเข้าจากไลบรารี',
   'libraryPicker.title': 'นำเข้าจากไลบรารี',
   'libraryPicker.searchPlaceholder': 'ค้นหาในไลบรารี…',

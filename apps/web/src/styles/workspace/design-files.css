@@ -79,6 +79,10 @@
 /* Single-line top toolbar: left = up + refresh + breadcrumbs, right = file actions. */
 .df-topbar {
   margin: 0 20px 4px;
+  /* Vertical padding gives each action button's hover tint room to breathe so
+     the rounded box reads as a contained pill instead of bleeding into the tab
+     strip above and the file list below. */
+  padding: 4px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;

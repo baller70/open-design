@@ -16,7 +16,7 @@ export const ptBR: Dict = {
   'chat.connectionDropped': 'A conexão com o serviço do modelo caiu antes de a resposta terminar — geralmente uma rede ou proxy instável. Tente novamente.',
   'common.cancel': 'Cancelar',
   'chat.selectFromLibrary': 'Importar da biblioteca',
-  'designFiles.library.label': 'Biblioteca',
+  'designFiles.library.label': 'Importar da biblioteca',
   'designFiles.library.title': 'Importar da biblioteca',
   'libraryPicker.title': 'Importar da biblioteca',
   'libraryPicker.searchPlaceholder': 'Pesquisar na biblioteca…',

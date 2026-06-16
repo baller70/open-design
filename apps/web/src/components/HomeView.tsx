@@ -41,6 +41,7 @@ import {
   resolvePluginQueryFallback,
 } from '../state/projects';
 import { fetchMcpServers } from '../state/mcp';
+import { takeHomeComposerAssetSeed } from '../state/libraryHandoff';
 import { useI18n, useT } from '../i18n';
 import {
   localizeSkillName,
@@ -539,6 +540,17 @@ export function HomeView({
     setPendingChipId('create-plugin');
     scrollHomeToTop();
   }, [promptHandoff, scrollHomeToTop]);
+
+  // "Chat to design" hand-off from the Library multi-select bar: the chosen
+  // assets are parked as File objects in a single-shot store, then we navigate
+  // here. When this view becomes active, drain the seed and stage the files so
+  // they ride the normal upload-on-Run path into the new project. The store is
+  // single-shot, so later activations with no pending seed are no-ops.
+  useEffect(() => {
+    if (!isActive) return;
+    const seed = takeHomeComposerAssetSeed();
+    if (seed && seed.files.length > 0) stageFiles(seed.files);
+  }, [isActive]);
 
   const activeContextItemCount = useMemo(
     () =>

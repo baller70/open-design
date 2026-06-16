@@ -16,7 +16,7 @@ export const zhCN: Dict = {
   'chat.connectionDropped': '与模型服务的连接在响应完成前中断了——通常是网络或代理不稳定。请重试。',
   'common.cancel': '取消',
   'chat.selectFromLibrary': '从资源库导入',
-  'designFiles.library.label': '资源库',
+  'designFiles.library.label': '从资源库导入',
   'designFiles.library.title': '从资源库导入',
   'libraryPicker.title': '从资源库导入',
   'libraryPicker.searchPlaceholder': '搜索资源库…',

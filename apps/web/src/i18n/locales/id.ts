@@ -16,7 +16,7 @@ export const id: Dict = {
   'chat.connectionDropped': 'Koneksi ke layanan model terputus sebelum respons selesai — biasanya karena jaringan atau proxy yang tidak stabil. Silakan coba lagi.',
   'common.cancel': 'Batal',
   'chat.selectFromLibrary': 'Impor dari pustaka',
-  'designFiles.library.label': 'Pustaka',
+  'designFiles.library.label': 'Impor dari pustaka',
   'designFiles.library.title': 'Impor dari pustaka',
   'libraryPicker.title': 'Impor dari pustaka',
   'libraryPicker.searchPlaceholder': 'Cari di pustaka…',

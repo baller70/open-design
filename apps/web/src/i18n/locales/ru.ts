@@ -16,7 +16,7 @@ export const ru: Dict = {
   'chat.connectionDropped': 'Соединение с сервисом модели прервалось до завершения ответа — обычно из-за нестабильной сети или прокси. Повторите попытку.',
   'common.cancel': 'Отмена',
   'chat.selectFromLibrary': 'Импортировать из библиотеки',
-  'designFiles.library.label': 'Библиотека',
+  'designFiles.library.label': 'Импортировать из библиотеки',
   'designFiles.library.title': 'Импортировать из библиотеки',
   'libraryPicker.title': 'Импортировать из библиотеки',
   'libraryPicker.searchPlaceholder': 'Поиск в библиотеке…',

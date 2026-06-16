@@ -82,12 +82,13 @@
 
 .alt {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
   margin-top: -2px;
 }
 .altText {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
   color: var(--text-muted);
   font-size: 12px;

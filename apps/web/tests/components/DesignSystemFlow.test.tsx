@@ -1391,9 +1391,8 @@ describe('DesignSystemCreationFlow', () => {
       />,
     );
     const assetInput = screen
-      .getByText('Drag files here or browse')
-      .closest('label')
-      ?.querySelector('input') as HTMLInputElement | null;
+      .getByTestId('ds-asset-dropzone')
+      .querySelector('input[type="file"]') as HTMLInputElement | null;
     const logoFile = new File(['<svg />'], 'logo.svg', { type: 'image/svg+xml' });
     const fontFile = new File(['font-data'], 'brand.woff2', { type: 'font/woff2' });
 
@@ -1401,7 +1400,6 @@ describe('DesignSystemCreationFlow', () => {
       target: { value: 'Assets: product brand with custom logo and font' },
     });
     fireEvent.change(assetInput!, { target: { files: [logoFile, fontFile] } });
-    expect(screen.getByText('Drag files here or browse')).toBeTruthy();
     expect(screen.getByText('logo.svg')).toBeTruthy();
     expect(screen.getByText('brand.woff2')).toBeTruthy();
     expect(screen.queryByTestId('ds-source-upload-loading')).toBeNull();
