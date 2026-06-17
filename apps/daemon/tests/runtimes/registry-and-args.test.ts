@@ -371,6 +371,41 @@ test('codex model picker includes current OpenAI choices in priority order', asy
   }
 });
 
+test('codex probes login status so rescans reflect CLI auth changes', async () => {
+  assert.deepEqual(codex.authProbe, {
+    args: ['login', 'status'],
+    timeoutMs: 5000,
+  });
+
+  const dir = mkdtempSync(join(tmpdir(), 'od-agents-codex-auth-'));
+  try {
+    await withEnvSnapshot(['PATH', 'OD_AGENT_HOME', 'CODEX_BIN'], async () => {
+      const codexBin = join(dir, 'codex');
+      writeFileSync(
+        codexBin,
+        `#!/bin/sh
+if [ "$1" = "--version" ]; then echo "codex-cli 9.9.9"; exit 0; fi
+if [ "$1" = "login" ] && [ "$2" = "status" ]; then echo "Logged in using ChatGPT"; exit 0; fi
+exit 0
+`,
+      );
+      chmodSync(codexBin, 0o755);
+      process.env.OD_AGENT_HOME = dir;
+      process.env.PATH = dir;
+      delete process.env.CODEX_BIN;
+
+      const agents = await detectAgents();
+      const detected = agents.find((agent) => agent.id === 'codex');
+
+      assert.ok(detected);
+      assert.equal(detected.available, true);
+      assert.equal(detected.authStatus, 'ok');
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('codex parses live model catalog from debug models JSON', () => {
   assert.ok(codex.listModels, 'codex must define live model discovery');
   const parsed = codex.listModels.parse(JSON.stringify({
@@ -413,6 +448,7 @@ if [ "$1" = "debug" ] && [ "$2" = "models" ]; then
   printf '%s\\n' '{"models":[{"slug":"gpt-6-codex","display_name":"GPT-6 Codex","visibility":"list"}]}'
   exit 0
 fi
+if [ "$1" = "login" ] && [ "$2" = "status" ]; then echo "Logged in using ChatGPT"; exit 0; fi
 exit 2
 `,
       );
