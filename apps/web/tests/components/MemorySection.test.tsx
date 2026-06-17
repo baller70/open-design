@@ -66,6 +66,10 @@ async function openManualMemoryTab() {
   fireEvent.click(await screen.findByRole('tab', { name: 'Add manually' }));
 }
 
+async function openAdvancedMemoryModal() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Advanced' }));
+}
+
 // The top-level "Memories" / "How it works" tabs render their label plus a
 // caption, so their accessible name is composite. Match by the leading label.
 const howItWorksTopTab = { name: /^How it works/ } as const;
@@ -203,7 +207,6 @@ describe('MemorySection', () => {
     await waitFor(() => {
       expect(screen.getByText('UI preferences')).toBeTruthy();
     });
-    expect(screen.getByText('✓ Memory created')).toBeTruthy();
     expect(createBodies).toEqual([
       {
         name: 'UI preferences',
@@ -290,9 +293,7 @@ describe('MemorySection', () => {
 
     renderMemorySection();
 
-    // The entry editor opened from a tree node renders inside the Add-manually
-    // sub-tab.
-    await openManualMemoryTab();
+    await openAdvancedMemoryModal();
     const treeSummary = await screen.findByText('Memory tree');
     const treeDetails = treeSummary.closest('details')!;
     expect(within(treeDetails).getByText('/project')).toBeTruthy();
@@ -378,6 +379,7 @@ describe('MemorySection', () => {
 
     renderMemorySection();
 
+    await openAdvancedMemoryModal();
     const treeDetails = (await screen.findByText('Memory tree')).closest('details')!;
     const childRow = within(treeDetails)
       .getByText('Design agent goal')
@@ -427,9 +429,7 @@ describe('MemorySection', () => {
 
     renderMemorySection();
 
-    // The "✓ Index saved" flash toast renders inside the Add-manually sub-tab,
-    // so open it before saving the index.
-    await openManualMemoryTab();
+    await openAdvancedMemoryModal();
     fireEvent.click(await screen.findByText('MEMORY.md (index)'));
     const indexArea = await findMemoryIndexTextarea();
     fireEvent.change(indexArea, {
@@ -440,9 +440,8 @@ describe('MemorySection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save index' }));
 
     await waitFor(() => {
-      expect(screen.getByText('✓ Index saved')).toBeTruthy();
+      expect(putBodies).toEqual(['# Memory\n\n- Existing bullet\n- New bullet\n']);
     });
-    expect(putBodies).toEqual(['# Memory\n\n- Existing bullet\n- New bullet\n']);
   });
 
   it('reveals the editor after editing an existing memory entry', async () => {
@@ -563,6 +562,7 @@ describe('MemorySection', () => {
     const savedRow = await screen.findByText('UI preferences');
     const extractionRow = await screen.findByText('Remember I prefer dark mode');
     await openAddMemories();
+    await openAdvancedMemoryModal();
     const indexSummary = screen.getByText('MEMORY.md (index)')
       .closest('summary') as HTMLElement;
 
@@ -572,7 +572,8 @@ describe('MemorySection', () => {
     expect(extractionRow.closest('.library-card')?.className).toContain(
       'memory-extraction-card',
     );
-    expect(indexSummary.closest('.memory-advanced-section')).toBeTruthy();
+    expect(indexSummary.closest('.memory-action-modal--advanced')).toBeTruthy();
+    expect(indexSummary.closest('.memory-advanced-card')).toBeTruthy();
     expect(indexSummary.closest('.memory-records-section')).toBeNull();
 	    expect(screen.queryByText('Extraction history')).toBeNull();
 	    expect(indexSummary.className).toContain('memory-details-summary');
@@ -1490,7 +1491,7 @@ describe('MemorySection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(screen.getByText('✓ Memory saved')).toBeTruthy();
+      expect(screen.getByText('Updated preference')).toBeTruthy();
     });
     expect(putBodies).toEqual([
       {
@@ -1501,7 +1502,6 @@ describe('MemorySection', () => {
         body: '- Prefer spacious layouts',
       },
     ]);
-    expect(screen.getByText('Updated preference')).toBeTruthy();
   });
 
   it('keeps the expanded preview control visually distinct from delete', async () => {
@@ -1706,6 +1706,7 @@ describe('MemorySection', () => {
 
     renderMemorySection();
 
+    await openAdvancedMemoryModal();
     fireEvent.click(await screen.findByText('MEMORY.md (index)'));
     const indexArea = await findMemoryIndexTextarea();
     fireEvent.change(indexArea, {
