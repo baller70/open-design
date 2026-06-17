@@ -2,7 +2,7 @@
 //
 // Renders a narrow icon-only column. The first slot is the brand logo,
 // followed by the primary destinations users expect to keep in reach:
-// New project, home, projects, automations, design systems, plugins,
+// New project, home, projects, brand kit, automations, plugins,
 // and integrations. Footer controls are reserved for lower-frequency
 // support affordances such as the help launcher.
 // Language switching and other account-scoped controls live behind the
@@ -21,6 +21,7 @@ export type EntryView =
   | 'plugins'
   | 'design-systems'
   | 'library'
+  | 'brands'
   | 'integrations';
 
 interface Props {
@@ -147,6 +148,15 @@ export function EntryNavRail({ view, onViewChange, onNewProject, open, onClose }
           testId="entry-nav-projects"
         >
           <Icon name="folder" size={18} />
+        </NavButton>
+        <NavButton
+          active={view === 'brands'}
+          ariaLabel={t('entry.navBrands')}
+          tooltip={t('entry.navBrands')}
+          onClick={() => selectView('brands')}
+          testId="entry-nav-brands"
+        >
+          <Icon name="swatchbook" size={18} />
         </NavButton>
         <NavButton
           active={view === 'design-systems'}

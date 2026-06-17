@@ -17,10 +17,22 @@ export type EntryHomeView =
   | 'plugins'
   | 'design-systems'
   | 'library'
+  | 'brands'
   | 'integrations';
 
 export type Route =
-  | { kind: 'home'; view: EntryHomeView }
+  | {
+      kind: 'home';
+      view: EntryHomeView;
+      /**
+       * Optional preselected brand for the Brands tab. The tab renders
+       * everything inline in its preview panel (there is no separate detail
+       * view), so a `/brands/:id` deep-link simply drives which brand the
+       * inline preview shows. Lets external surfaces (the rail, a chat link)
+       * select a specific brand without leaving the tab.
+       */
+      brandId?: string;
+    }
   | { kind: 'design-system-create' }
   | { kind: 'design-system-detail'; designSystemId: string }
   | {
@@ -83,6 +95,15 @@ export function parseRoute(pathname: string): Route {
     }
     return { kind: 'home', view: 'design-systems' };
   }
+  if (parts[0] === 'brands') {
+    // The Brands tab shows everything inline in its preview panel; there is no
+    // separate detail view. A `/brands/:id` deep-link just preselects which
+    // brand the inline preview renders.
+    if (parts[1]) {
+      return { kind: 'home', view: 'brands', brandId: decodeURIComponent(parts[1]) };
+    }
+    return { kind: 'home', view: 'brands' };
+  }
   if (parts[0] === 'automations' || parts[0] === 'tasks') {
     return { kind: 'home', view: 'tasks' };
   }
@@ -117,6 +138,9 @@ export function buildPath(route: Route): string {
     if (route.view === 'plugins') return '/plugins';
     if (route.view === 'design-systems') return '/design-systems';
     if (route.view === 'library') return '/library';
+    if (route.view === 'brands') {
+      return route.brandId ? `/brands/${encodeURIComponent(route.brandId)}` : '/brands';
+    }
     if (route.view === 'integrations') return '/integrations';
     return '/';
   }
