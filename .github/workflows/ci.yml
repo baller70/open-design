@@ -351,15 +351,11 @@ jobs:
         run: pnpm --filter @open-design/tools-pack exec vitest run tests/launcher-payload.test.ts
 
   daemon_workspace_tests:
-    name: Daemon workspace tests (${{ matrix.shard }})
+    name: Daemon watcher tests
     needs: [change_scopes]
     if: ${{ needs.change_scopes.outputs.daemon_tests_required == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: ["watcher"]
 
     steps:
       - name: Checkout
@@ -384,32 +380,6 @@ jobs:
         env:
           OD_WATCHER_TEST_DEBUG: "1"
         run: pnpm --filter @open-design/daemon exec vitest run -c vitest.config.ts tests/project-watchers.test.ts
-
-  daemon_workspace_gate:
-    name: Daemon workspace tests
-    needs:
-      - change_scopes
-      - daemon_workspace_tests
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Check daemon workspace test shards
-        env:
-          DAEMON_REQUIRED: ${{ needs.change_scopes.outputs.daemon_tests_required }}
-          NEEDS_JSON: ${{ toJSON(needs) }}
-        run: |
-          set -euo pipefail
-          echo "$NEEDS_JSON" | jq .
-          shard_result="$(echo "$NEEDS_JSON" | jq -r '.daemon_workspace_tests.result')"
-          if [ "$DAEMON_REQUIRED" != "true" ] && [ "$shard_result" = "skipped" ]; then
-            exit 0
-          fi
-          if [ "$shard_result" != "success" ]; then
-            echo "Daemon workspace test shards failed: $shard_result"
-            exit 1
-          fi
 
   web_workspace_tests:
     name: Web workspace tests
@@ -515,7 +485,7 @@ jobs:
       - nix_validation
       - workspace_unit_tests
       - windows_tools_pack_payload_tests
-      - daemon_workspace_gate
+      - daemon_workspace_tests
       - web_workspace_tests
       - e2e_vitest
       - playwright_critical
