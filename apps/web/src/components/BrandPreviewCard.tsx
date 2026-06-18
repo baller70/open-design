@@ -380,11 +380,11 @@ export function BrandPreviewCard({
     if (busy) return;
     const ok = window.confirm(t('brandDetail.deleteConfirm').replace('{name}', name));
     if (!ok) return;
-    onBeforeMutation?.();
     setBusy(true);
     try {
       await fetch(`/api/brands/${encodeURIComponent(meta.id)}`, { method: 'DELETE' });
       // Drop the now-stale `/brands/:id` selection before refreshing the list.
+      onBeforeMutation?.();
       navigate({ kind: 'home', view: 'brands' }, { replace: true });
       await onChanged?.();
     } catch {

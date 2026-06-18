@@ -142,7 +142,7 @@ describe('BrandPreviewCard', () => {
     expect(container.querySelectorAll('iframe')).toHaveLength(0);
   });
 
-  it('clears the parent detail before deleting a brand', async () => {
+  it('clears the parent detail after deleting a brand', async () => {
     const events: string[] = [];
     vi.stubGlobal('confirm', vi.fn(() => true));
     vi.stubGlobal(
@@ -175,6 +175,39 @@ describe('BrandPreviewCard', () => {
     await waitFor(() => {
       expect(events).toContain('refresh');
     });
-    expect(events.slice(0, 2)).toEqual(['clear-preview', 'fetch-delete']);
+    expect(events).toEqual(['fetch-delete', 'clear-preview', 'refresh']);
+  });
+
+  it('keeps the parent detail selected when deleting a brand fails', async () => {
+    const onBeforeMutation = vi.fn();
+    vi.stubGlobal('confirm', vi.fn(() => true));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).startsWith('/api/brands/') && init?.method === 'DELETE') {
+          throw new Error('delete failed');
+        }
+        return { ok: true, json: async () => ({}) };
+      }),
+    );
+
+    render(
+      <I18nProvider initial="en">
+        <BrandPreviewCard
+          summary={rampBrand}
+          variant="panel"
+          onBeforeMutation={onBeforeMutation}
+          onChanged={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId('brand-preview-delete'));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith('/api/brands/brand-ramp', { method: 'DELETE' });
+      expect((screen.getByTestId('brand-preview-delete') as HTMLButtonElement).disabled).toBe(false);
+    });
+    expect(onBeforeMutation).not.toHaveBeenCalled();
   });
 });
