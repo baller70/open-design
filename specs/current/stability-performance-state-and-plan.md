@@ -28,7 +28,7 @@ Failures are split into two views, aligned with the official "0.10.0 Release Hea
 
 ## 1.3 Performance map (TTFT)
 - The main TTFT contributor is **model first byte** (claude self-reports `[API:timing] 3140ms`, provider side, outside our control); inside setup (claude ~1.7s / opencode ~2.3s), MCP connection is the only variable component, but it depends on the user's configured MCP count.
-- **Phantoms ruled out**: bun install (shipped opencode is self-contained), process cold start, claude session (main already uses `--resume`), prefix front-loading (mostly already done by the author).
+- **Phantoms ruled out**: bun install (shipped opencode is self-contained), process cold start, claude session (main already uses `--resume`). Prompt-prefix stability is **partly** done: #4203 (`perf(prompts): system-prompt dedup + on-demand injection`) deduped instructions and gated big blocks on session-stable signals explicitly "so the stable-prompt fingerprint stays cacheable" — but it did NOT physically move the remaining volatile blocks (file list / MCP list / personal memory / run context) after the stable transcript; that residual move is startup-spec Phase 3a, not yet done.
 - **Misleading instrumentation**: opencode/codex/gemini "slow TTFT" (31s/20s/78s) is mostly because `time_to_first_token` measures "first visible text", while agentic CLIs plan and call tools before emitting text (measured: opencode with tools is +12s vs without tools) → users can see progress; it is not frozen.
 - **Real large item (but a project)**: AMR resends the full history every turn (turn-1 ~100k / turn-2+ ~153k uncached tokens) → latency + balance burn. The optimization sits in the vela/opencode stack and is a cross-repo project.
 
@@ -76,17 +76,23 @@ Ordered by `our-fault × user reach × run count × balance/cost impact × engin
 - **Fix** Add/change instrumentation to measure "model first token".
 - Drill-down: pending
 
-### P3 (project) · AMR latency: session reuse + cache efficiency
-- **Type** Performance project (cross-repo vela) · **Our fault** Yes (architecture) · **Benefit** Follow-up turns ~11s→~6-7s + lower token/balance usage (linked to insufficient_balance); **reach 31% of users** · **Cost** Large (project)
-- **Current state** Dedicated spec and codex feasibility review already exist: caching is already done in the Vela Link gateway (no 1h TTL); session reuse is an architecture change (vela `loadSession:false` + temp home deletion each turn, opencode reload not verified). Two steps: Step1 gateway 1h TTL + stable prefix (small); Step2 session reuse (large).
+### P2 · Cacheable-prefix stabilization (cheap, helps every agent incl. AMR)
+- **Type** Perf/engine · **Our fault** Yes · **Benefit** Raises the cross-turn first-call cache floor (production: AMR turn-2+ first call hits only ~21%, carried entirely by the static `[system+tools]` prefix) · **Cost** Small
+- **Current state** Volatile blocks (file list / MCP / personal memory / run context) are interleaved at the FRONT of the prefix; any change shifts bytes and breaks even the static-prefix hit. #4203 did dedup + on-demand gating but did NOT move the residual volatile blocks after the stable transcript.
+- **Fix** Move volatile blocks after the stable prefix (startup-spec Phase 3a) + add the "prefix-fingerprint invariant" red-line test so future features can't silently re-break it.
+- Drill-down: `agent-startup-latency-profiling.md` (Phase 3a + guardrail)
+
+### P3 (project) · AMR latency: cross-turn cache reuse
+- **Type** Performance project (cross-repo vela) · **Our fault** Yes (architecture) · **Benefit** AMR turn-2+ **first** call (TTFT-critical) is cache-cold — production `link.usage_events`: ~21% hit, ~24.5k uncached, ~12s, while within-turn loop calls hit ~79%; lift first-call toward ~80% → lower TTFT + balance burn; **reach 31% of users** · **Cost** Large (project)
+- **Current state (production-measured, corrects earlier draft)** The old "153k uncached every turn" was wrong — 153k is the context SIZE, mostly cached; real per-turn-first-call uncached is ~24.5k. The history doesn't reuse because we flatten opencode's structured turn into text + feed a fresh session (structured cache no longer byte-matches), and DeepSeek's auto-cache decays with the inter-turn gap (first-call hit 55%@15s → 21%@120s). Step 1 = cheap gateway 1h TTL + the P2 prefix move (hold the static prefix warm); Step 2 = vela session reuse (large) only if first-call uncached remains dominant after Step 1.
 - Drill-down: `amr-latency-session-reuse-prompt-cache.md`
 
 ---
 
 ## Not doing (ruled out, with reasons)
 - ❌ Non-AMR auth precheck: not our fault + user self-heals = vanity metrics.
-- ❌ bun install / process cold start / claude session reuse / major prefix rewrite: already done or not real.
+- ❌ bun install / process cold start / claude session reuse: already done or not real. (Prefix stability is only *partly* done — #4203 kept the fingerprint cacheable via dedup + on-demand gating; the residual volatile-block move is still open as startup-spec Phase 3a.)
 - ❌ Treating opencode 31s as a "performance bug": mostly a metric-definition issue (see P2).
 
 ## Suggested execution order
-**P0-b(fix_config)→ P1(process_exit follow-up + reduce_context)→ P2(switch_model + TTFT definition)→ P3(AMR project).** P0-a is complete.
+**P0-b(fix_config)→ P1(process_exit follow-up + reduce_context)→ P2(switch_model + TTFT definition + cacheable-prefix stabilization)→ P3(AMR cross-turn cache project).** P0-a is complete.
