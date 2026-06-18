@@ -17,7 +17,7 @@ on:
         description: "Build and publish macOS x64 beta artifacts."
         required: true
         type: boolean
-        default: false
+        default: true
       enable_linux_x64:
         description: "Build and publish Linux x64 AppImage beta artifacts."
         required: true
