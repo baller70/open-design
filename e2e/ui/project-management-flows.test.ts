@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '@/playwright/suite';
 import { ensureRailOpen } from '@/playwright/rail';
 import type { Locator, Page, Request, Route } from '@playwright/test';
 import { routeAgents } from '../lib/playwright/mock-factory.js';
@@ -541,6 +541,154 @@ test('[P0] project detail composer agent and model switches carry into the next 
   expect(runRequestBodies.length).toBeGreaterThan(0);
   expect(runRequestBodies[0]?.agentId).toBe('claude');
   expect(runRequestBodies[0]?.model).toBe('sonnet');
+});
+
+test('[P0] @critical project detail composer BYOK model switch persists from the agent menu', async ({ page }) => {
+  test.setTimeout(60_000);
+  const config = {
+    mode: 'daemon',
+    apiKey: 'sk-openai-test',
+    apiProtocol: 'openai',
+    apiVersion: '',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-2024-05-13',
+    apiProviderBaseUrl: 'https://api.openai.com/v1',
+    agentId: 'codex',
+    skillId: null,
+    designSystemId: null,
+    onboardingCompleted: true,
+    privacyDecisionAt: 1,
+    telemetry: { metrics: false, content: false, artifactManifest: false },
+    mediaProviders: {},
+    agentModels: { codex: { model: 'default' } },
+    agentCliEnv: {},
+  };
+
+  await page.addInitScript(
+    ({ key, value }) => {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    },
+    { key: STORAGE_KEY, value: config },
+  );
+  await page.route('**/api/app-config', async (route) => {
+    if (route.request().method() === 'PUT') {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ config: body }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ config }),
+    });
+  });
+
+  await page.goto('/');
+  await createProject(page, 'Composer BYOK model switch');
+  await expectWorkspaceReady(page);
+
+  const { menu } = await openComposerAgentMenu(page);
+  await menu.getByRole('button', { name: /API · BYOK|Use API/i }).click();
+
+  const modelSelect = menu.locator('.avatar-model-section [role="combobox"]').first();
+  await expect(modelSelect).toContainText('gpt-4o-2024-05-13');
+  await modelSelect.click();
+  const modelPopover = page.getByTestId('avatar-byok-model-popover');
+  await expect(modelPopover.getByRole('option', { name: /^gpt-4o-mini$/i })).toBeVisible();
+  await expect(modelPopover.getByRole('option', { name: /deepseek/i })).toHaveCount(0);
+  await expect(modelPopover.getByRole('option', { name: /MiniMax/i })).toHaveCount(0);
+  await modelPopover.getByRole('option', { name: /^gpt-4o-mini$/i }).click();
+
+  await expect(modelSelect).toContainText('gpt-4o-mini');
+  await expect.poll(async () => page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }, STORAGE_KEY)).toMatchObject({
+    mode: 'api',
+    model: 'gpt-4o-mini',
+  });
+});
+
+test('[P0] @critical project detail composer keeps Local CLI and BYOK model choices isolated', async ({ page }) => {
+  test.setTimeout(60_000);
+  const config = {
+    mode: 'daemon',
+    apiKey: 'sk-openai-test',
+    apiProtocol: 'openai',
+    apiVersion: '',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-2024-05-13',
+    apiProviderBaseUrl: 'https://api.openai.com/v1',
+    agentId: 'codex',
+    skillId: null,
+    designSystemId: null,
+    onboardingCompleted: true,
+    privacyDecisionAt: 1,
+    telemetry: { metrics: false, content: false, artifactManifest: false },
+    mediaProviders: {},
+    agentModels: { codex: { model: 'default' } },
+    agentCliEnv: {},
+  };
+
+  await page.addInitScript(
+    ({ key, value }) => {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    },
+    { key: STORAGE_KEY, value: config },
+  );
+  await page.route('**/api/app-config', async (route) => {
+    if (route.request().method() === 'PUT') {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ config: body }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ config }),
+    });
+  });
+
+  await page.goto('/');
+  await createProject(page, 'Composer model mode isolation');
+  await expectWorkspaceReady(page);
+
+  const { menu, claudeButton } = await openComposerAgentMenu(page);
+  await claudeButton.click();
+  const localModelSelect = menu.locator('.avatar-model-section [role="combobox"]').first();
+  await localModelSelect.click();
+  await page.getByRole('option', { name: /^Sonnet \(alias\)$/i }).click();
+  await expect(localModelSelect).toContainText(/Sonnet/i);
+
+  await menu.getByRole('button', { name: /API · BYOK|Use API/i }).click();
+  const byokModelSelect = menu.locator('.avatar-model-section [role="combobox"]').first();
+  await expect(byokModelSelect).toContainText('gpt-4o-2024-05-13');
+  await byokModelSelect.click();
+  await page.getByTestId('avatar-byok-model-popover').getByRole('option', { name: /^gpt-4o-mini$/i }).click();
+  await expect(byokModelSelect).toContainText('gpt-4o-mini');
+
+  await menu.getByRole('button', { name: /Local CLI|Use local|本机 CLI|本地 CLI/i }).click();
+  await expect(claudeButton).toHaveAttribute('aria-current', 'true');
+  await expect(localModelSelect).toContainText(/Sonnet/i);
+  await expect.poll(async () => page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }, STORAGE_KEY)).toMatchObject({
+    mode: 'daemon',
+    agentId: 'claude',
+    model: 'gpt-4o-mini',
+    agentModels: {
+      claude: { model: 'sonnet' },
+    },
+  });
 });
 
 test('[P0] clearing the project design system removes designSystemId from the next run request', async ({ page }) => {

@@ -4580,6 +4580,13 @@ section.tight { padding: 90px 0; }
   font-size: 15px;
   color: var(--ink);
 }
+.newsletter-error {
+  flex-basis: 100%;
+  margin: 8px 0 0;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--coral, #ed6f5c);
+}
 @media (max-width: 720px) {
   .newsletter { padding: 72px 0; }
   .newsletter-grid {
@@ -4893,8 +4900,8 @@ footer .container {
 }
 .sub-footer-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 40px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 28px;
   margin-bottom: 36px;
 }
 .sub-footer-col h5 {
@@ -4906,6 +4913,17 @@ footer .container {
   margin-bottom: 14px;
   font-weight: 500;
 }
+/* Column headers that double as links (Solution / Agent / Plugins /
+   Compare) keep the eyebrow styling but become clickable. */
+.sub-footer-col h5 a {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.16s ease;
+}
+.sub-footer-col h5 a:hover { color: var(--coral); }
 .sub-footer-col ul {
   list-style: none;
   padding: 0;
@@ -4922,6 +4940,52 @@ footer .container {
 }
 .sub-footer-col a:hover { color: var(--coral); }
 
+/* ---------- footer bottom bar ----------
+ *
+ * Legal sign-off + social row under the link columns. One class contract
+ * shared by `site-footer.astro` (sub-pages, scoped style) and the homepage
+ * footer in `page.tsx` (these global rules).
+ */
+.foot-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line, #d9d9d9);
+}
+.foot-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--ink-mute, #8c8c8c);
+}
+.foot-bar-left a {
+  color: var(--ink-soft, #595959);
+  text-decoration: none;
+}
+.foot-bar-left a:hover { text-decoration: underline; }
+.foot-dot { opacity: 0.5; }
+.foot-social {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.foot-social a {
+  color: var(--ink-mute, #8c8c8c);
+  display: inline-flex;
+}
+.foot-social a:hover { color: var(--ink, #262626); }
+
+/* Tablet: 7 columns get cramped — drop to a 4-wide grid. */
+@media (max-width: 1080px) {
+  .sub-footer-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
 /* ---------- footer masthead ----------
  *
  * Masthead sign-off under the footer link columns: a container-filling
@@ -4934,12 +4998,19 @@ footer .container {
 .foot-masthead-wordmark {
   margin: 0;
   font-weight: 800;
-  /* Fills the 964px column at the 1440px design width and degrades
-     fluidly; the nowrap keeps "Open Design." a single editorial line. */
-  font-size: clamp(52px, 10.4vw, 158px);
+  /* Fills the 964px column at the 1440px design width and degrades fluidly.
+     The lower bound follows the viewport (10.4vw) rather than a fixed 52px
+     floor: "Open Design." is ~5.75em wide here, so the old 52px floor rendered
+     ~299px and overflowed the padded mobile footer box (100vw - 48px ≈ 272px on
+     a 320px phone), where the page's global overflow-x:hidden clipped it.
+     10.4vw always satisfies 10.4vw·5.75 ≤ 100vw-48, so the sign-off fits at
+     every width (≈80px of headroom at 320px). */
+  font-size: clamp(26px, 10.4vw, 158px);
   line-height: 1.04;
   letter-spacing: -0.045em;
   color: var(--ink);
+  /* Desktop keeps the single editorial line; the narrow-breakpoint rule below
+     relaxes this to a no-clip wrap as a safety net. */
   white-space: nowrap;
   /* Centered: once the font caps at 158px the glyphs stop filling the
      full-width footer block (gap grows to ~535px at 1920), reading as
@@ -4960,6 +5031,11 @@ footer .container {
   /* Clear the page-bottom GradualBlur band (4rem) so the wordmark
      reads crisp at final scroll on phones. */
   .foot-masthead { margin-top: 40px; padding-bottom: 48px; }
+  /* No-clip safety net on phones: 10.4vw already fits the box with ~80px
+     headroom at 320px, but if a font/locale ever renders the wordmark wider
+     than the box, wrap to a second line rather than clip under
+     overflow-x:hidden. */
+  .foot-masthead-wordmark { white-space: normal; }
 }
 
 /* ---------- scroll-reveal motion ----------
