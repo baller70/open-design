@@ -71,7 +71,7 @@ import {
 
 export { resolveProjectRoot };
 import { createCommandInvocation } from '@open-design/platform';
-import { SIDECAR_DEFAULTS, SIDECAR_ENV } from '@open-design/sidecar-proto';
+import { SIDECAR_ENV } from '@open-design/sidecar-proto';
 import {
   buildLiveArtifactsMcpServersForAgent,
   checkPromptArgvBudget,
@@ -95,7 +95,6 @@ import {
 import { loadMmdRouteLaunchEnv } from './runtimes/mmd-routes.js';
 import { preparePromptFileForAgent } from './runtimes/prompt-file.js';
 import {
-  readVelaCredentialRevision,
   readVelaLoginStatus,
   resolveAmrProfile,
 } from './integrations/vela.js';
@@ -220,9 +219,6 @@ import { runOrchestrator } from './critique/orchestrator.js';
 import { createRunRegistry } from './critique/run-registry.js';
 import { handleCritiqueInterrupt } from './critique/interrupt-handler.js';
 import { handleCritiqueArtifact } from './critique/artifact-handler.js';
-import { getCritiqueMetrics, register } from './metrics/index.js';
-import { readConformanceHistory } from './critique/conformance-history.js';
-import { evaluateRollout } from './critique/ratchet.js';
 import {
   isCritiqueEnabled,
   parseEnvEnabled,
@@ -269,29 +265,22 @@ import {
   diffRunArtifacts,
   snapshotProjectArtifacts,
 } from './run-artifact-fs.js';
-import {
-  reportRunCompletedFromDaemon,
-  reportRunFeedbackFromDaemon,
-} from './langfuse-bridge.js';
+import { reportRunCompletedFromDaemon } from './langfuse-bridge.js';
 import {
   deriveLangfuseDeliveryState,
   readTelemetrySinkConfig,
 } from './langfuse-trace.js';
 import { buildPromptStackTelemetry } from './prompt-telemetry.js';
 import {
-  createAnalyticsService,
   newInsertId,
   readAnalyticsContext,
-  readPublicConfigResponse,
 } from './analytics.js';
-import { observePendingInstallerApplyAttempts } from './update-apply-observations.js';
 import {
   agentIdToTracking,
   deriveConfigureGlobals,
   modelIdForTracking,
   projectKindToTracking,
   sessionModeToTracking,
-  type ObservabilityEventRequest,
 } from '@open-design/contracts/analytics';
 import {
   mergeNoProxyWithLoopbackDefaults,
@@ -409,7 +398,6 @@ import {
 } from './projects.js';
 import { validateArtifactManifestInput } from './artifacts/manifest.js';
 import { ArtifactPublicationBlockedError } from './artifacts/publication-guard.js';
-import { readCurrentAppVersionInfo } from './app-version.js';
 import {
   appendMessageAgentEvent,
   appendMessageStatusEvent,
@@ -485,6 +473,7 @@ import { LiveArtifactRefreshAbortError } from './live-artifacts/refresh.js';
 import { registerConnectorRoutes } from './connectors/routes.js';
 import { registerActiveContextRoutes } from './routes/active-context.js';
 import { registerAutomationRoutes } from './routes/automation.js';
+import { registerDaemonRoutes } from './routes/daemon.js';
 import { registerGenuiRoutes } from './routes/genui.js';
 import { registerDesignSystemRoutes } from './routes/design-systems.js';
 import { registerHostToolsRoutes } from './routes/host-tools.js';
@@ -509,8 +498,10 @@ import { createTerminalService } from './terminals.js';
 import { registerSocialShareRoutes } from './routes/social-share.js';
 import { registerOpenDesignPublicMetadataRoutes } from './routes/open-design-public-metadata.js';
 import { registerMemoryRoutes } from './routes/memory.js';
+import { registerTelemetryRoutes } from './routes/telemetry.js';
 import { registerAtomRoutes, registerStaticResourceRoutes } from './routes/static-resource.js';
 import { registerRoutineRoutes, routineDbRowToContract } from './routes/routine.js';
+import { resolveAmrModelProbe } from './runtimes/amr-model-probe.js';
 import { createPluginInstallationHelpers, normalizeProjectPluginFolderPath, resolveProjectChildDirectory } from './services/plugin-installation.js';
 import { createPluginShareTaskStore } from './services/plugin-share-tasks.js';
 import { getRouteRegistrationInventory, installRouteRegistrationGuard } from './route-registration-guard.js';
@@ -4799,263 +4790,6 @@ export async function startServer({
     app.use(express.static(STATIC_DIR));
   }
 
-  app.get('/api/health', async (_req, res) => {
-    const versionInfo = await readCurrentAppVersionInfo();
-    res.json({ ok: true, version: versionInfo.version });
-  });
-
-  app.get('/api/ready', async (_req, res) => {
-    const versionInfo = await readCurrentAppVersionInfo();
-    const ready = !daemonShuttingDown;
-    res.status(ready ? 200 : 503).json({
-      ok: ready,
-      ready,
-      version: versionInfo.version,
-    });
-  });
-
-  app.get('/api/version', async (_req, res) => {
-    const version = await readCurrentAppVersionInfo();
-    res.json({ version });
-  });
-
-  const openDesignPublicMetadata = createOpenDesignPublicMetadataService();
-  registerOpenDesignPublicMetadataRoutes(app, {
-    http: httpDeps,
-    openDesignPublicMetadata,
-  });
-
-  // Plan §3.F2 / spec §11.7 — daemon lifecycle status. Returns the
-  // host / port the server is bound to plus the data dir,
-  // so `od daemon status --json` can render a one-shot health snapshot
-  // without depending on /api/version's content shape.
-  app.get('/api/daemon/status', async (_req, res) => {
-    const versionInfo = await readCurrentAppVersionInfo();
-    res.json({
-      ok: true,
-      version: versionInfo.version,
-      bindHost: host,
-      port: resolvedPort,
-      dataDir: RUNTIME_DATA_DIR,
-      mediaConfigDir: process.env.OD_MEDIA_CONFIG_DIR ?? null,
-      sandboxMode: SANDBOX_RUNTIME.enabled,
-      sandbox: SANDBOX_RUNTIME.enabled
-        ? { enabled: true, roots: SANDBOX_RUNTIME.roots }
-        : { enabled: false },
-      pid: process.pid,
-      shuttingDown: daemonShuttingDown,
-      installedPlugins: (() => {
-        try {
-          return (db.prepare('SELECT COUNT(*) AS n FROM installed_plugins').get())?.n ?? 0;
-        } catch {
-          return 0;
-        }
-      })(),
-    });
-  });
-
-  // Plan §3.GG1 — `od daemon db status`. Inventory of the SQLite
-  // backend: file path, size on disk (primary + WAL + SHM), schema
-  // version (the user_version PRAGMA we use for migrations), and
-  // per-table row counts. Useful for ops sanity-checking
-  // deployments + comparing 'expected' vs. 'actual' table rosters.
-  app.get('/api/daemon/db', async (_req, res) => {
-    try {
-      const { inspectSqliteDatabase } = await import('./storage/db-inspect.js');
-      const file = path.join(RUNTIME_DATA_DIR, 'app.sqlite');
-      const report = await inspectSqliteDatabase({ db, file });
-      res.json(report);
-    } catch (err) {
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  registerPluginEventRoutes(app, {
-    http: { requireLocalDaemonRequest },
-  });
-
-  // Plan §3.NN1 — `od plugin events purge`. Operator escape
-  // hatch for resetting the in-memory ring buffer. Loopback-only
-  // because clearing the buffer drops audit history; an operator
-  // with shell access to the daemon machine should be the only
-  // one allowed to invoke. Returns the pre-purge stats so the
-  // caller can confirm what they discarded.
-  // PR #3157: surface the Antigravity OAuth flow as a one-click action
-  // in the chat's AGENT_AUTH_REQUIRED banner. agy's `-p` print mode
-  // can't complete the Google Sign-In flow on its own (no input field
-  // for the auth code), so OD opens a system Terminal running `agy`
-  // for the user; they finish OAuth there, then retry the chat. The
-  // endpoint is loopback-gated and only supports antigravity because
-  // (a) we hardcode `agy` as the command, and (b) opening a new
-  // Terminal window is a visible side effect we don't want anyone
-  // hand-rolling for every agent that ships a CLI.
-  app.post('/api/agents/:agentId/oauth-launch', requireLocalDaemonRequest, async (req, res) => {
-    const agentId = req.params.agentId;
-    if (agentId !== 'antigravity') {
-      return res.status(400).json({
-        ok: false,
-        error: `oauth-launch is only supported for antigravity, got ${agentId}`,
-      });
-    }
-    try {
-      const { launchAgentInSystemTerminal } = await import('./runtimes/terminal-launch.js');
-      const result = await launchAgentInSystemTerminal('agy');
-      if (result.ok) {
-        return res.json({ ok: true, platform: result.platform, via: result.via });
-      }
-      return res.status(500).json({
-        ok: false,
-        platform: result.platform,
-        error: result.reason,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        ok: false,
-        error: String(err),
-      });
-    }
-  });
-
-
-  // Plan §3.LL1 — `od daemon db verify`. Runs SQLite
-  // PRAGMA integrity_check (or quick_check when ?quick=1) +
-  // PRAGMA foreign_key_check, returns a structured issues[]
-  // report. Loopback-only via requireLocalDaemonRequest because
-  // the result reveals storage-layer state.
-  app.post('/api/daemon/db/verify', requireLocalDaemonRequest, async (req, res) => {
-    try {
-      const { verifySqliteIntegrity } = await import('./storage/db-inspect.js');
-      const quick = String(req.query.quick ?? '').toLowerCase();
-      const report = verifySqliteIntegrity({ db, quick: quick === '1' || quick === 'true' });
-      res.json(report);
-    } catch (err) {
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  // Plan §3.HH2 — `od daemon db vacuum`. Runs SQLite VACUUM to
-  // reclaim space after large delete batches (snapshot prune,
-  // plugin uninstall, etc.). Reports before / after sizes so the
-  // operator sees the reclamation, plus elapsed ms so a slow
-  // VACUUM on a big DB is visible.
-  app.post('/api/daemon/db/vacuum', requireLocalDaemonRequest, async (_req, res) => {
-    try {
-      const { inspectSqliteDatabase } = await import('./storage/db-inspect.js');
-      const file = path.join(RUNTIME_DATA_DIR, 'app.sqlite');
-      const before = await inspectSqliteDatabase({ db, file });
-      const startedAt = Date.now();
-      // VACUUM cannot run inside an active transaction; better-sqlite3
-      // exposes it as a regular pragma exec.
-      db.exec('VACUUM');
-      const elapsedMs = Date.now() - startedAt;
-      const after = await inspectSqliteDatabase({ db, file });
-      res.json({
-        ok: true,
-        beforeBytes: before.sizeBytes,
-        afterBytes:  after.sizeBytes,
-        reclaimedBytes: Math.max(0, before.sizeBytes - after.sizeBytes),
-        elapsedMs,
-      });
-    } catch (err) {
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  // Plan §3.F2 — graceful shutdown. The CLI calls this from
-  // `od daemon stop`; the actual close path goes through the same
-  // SIGTERM-equivalent flow as a parent-process kill (the boot wrapper
-  // in cli.ts wires the process listeners). 202 Accepted because the
-  // shutdown completes after the response flush.
-  app.post('/api/daemon/shutdown', requireLocalDaemonRequest, (_req, res) => {
-    res.status(202).json({ ok: true, scheduled: true });
-    setImmediate(() => {
-      try {
-        process.emit('SIGTERM');
-      } catch {
-        // Best-effort; if the listener was removed (or the process is
-        // mid-shutdown already) the kernel SIGTERM falls back below.
-      }
-    });
-  });
-
-  // Prometheus scrape endpoint (Phase 12). Returns the full exposition
-  // format string. Operators put this behind their existing auth proxy;
-  // there is no built-in authn on the daemon HTTP server. To disable
-  // the endpoint entirely (air-gapped installs, regulatory contexts),
-  // set `OD_METRICS_ENDPOINT=disabled`; the route is registered only
-  // when that env value is not the literal string 'disabled'.
-  if (process.env.OD_METRICS_ENDPOINT !== 'disabled') {
-    app.get('/api/metrics', async (_req, res) => {
-      res.setHeader('Content-Type', register.contentType);
-      res.send(await getCritiqueMetrics());
-    });
-  }
-
-  // Phase 16 ratchet endpoint. Returns the rolling conformance window
-  // and the ratchet's current recommendation. Operator-driven by
-  // design: the recommendation does not flip OD_CRITIQUE_ROLLOUT_PHASE
-  // automatically, it surfaces so a deploy-pipeline follow-up can
-  // consume it. Tunables come from query string; defaults are the
-  // spec values (14 days, 0.90 shipped, 0.95 clean-parse).
-  // Codex + lefarcen P1 on PR #1499: clamp query inputs before the
-  // evaluator sees them so a request like `?windowDays=0` falls back to
-  // the spec default rather than producing a zero-evidence promotion.
-  // The evaluator also defends at its own entry; both are intentional
-  // (belt + suspenders) so a future caller that bypasses this route
-  // cannot reach an unguarded code path either.
-  const parsePositiveInt = (raw: unknown, fallback: number): number => {
-    if (typeof raw !== 'string' || raw.length === 0) return fallback;
-    const n = Number(raw);
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
-  };
-  const parseRate = (raw: unknown, fallback: number): number => {
-    if (typeof raw !== 'string' || raw.length === 0) return fallback;
-    const n = Number(raw);
-    return Number.isFinite(n) && n >= 0 && n <= 1 ? n : fallback;
-  };
-  app.get('/api/critique/conformance', async (req, res) => {
-    try {
-      const windowDays = parsePositiveInt(req.query.windowDays, 14);
-      const shippedThreshold = parseRate(req.query.shippedThreshold, 0.90);
-      const cleanParseThreshold = parseRate(req.query.cleanParseThreshold, 0.95);
-      const history = await readConformanceHistory(RUNTIME_DATA_DIR, windowDays);
-      const decision = evaluateRollout({
-        current: parseRolloutPhase(process.env.OD_CRITIQUE_ROLLOUT_PHASE),
-        history,
-        windowDays,
-        shippedThreshold,
-        cleanParseThreshold,
-      });
-      res.json({ window: { days: windowDays, history }, decision });
-    } catch (err) {
-      sendApiError(res, 500, 'INTERNAL_ERROR', err instanceof Error ? err.message : String(err));
-    }
-  });
-
-  registerConnectorRoutes(app, {
-    sendApiError,
-    authorizeToolRequest,
-    projectsRoot: PROJECTS_DIR,
-    requireLocalDaemonRequest,
-    composio: composioConnectorProvider,
-  });
-
-  // Gate the diagnostics export behind requireLocalDaemonRequest so it stays
-  // unreachable when daemon binds to a non-loopback address (Tailscale,
-  // 0.0.0.0, etc.). The bundle contains daemon/web/desktop logs, host
-  // metadata, and crash reports — same threat tier as connector / live-
-  // artifact endpoints, which all use the same guard.
-  app.get(
-    DIAGNOSTICS_EXPORT_PATH,
-    requireLocalDaemonRequest,
-    createDiagnosticsExportHandler({
-      runtime,
-      projectRoot: PROJECT_ROOT,
-      runsDir: path.join(RUNTIME_DATA_DIR, 'runs'),
-      dataDir: RUNTIME_DATA_DIR,
-    }),
-  );
-
   // ---- Projects (DB-backed) -------------------------------------------------
 
 
@@ -5080,7 +4814,11 @@ export async function startServer({
   // follow-up — see reconcile decision log.
   // (legacy POST /api/projects body deleted — see registerProjectRoutes below.)
 
-  const analyticsService = createAnalyticsService({ dataDir: RUNTIME_DATA_DIR });
+  const telemetry = registerTelemetryRoutes(app, {
+    dataDir: RUNTIME_DATA_DIR,
+    readAppConfig,
+  });
+  const { analyticsService } = telemetry;
   const design = {
     runs: createChatRunService({
       createSseResponse,
@@ -5088,7 +4826,7 @@ export async function startServer({
       runsLogDir: path.join(RUNTIME_DATA_DIR, 'runs'),
     }),
     analytics: analyticsService,
-    getAppVersion: () => cachedAppVersion?.version ?? '0.0.0',
+    getAppVersion: () => telemetry.getCachedAppVersion()?.version ?? '0.0.0',
     readAnalyticsContext,
   };
 
@@ -5096,194 +4834,18 @@ export async function startServer({
   // killed on daemon shutdown — see shutdownDaemonRuns below.
   const terminalService = createTerminalService();
 
-  // PostHog runtime config.
-  //
-  // - `enabled` reflects ONLY the user's consent toggle (Privacy → "Share
-  //   usage data"). When false, posthog-js's full autocapture/$pageview/
-  //   $autocapture pipeline must stay off — that's the privacy contract.
-  //
-  // - `key` and `host` are populated whenever the server has a build-time
-  //   POSTHOG_KEY, regardless of consent. The error-tracking module
-  //   (apps/web/src/analytics/error-tracking.ts) reads them to ship
-  //   `$exception` events directly to the ingest endpoint, bypassing the
-  //   consent gate. Product decision: error reports always flow so we
-  //   don't lose ground truth on stability — see the privacy section of
-  //   Settings → Privacy for the user-facing copy.
-  //
-  // - When the build itself has no POSTHOG_KEY (forks, PR builds, OSS
-  //   contributors), `key` and `host` are null and even the error
-  //   pipeline becomes a no-op.
-  app.get('/api/analytics/config', async (_req, res) => {
-    const baseline = readPublicConfigResponse();
-    if (!baseline.enabled) {
-      // No build-time key → nothing to report on, consent or not.
-      res.json(baseline);
-      return;
-    }
-    try {
-      const appCfg = await readAppConfig(RUNTIME_DATA_DIR);
-      const consentGranted = appCfg.telemetry?.metrics === true;
-      // Echo the installationId so the web client uses the same anonymous
-      // id PostHog already saw on prior runs (and that Langfuse uses too).
-      const installationId =
-        typeof appCfg.installationId === 'string' && appCfg.installationId
-          ? appCfg.installationId
-          : null;
-      res.json({
-        enabled: consentGranted,
-        env: baseline.env,
-        key: baseline.key,
-        host: baseline.host,
-        installationId,
-      });
-    } catch {
-      // If the config file is unreadable, fail closed for analytics but
-      // still let the error tracker run — exception reports are the most
-      // valuable signal in a degraded-state scenario.
-      res.json({
-        enabled: false,
-        env: baseline.env,
-        key: baseline.key,
-        host: baseline.host,
-        installationId: null,
-      });
-    }
-  });
-
-  // Cross-process safety-event bridge. Used by:
-  //   - Electron main process (renderer crash via render-process-gone)
-  //   - Any future helper / sidecar that needs to report a safety event
-  //     without owning its own posthog-node client
-  //
-  // The route DOES NOT check the user's analytics consent: this is the
-  // same "safety telemetry always flows" contract the web error-tracking
-  // module relies on. If POSTHOG_KEY is not set on the daemon (fork
-  // builds), captureSafety is a no-op on NOOP_SERVICE.
-  app.post('/api/observability/event', express.json({ limit: '64kb' }), (req, res) => {
-    const body = (req.body ?? {}) as Partial<ObservabilityEventRequest>;
-    const eventName = typeof body.event === 'string' ? body.event.trim() : '';
-    if (!eventName) {
-      res.status(400).json({ error: 'missing or invalid `event` field' });
-      return;
-    }
-    const properties =
-      body.properties != null && typeof body.properties === 'object' && !Array.isArray(body.properties)
-        ? (body.properties as Record<string, unknown>)
-        : {};
-    analyticsService.captureSafety({
-      eventName,
-      appVersion: cachedAppVersion?.version ?? '0.0.0',
-      properties,
-    });
-    res.json({ ok: true });
-  });
-
-  // Daemon-side uncaught errors. Without these, a crash in any daemon
-  // request handler or background task leaves no PostHog signal — the
-  // user sees a 500 (or worse, a connection drop) and we see nothing.
-  // Both listeners install AFTER the analyticsService is created so the
-  // captureSafety dispatch path is guaranteed to be ready.
-  //
-  // IMPORTANT — these handlers MUST keep Node's fatal-exit semantics.
-  // Installing an `uncaughtException` listener silences Node's default
-  // crash/exit path, and Node 15+ does the same for `unhandledRejection`
-  // when a listener is present (the `--unhandled-rejections=throw` mode
-  // only fires when nothing has subscribed). We bounded-flush posthog-
-  // node and then call `process.exit(1)` explicitly so the supervisor
-  // (pm2, packaged updater, dev `tools-dev`) gets a fresh process and
-  // we don't leave a half-broken daemon answering requests with state
-  // corruption. See codex review on PR #2527 (Siri-Ray).
-  const FATAL_FLUSH_TIMEOUT_MS = 1000;
-  let fatalShuttingDown = false;
-  const triggerFatalShutdown = (
-    eventName: string,
-    properties: Record<string, unknown>,
-  ): void => {
-    if (fatalShuttingDown) return;
-    fatalShuttingDown = true;
-    // CRITICAL — wait for captureSafety to ENQUEUE the event in
-    // posthog-node's local buffer before starting shutdown(). The
-    // captureSafety implementation does an `await readInstallationIdSafe()`
-    // before calling `client.capture()`; a sync fire-and-forget here would
-    // race shutdown() ahead of that await, drain an empty queue, and lose
-    // the crash event itself. See codex review on PR #2527 (Siri-Ray).
-    const flushSequence = (async () => {
-      try {
-        await analyticsService.captureSafety({
-          eventName,
-          appVersion: cachedAppVersion?.version ?? '0.0.0',
-          properties,
-        });
-      } catch {
-        // capture must never block the exit path
-      }
-      await analyticsService.shutdown();
-    })();
-    // Race the enqueue+shutdown sequence against a bounded timeout. If
-    // posthog-node hangs on a slow flush (or the installationId read
-    // hangs on the filesystem) we still die in bounded time — the
-    // supervisor will restart us, which is the whole point.
-    void Promise.race([
-      flushSequence,
-      new Promise<void>((resolve) => {
-        const handle = setTimeout(resolve, FATAL_FLUSH_TIMEOUT_MS);
-        handle.unref?.();
-      }),
-    ]).finally(() => {
-      process.exitCode = 1;
-      process.exit(1);
-    });
-  };
-  process.on('uncaughtException', (error) => {
-    triggerFatalShutdown('daemon_uncaught_exception', {
-      error_message: error?.message ?? String(error),
-      error_name: error?.name ?? 'Error',
-      // Stack truncation: 8 KB ceiling to keep the ingest payload bounded
-      // even when the stack contains huge native frames. Most actionable
-      // stacks fit in well under 2 KB.
-      error_stack: typeof error?.stack === 'string' ? error.stack.slice(0, 8192) : undefined,
-    });
-  });
-  process.on('unhandledRejection', (reason) => {
-    const asError = reason instanceof Error ? reason : null;
-    triggerFatalShutdown('daemon_unhandled_rejection', {
-      error_message: asError?.message ?? (typeof reason === 'string' ? reason : String(reason)),
-      error_name: asError?.name ?? 'NonErrorRejection',
-      error_stack: typeof asError?.stack === 'string' ? asError.stack.slice(0, 8192) : undefined,
-    });
-  });
-
   // Tracks runs whose finalized assistant message has already been forwarded
   // to Langfuse so repeated message updates only emit one final trace per run.
   // Terminal fallback reports intentionally do not claim this set; a delayed
   // telemetry-finalized message can still replace the synthetic fallback.
   const reportedRuns = new Set();
 
-  // App-version snapshot read once at server start for Langfuse trace metadata.
-  let cachedAppVersion = null;
-  void (async () => {
-    try {
-      cachedAppVersion = await readCurrentAppVersionInfo();
-      await observePendingInstallerApplyAttempts({
-        analytics: analyticsService,
-        appVersion: cachedAppVersion.version,
-        currentChannel: cachedAppVersion.channel,
-        currentVersion: cachedAppVersion.version,
-        dataRoot: RUNTIME_DATA_DIR,
-        logger: console,
-        namespace: process.env[SIDECAR_ENV.NAMESPACE] ?? SIDECAR_DEFAULTS.namespace,
-      });
-    } catch {
-      // Telemetry is best-effort; appVersion is omitted when unavailable.
-    }
-  })();
-
   const reportFinalizedMessage = createFinalizedMessageTelemetryReporter({
     design,
     db,
     dataDir: RUNTIME_DATA_DIR,
     reportedRuns,
-    getAppVersion: () => cachedAppVersion,
+    getAppVersion: telemetry.getCachedAppVersion,
   });
   const reportRunCompletionTelemetryFallback = ({
     analyticsContext,
@@ -5322,18 +4884,7 @@ export async function startServer({
     timer.unref?.();
   };
 
-  const reportFeedback = (req: {
-    runId: string;
-    rating: 'positive' | 'negative';
-    reasonCodes: string[];
-    hasCustomReason: boolean;
-    customReason: string;
-    scoreMetadata?: Record<string, unknown>;
-  }) =>
-    reportRunFeedbackFromDaemon({
-      dataDir: RUNTIME_DATA_DIR,
-      ...req,
-    });
+  const reportFeedback = telemetry.reportFeedback;
 
   // DNS-aware wrapper. The sync `validateBaseUrl` only inspects the literal
   // hostname string, so a public DNS name pointing at an internal address
@@ -5379,6 +4930,52 @@ export async function startServer({
     BUNDLED_PETS_DIR,
     OD_BIN,
   };
+
+  registerDaemonRoutes(app, {
+    db,
+    paths: { RUNTIME_DATA_DIR },
+    http: { requireLocalDaemonRequest, sendApiError },
+    host,
+    getResolvedPort: () => resolvedPort,
+    getDaemonShuttingDown: () => daemonShuttingDown,
+    sandboxRuntime: SANDBOX_RUNTIME,
+    env: process.env,
+  });
+
+  const openDesignPublicMetadata = createOpenDesignPublicMetadataService();
+  registerOpenDesignPublicMetadataRoutes(app, {
+    http: httpDeps,
+    openDesignPublicMetadata,
+  });
+
+  registerPluginEventRoutes(app, {
+    http: { requireLocalDaemonRequest },
+  });
+
+  registerConnectorRoutes(app, {
+    sendApiError,
+    authorizeToolRequest,
+    projectsRoot: PROJECTS_DIR,
+    requireLocalDaemonRequest,
+    composio: composioConnectorProvider,
+  });
+
+  // Gate the diagnostics export behind requireLocalDaemonRequest so it stays
+  // unreachable when daemon binds to a non-loopback address (Tailscale,
+  // 0.0.0.0, etc.). The bundle contains daemon/web/desktop logs, host
+  // metadata, and crash reports — same threat tier as connector / live-
+  // artifact endpoints, which all use the same guard.
+  app.get(
+    DIAGNOSTICS_EXPORT_PATH,
+    requireLocalDaemonRequest,
+    createDiagnosticsExportHandler({
+      runtime,
+      projectRoot: PROJECT_ROOT,
+      runsDir: path.join(RUNTIME_DATA_DIR, 'runs'),
+      dataDir: RUNTIME_DATA_DIR,
+    }),
+  );
+
   const nodeDeps = { fs, path };
   const idDeps = { randomId, randomUUID };
   const uploadDeps = { upload, importUpload, handleProjectUpload };
@@ -5758,40 +5355,6 @@ export async function startServer({
     conversations: conversationDeps,
     research: researchDeps,
   });
-
-  async function resolveAmrModelProbe() {
-    const appConfig = await readAppConfig(RUNTIME_DATA_DIR);
-    const configuredEnv = agentCliEnvForAgent(appConfig.agentCliEnv, 'amr');
-    const def = getAgentDef('amr');
-    if (!def) throw new Error('AMR runtime definition is missing');
-    const agentLaunch = resolveAgentLaunch(def, configuredEnv);
-    const launchPath = agentLaunch.launchPath ?? agentLaunch.selectedPath;
-    if (!launchPath) throw new Error('AMR vela binary could not be resolved');
-    const env = applyAgentLaunchEnv(
-      spawnEnvForAgent(
-        def.id,
-        {
-          ...process.env,
-          ...(def.env || {}),
-        },
-        configuredEnv,
-        undefined,
-      ),
-      agentLaunch,
-    );
-    const credentialRevision = readVelaCredentialRevision(process.env, configuredEnv);
-    const cacheKey = JSON.stringify({
-      launchPath,
-      home: env.HOME ?? env.USERPROFILE ?? '',
-      openDesignAmrProfile: env.OPEN_DESIGN_AMR_PROFILE ?? '',
-      velaProfile: env.VELA_PROFILE ?? '',
-      velaLinkUrl: env.VELA_LINK_URL ?? '',
-      velaRuntimeKey: env.VELA_RUNTIME_KEY ?? '',
-      velaOpencodeBin: env.VELA_OPENCODE_BIN ?? '',
-      credentialRevision,
-    });
-    return { launchPath, env, configuredEnv, cacheKey };
-  }
 
   registerVelaRoutes(app, {
     paths: { RUNTIME_DATA_DIR },
@@ -7782,7 +7345,7 @@ export async function startServer({
       // of fail-closing; vela's own `session/set_model` remains the final gate.
       let liveModels = [];
       try {
-        const probe = await resolveAmrModelProbe();
+        const probe = await resolveAmrModelProbe({ dataDir: RUNTIME_DATA_DIR, env: process.env, readAppConfig });
         const catalog = await amrModelLoadingCache.get(probe.cacheKey, {
           fetchPreset: () => fetchVelaPresetModels(probe.launchPath, probe.env),
           fetchRemote: () => fetchVelaRemoteModelsWithRetry(probe.launchPath, probe.env),
