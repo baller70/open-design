@@ -9824,6 +9824,13 @@ export async function startServer({
     nativeDialogs: nativeDialogDeps,
     research: researchDeps,
     mcp: { pendingAuth: mcpPendingAuth, daemonUrlRef },
+    plugins: {
+      connectorService,
+      detectSkillPluginCandidateOnRunSuccess,
+      firePipelineForRun,
+      loadPluginRegistryView,
+      renderPluginBriefTemplate,
+    },
     resources: {
       listAllSkills,
       listAllDesignTemplates,
@@ -9837,6 +9844,10 @@ export async function startServer({
     finalize: finalizeDeps,
     handoff: handoffDeps,
     chat: { startChatRun },
+    messages: {
+      pinAssistantMessageOnRunCreate,
+      reconcileAssistantMessageOnRunEnd,
+    },
     agents: agentDeps,
     critique: critiqueDeps,
     openDesignPublicMetadata,

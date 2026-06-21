@@ -14,6 +14,7 @@ import type { RegisterMemoryRoutesDeps } from './routes/memory.js';
 import type { RegisterOpenDesignPublicMetadataRoutesDeps } from './routes/open-design-public-metadata.js';
 import type { RegisterProjectArtifactRoutesDeps, RegisterProjectFileRoutesDeps, RegisterProjectRoutesDeps, RegisterProjectUploadRoutesDeps } from './routes/project/index.js';
 import type { RegisterRoutineRoutesDeps } from './routes/routine.js';
+import type { RegisterRunRoutesDeps } from './routes/runs.js';
 import type { RegisterSocialShareRoutesDeps } from './routes/social-share.js';
 import type { RegisterStaticResourceRoutesDeps } from './routes/static-resource.js';
 import type { RegisterVelaRoutesDeps } from './routes/vela.js';
@@ -41,6 +42,7 @@ type AllRegisteredRouteDeps =
   & RegisterProjectRoutesDeps
   & RegisterProjectUploadRoutesDeps
   & RegisterRoutineRoutesDeps
+  & RegisterRunRoutesDeps
   & RegisterSocialShareRoutesDeps
   & RegisterStaticResourceRoutesDeps
   & RegisterVelaRoutesDeps
