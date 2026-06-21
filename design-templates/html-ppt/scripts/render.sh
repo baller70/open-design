@@ -30,15 +30,21 @@ OUT="${3:-}"
 
 ABS="$(cd "$(dirname "$FILE")" && pwd)/$(basename "$FILE")"
 STEM="$(basename "${FILE%.*}")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INPUT_DIR="$(dirname "$ABS")"
 
 find_upward_playwright() {
-  local dir="$PWD"
-  while [[ "$dir" != "/" ]]; do
-    if [[ -x "$dir/node_modules/.bin/playwright" ]]; then
-      printf '%s\n' "$dir/node_modules/.bin/playwright"
-      return 0
-    fi
-    dir="$(dirname "$dir")"
+  local start dir
+  for start in "$@"; do
+    [[ -n "$start" ]] || continue
+    dir="$(cd "$start" 2>/dev/null && pwd)" || continue
+    while [[ "$dir" != "/" ]]; do
+      if [[ -x "$dir/node_modules/.bin/playwright" ]]; then
+        printf '%s\n' "$dir/node_modules/.bin/playwright"
+        return 0
+      fi
+      dir="$(dirname "$dir")"
+    done
   done
   return 1
 }
@@ -50,7 +56,7 @@ run_playwright() {
   fi
 
   local local_playwright
-  if local_playwright="$(find_upward_playwright)"; then
+  if local_playwright="$(find_upward_playwright "$SCRIPT_DIR" "$INPUT_DIR")"; then
     "$local_playwright" "$@"
     return $?
   fi
