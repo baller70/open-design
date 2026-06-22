@@ -14,6 +14,7 @@ const require = createRequire(import.meta.url);
 const testDir = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = resolve(testDir, "..", "..", "..");
 const tsxCliPath = require.resolve("tsx/cli");
+const packagedPackageJsonPath = join(workspaceRoot, "apps", "packaged", "package.json");
 
 type MetadataServer = {
   close: () => Promise<void>;
@@ -139,6 +140,14 @@ async function writeFakeGhScript(root: string): Promise<string> {
   return scriptPath;
 }
 
+async function readPackagedVersion(): Promise<string> {
+  const packageJson = JSON.parse(await readFile(packagedPackageJsonPath, "utf8")) as { version?: unknown };
+  if (typeof packageJson.version !== "string" || packageJson.version.length === 0) {
+    throw new Error("apps/packaged/package.json must define a version");
+  }
+  return packageJson.version;
+}
+
 function countedMetadata(
   channel: "beta" | "betas" | "prerelease" | "preview",
   releaseVersion: string,
@@ -153,8 +162,8 @@ function countedMetadata(
   };
 }
 
-function stablePrereleaseMetadata(publicOrigin: string): Record<string, unknown> {
-  const releaseVersion = "0.10.2-prerelease.2";
+function stablePrereleaseMetadata(publicOrigin: string, baseVersion: string): Record<string, unknown> {
+  const releaseVersion = `${baseVersion}-prerelease.2`;
   const versionPrefix = `prerelease/versions/${releaseVersion}`;
   const versionUrl = `${publicOrigin}/${versionPrefix}`;
   const artifact = (name: string) => ({
@@ -163,9 +172,9 @@ function stablePrereleaseMetadata(publicOrigin: string): Record<string, unknown>
   });
 
   return {
-    ...countedMetadata("prerelease", releaseVersion, 2, "0.10.2"),
+    ...countedMetadata("prerelease", releaseVersion, 2, baseVersion),
     github: {
-      branch: "release/v0.10.2",
+      branch: `release/v${baseVersion}`,
       commit: "0123456789abcdef0123456789abcdef01234567",
       repository: "nexu-io/open-design",
       workflow: "release-prerelease",
@@ -212,6 +221,7 @@ function stablePrereleaseMetadata(publicOrigin: string): Record<string, unknown>
 
 describe("tools-release local channel prepare validation", () => {
   it("prepares beta, betas, preview, and prerelease from local metadata fixtures", async () => {
+    const packagedVersion = await readPackagedVersion();
     const objects: Record<string, unknown> = {
       "beta/latest/metadata.json": countedMetadata("beta", "0.10.0-beta.2", 2),
       "betas/latest/metadata.json": countedMetadata("betas", "0.10.0-betas.2", 2),
@@ -234,7 +244,7 @@ describe("tools-release local channel prepare validation", () => {
         GITHUB_SHA: "0123456789abcdef0123456789abcdef01234567",
         OPEN_DESIGN_GH_NODE_SCRIPT: fakeGh,
         OPEN_DESIGN_STABLE_METADATA_URL: `${server.origin}/stable/latest/metadata.json`,
-        OPEN_DESIGN_STABLE_VERSION: "0.10.2",
+        OPEN_DESIGN_STABLE_VERSION: packagedVersion,
       };
 
       const beta = await runPrepare("beta", {
@@ -243,9 +253,9 @@ describe("tools-release local channel prepare validation", () => {
         OPEN_DESIGN_BETA_METADATA_URL: `${server.origin}/beta/latest/metadata.json`,
       });
       expect(beta.stdout).toContain("[release-beta] channel: beta");
-      expect(beta.outputs.release_version).toBe("0.10.2-beta.1");
+      expect(beta.outputs.release_version).toBe(`${packagedVersion}-beta.1`);
       expect(beta.outputs.release_number).toBe("1");
-      expect(beta.outputs.beta_version).toBe("0.10.2-beta.1");
+      expect(beta.outputs.beta_version).toBe(`${packagedVersion}-beta.1`);
 
       const betas = await runPrepare("betas", {
         ...commonEnv,
@@ -253,17 +263,17 @@ describe("tools-release local channel prepare validation", () => {
         OPEN_DESIGN_BETAS_METADATA_URL: `${server.origin}/betas/latest/metadata.json`,
       });
       expect(betas.stdout).toContain("[release-betas] channel: betas");
-      expect(betas.outputs.release_version).toBe("0.10.2-betas.1");
+      expect(betas.outputs.release_version).toBe(`${packagedVersion}-betas.1`);
       expect(betas.outputs.release_number).toBe("1");
 
       const preview = await runPrepare("preview", {
         ...commonEnv,
         GITHUB_REF_NAME: "main",
         OPEN_DESIGN_PREVIEW_METADATA_URL: `${server.origin}/preview/latest/metadata.json`,
-        OPEN_DESIGN_PREVIEW_VERSION: "0.10.2",
+        OPEN_DESIGN_PREVIEW_VERSION: packagedVersion,
       });
       expect(preview.stdout).toContain("[release-preview] channel: preview");
-      expect(preview.outputs.release_version).toBe("0.10.2-preview.1");
+      expect(preview.outputs.release_version).toBe(`${packagedVersion}-preview.1`);
       expect(preview.outputs.release_number).toBe("1");
 
       const prerelease = await runPrepare("prerelease", {
@@ -272,7 +282,7 @@ describe("tools-release local channel prepare validation", () => {
         OPEN_DESIGN_PRERELEASE_METADATA_URL: `${server.origin}/prerelease/latest/metadata.json`,
       });
       expect(prerelease.stdout).toContain("[release-prerelease] channel: prerelease");
-      expect(prerelease.outputs.release_version).toBe("0.10.2-prerelease.1");
+      expect(prerelease.outputs.release_version).toBe(`${packagedVersion}-prerelease.1`);
       expect(prerelease.outputs.release_number).toBe("1");
       expect(prerelease.outputs.prerelease_number).toBe("1");
     } finally {
@@ -282,6 +292,7 @@ describe("tools-release local channel prepare validation", () => {
   });
 
   it("prepares preview from the packaged version when branch and explicit version are absent", async () => {
+    const packagedVersion = await readPackagedVersion();
     const objects: Record<string, unknown> = {
       "preview/latest/metadata.json": countedMetadata("preview", "0.10.0-preview.2", 2),
     };
@@ -295,14 +306,15 @@ describe("tools-release local channel prepare validation", () => {
         OPEN_DESIGN_PREVIEW_METADATA_URL: `${server.origin}/preview/latest/metadata.json`,
       });
 
-      expect(preview.stdout).toContain("[release-preview] base version: 0.10.2");
-      expect(preview.outputs.release_version).toBe("0.10.2-preview.1");
+      expect(preview.stdout).toContain(`[release-preview] base version: ${packagedVersion}`);
+      expect(preview.outputs.release_version).toBe(`${packagedVersion}-preview.1`);
     } finally {
       await server.close();
     }
   });
 
   it("treats a 403 betas latest response as a cold-start missing metadata object", async () => {
+    const packagedVersion = await readPackagedVersion();
     const objects: Record<string, unknown> = {
       "stable/latest/metadata.json": {
         baseVersion: "0.10.1",
@@ -325,7 +337,7 @@ describe("tools-release local channel prepare validation", () => {
       });
 
       expect(betas.stdout).toContain("betas metadata.json: not found; using betas.0 fallback");
-      expect(betas.outputs.release_version).toBe("0.10.2-betas.1");
+      expect(betas.outputs.release_version).toBe(`${packagedVersion}-betas.1`);
       expect(betas.outputs.release_number).toBe("1");
     } finally {
       await server.close();
@@ -333,32 +345,34 @@ describe("tools-release local channel prepare validation", () => {
   });
 
   it("validates stable dry-run promotion against local prerelease metadata", async () => {
+    const packagedVersion = await readPackagedVersion();
+    const prereleaseVersion = `${packagedVersion}-prerelease.2`;
     const objects: Record<string, unknown> = {};
     const server = await startMetadataServer(objects);
     const ghRoot = await mkdtemp(join(tmpdir(), "od-tools-release-gh-"));
-    objects["prerelease/versions/0.10.2-prerelease.2/metadata.json"] = stablePrereleaseMetadata(server.origin);
+    objects[`prerelease/versions/${prereleaseVersion}/metadata.json`] = stablePrereleaseMetadata(server.origin, packagedVersion);
 
     try {
       const fakeGh = await writeFakeGhScript(ghRoot);
       const stable = await runPrepare("stable", {
-        GITHUB_REF_NAME: "release/v0.10.2",
+        GITHUB_REF_NAME: `release/v${packagedVersion}`,
         GITHUB_REPOSITORY: "nexu-io/open-design",
         GITHUB_SHA: "0123456789abcdef0123456789abcdef01234567",
         OPEN_DESIGN_GH_NODE_SCRIPT: fakeGh,
         OPEN_DESIGN_RELEASE_DRY_RUN: "true",
         OPEN_DESIGN_RELEASES_PUBLIC_ORIGIN: server.origin,
-        OPEN_DESIGN_STABLE_PRERELEASE_VERSION: "0.10.2-prerelease.2",
+        OPEN_DESIGN_STABLE_PRERELEASE_VERSION: prereleaseVersion,
       });
 
       expect(stable.stdout).toContain("[release-stable] channel: stable");
-      expect(stable.stdout).toContain("[release-stable] validated prerelease: 0.10.2-prerelease.2");
-      expect(stable.outputs.release_version).toBe("0.10.2");
+      expect(stable.stdout).toContain(`[release-stable] validated prerelease: ${prereleaseVersion}`);
+      expect(stable.outputs.release_version).toBe(packagedVersion);
       expect(stable.outputs.dry_run).toBe("true");
       expect(stable.outputs.dry_run_mode).toBe("metadata");
       expect(stable.outputs.github_release_enabled).toBe("false");
       expect(stable.outputs.publish_side_effects_enabled).toBe("false");
       expect(stable.outputs.run_prepublish_jobs).toBe("false");
-      expect(stable.outputs.version_tag).toBe("open-design-v0.10.2");
+      expect(stable.outputs.version_tag).toBe(`open-design-v${packagedVersion}`);
     } finally {
       await server.close();
       await rm(ghRoot, { force: true, recursive: true });
@@ -366,21 +380,23 @@ describe("tools-release local channel prepare validation", () => {
   });
 
   it("prepares stable prepublish dry-run controls without enabling publish side effects", async () => {
+    const packagedVersion = await readPackagedVersion();
+    const prereleaseVersion = `${packagedVersion}-prerelease.2`;
     const objects: Record<string, unknown> = {};
     const server = await startMetadataServer(objects);
     const ghRoot = await mkdtemp(join(tmpdir(), "od-tools-release-gh-"));
-    objects["prerelease/versions/0.10.2-prerelease.2/metadata.json"] = stablePrereleaseMetadata(server.origin);
+    objects[`prerelease/versions/${prereleaseVersion}/metadata.json`] = stablePrereleaseMetadata(server.origin, packagedVersion);
 
     try {
       const fakeGh = await writeFakeGhScript(ghRoot);
       const stable = await runPrepare("stable", {
-        GITHUB_REF_NAME: "release/v0.10.2",
+        GITHUB_REF_NAME: `release/v${packagedVersion}`,
         GITHUB_REPOSITORY: "nexu-io/open-design",
         GITHUB_SHA: "0123456789abcdef0123456789abcdef01234567",
         OPEN_DESIGN_GH_NODE_SCRIPT: fakeGh,
         OPEN_DESIGN_RELEASE_DRY_RUN: "prepublish",
         OPEN_DESIGN_RELEASES_PUBLIC_ORIGIN: server.origin,
-        OPEN_DESIGN_STABLE_PRERELEASE_VERSION: "0.10.2-prerelease.2",
+        OPEN_DESIGN_STABLE_PRERELEASE_VERSION: prereleaseVersion,
       });
 
       expect(stable.stdout).toContain("[release-stable] dry run mode: prepublish");
@@ -396,6 +412,7 @@ describe("tools-release local channel prepare validation", () => {
   });
 
   it("rejects stable promotion inputs from non-prerelease counted channels", async () => {
+    const packagedVersion = await readPackagedVersion();
     const objects: Record<string, unknown> = {};
     const server = await startMetadataServer(objects);
     const ghRoot = await mkdtemp(join(tmpdir(), "od-tools-release-gh-"));
@@ -403,13 +420,13 @@ describe("tools-release local channel prepare validation", () => {
     try {
       const fakeGh = await writeFakeGhScript(ghRoot);
       await expect(runPrepare("stable", {
-        GITHUB_REF_NAME: "release/v0.10.2",
+        GITHUB_REF_NAME: `release/v${packagedVersion}`,
         GITHUB_REPOSITORY: "nexu-io/open-design",
         GITHUB_SHA: "0123456789abcdef0123456789abcdef01234567",
         OPEN_DESIGN_GH_NODE_SCRIPT: fakeGh,
         OPEN_DESIGN_RELEASE_DRY_RUN: "metadata",
         OPEN_DESIGN_RELEASES_PUBLIC_ORIGIN: server.origin,
-        OPEN_DESIGN_STABLE_PRERELEASE_VERSION: "0.10.2-preview.2",
+        OPEN_DESIGN_STABLE_PRERELEASE_VERSION: `${packagedVersion}-preview.2`,
       })).rejects.toThrow(/prereleaseVersion must be x\.y\.z-prerelease\.N/);
     } finally {
       await server.close();
@@ -418,10 +435,12 @@ describe("tools-release local channel prepare validation", () => {
   });
 
   it("requires stable promotion to run from the release version branch", async () => {
+    const packagedVersion = await readPackagedVersion();
+    const prereleaseVersion = `${packagedVersion}-prerelease.2`;
     const objects: Record<string, unknown> = {};
     const server = await startMetadataServer(objects);
     const ghRoot = await mkdtemp(join(tmpdir(), "od-tools-release-gh-"));
-    objects["prerelease/versions/0.10.2-prerelease.2/metadata.json"] = stablePrereleaseMetadata(server.origin);
+    objects[`prerelease/versions/${prereleaseVersion}/metadata.json`] = stablePrereleaseMetadata(server.origin, packagedVersion);
 
     try {
       const fakeGh = await writeFakeGhScript(ghRoot);
@@ -432,7 +451,7 @@ describe("tools-release local channel prepare validation", () => {
         OPEN_DESIGN_GH_NODE_SCRIPT: fakeGh,
         OPEN_DESIGN_RELEASE_DRY_RUN: "metadata",
         OPEN_DESIGN_RELEASES_PUBLIC_ORIGIN: server.origin,
-        OPEN_DESIGN_STABLE_PRERELEASE_VERSION: "0.10.2-prerelease.2",
+        OPEN_DESIGN_STABLE_PRERELEASE_VERSION: prereleaseVersion,
       })).rejects.toThrow(/requires GITHUB_REF_NAME to be release\/vX\.Y\.Z; got main/);
     } finally {
       await server.close();

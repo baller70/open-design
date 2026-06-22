@@ -26,9 +26,6 @@ importers:
       '@open-design/daemon':
         specifier: workspace:*
         version: link:apps/daemon
-      '@open-design/release':
-        specifier: workspace:*
-        version: link:packages/release
       '@open-design/tools-dev':
         specifier: workspace:*
         version: link:tools/dev

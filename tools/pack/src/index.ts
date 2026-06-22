@@ -104,6 +104,7 @@ function addWinLifecycleOptions(command: CacCommand) {
   return command
     .option("--expected-version <version>", "validate-payload: expected launcher payload version")
     .option("--payload-path <path>", "validate-payload: launcher payload archive path")
+    .option("--remove-cache", "remove packaged download/cache data during uninstall/reset/cleanup")
     .option("--remove-data", "remove packaged data during uninstall/reset/cleanup")
     .option("--remove-logs", "remove packaged logs during uninstall/reset/cleanup")
     .option("--remove-product-user-data", "remove the public Electron app userData root during Windows uninstall/reset/cleanup")
