@@ -166,7 +166,7 @@ export async function renderDeckSlides(
     let width = stage.w;
     let height = stage.h;
     for (const i of indices) {
-      await showDeckSlide(window, i);
+      await showDeckSlide(window, i, stage);
       // Clip to the exact measured slide rect (DIP) so the PNG aspect always
       // matches the authored deck, even if the window content rounds differently.
       const image = await window.webContents.capturePage({ x: 0, y: 0, width: stage.w, height: stage.h });
@@ -221,11 +221,27 @@ async function measureSlideStage(window: BrowserWindow): Promise<Stage> {
 // trip (showSlide returns the settle Promise, which executeJavaScript awaits) —
 // halving the main<->renderer hops per slide vs. a separate settle call, which
 // matters for long decks where the loop dominates.
-async function showDeckSlide(window: BrowserWindow, i: number): Promise<void> {
-  await window.webContents.executeJavaScript(
+async function showDeckSlide(window: BrowserWindow, i: number, stage: Stage): Promise<void> {
+  const rect = (await window.webContents.executeJavaScript(
     `(${showSlide.toString()})(${JSON.stringify(SLIDE_SELECTOR)}, ${i})`,
     true,
-  );
+  )) as { x: number; y: number; w: number; h: number } | null;
+  // If the active slide did not land in the top-left capture viewport (a
+  // translated carousel strip leaves it off-screen), restack it into place and
+  // settle again before the caller captures.
+  const onStage =
+    rect != null &&
+    Math.abs(rect.x) <= 2 &&
+    Math.abs(rect.y) <= 2 &&
+    rect.w >= stage.w * 0.5 &&
+    rect.h >= stage.h * 0.5;
+  if (!onStage) {
+    await window.webContents.executeJavaScript(
+      `(${restackActiveSlide.toString()})(${JSON.stringify(SLIDE_SELECTOR)}, ${i}, ${stage.w}, ${stage.h})`,
+      true,
+    );
+    await nextFrames(window);
+  }
 }
 
 // Captures every deck slide and stacks them top-to-bottom into one tall image
@@ -246,7 +262,7 @@ async function stitchDeckSlides(
   let maxSlides = count;
   let placed = 0;
   for (let i = 0; i < count; i++) {
-    await showDeckSlide(window, i);
+    await showDeckSlide(window, i, stage);
     const image = await window.webContents.capturePage({ x: 0, y: 0, width: stage.w, height: stage.h });
     const bmp = image.toBitmap(); // BGRA, full-width rows
     const size = image.getSize();
@@ -632,7 +648,7 @@ function measureSlide(slideSelector: string): { w: number; h: number } | null {
 
 // Returns a Promise that resolves after the style change has settled for two
 // animation frames, so the caller can show + wait in a single round trip.
-function showSlide(slideSelector: string, index: number): Promise<boolean> {
+function showSlide(slideSelector: string, index: number): Promise<{ x: number; y: number; w: number; h: number } | null> {
   const slides = Array.prototype.slice
     .call(document.querySelectorAll(slideSelector))
     .filter((el) => !(el as HTMLElement).closest(".mini-slide, .overview, .notes-overlay, .thumb"));
@@ -652,7 +668,46 @@ function showSlide(slideSelector: string, index: number): Promise<boolean> {
     el.style.zIndex = on ? "999" : "0";
     activeClasses.forEach((c) => el.classList.toggle(c, on));
   });
+  // Report where the active slide actually landed after two frames, so the
+  // capturer can detect a slide that the deck keeps off-screen (e.g. a
+  // horizontal carousel that paginates by translating a flex strip rather than
+  // stacking slides in place) and restack it before capturing.
   return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = slides[index] as HTMLElement | undefined;
+        if (!el) return resolve(null);
+        const r = el.getBoundingClientRect();
+        resolve({ x: r.x, y: r.y, w: r.width, h: r.height });
+      }),
+    );
   });
+}
+
+// Serialized into the page: forces the active slide into the top-left capture
+// viewport for decks that position it elsewhere (translated carousel strip).
+// Only used when showSlide reports the slide off-stage, so transform-scaled
+// fit-to-viewport decks (whose active slide is already at 0,0) are untouched —
+// clearing ancestor transforms here is safe because such off-stage decks do not
+// rely on an ancestor scale.
+function restackActiveSlide(slideSelector: string, index: number, w: number, h: number): void {
+  const slides = Array.prototype.slice
+    .call(document.querySelectorAll(slideSelector))
+    .filter((el) => !(el as HTMLElement).closest(".mini-slide, .overview, .notes-overlay, .thumb"));
+  const el = slides[index] as HTMLElement | undefined;
+  if (!el) return;
+  let node: HTMLElement | null = el.parentElement;
+  while (node && node !== document.documentElement) {
+    node.style.setProperty("transform", "none", "important");
+    node.style.setProperty("transition", "none", "important");
+    node = node.parentElement;
+  }
+  el.style.setProperty("position", "fixed", "important");
+  el.style.setProperty("left", "0", "important");
+  el.style.setProperty("top", "0", "important");
+  el.style.setProperty("margin", "0", "important");
+  el.style.setProperty("width", `${w}px`, "important");
+  el.style.setProperty("height", `${h}px`, "important");
+  el.style.setProperty("transform", "none", "important");
+  el.style.setProperty("z-index", "2147483647", "important");
 }
