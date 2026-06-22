@@ -24,7 +24,7 @@ import { isLocalSameOrigin } from '../src/origin-validation.js';
 // "user opted out → stays opted out" assert on `metrics: false`.
 const DEFAULT_TELEMETRY = {
   metrics: true,
-  content: true,
+  content: false,
 } as const;
 
 describe('app-config', () => {
@@ -643,6 +643,16 @@ describe('app-config telemetry prefs', () => {
       content: true,
       artifactManifest: false,
     });
+  });
+
+  it('never enables content telemetry for a fresh install (no consent yet)', async () => {
+    // Privacy invariant: raw prompt / output text must not be sent
+    // before the user makes an explicit choice. A brand-new install has
+    // no `telemetry` field on disk, so the read path backfills the
+    // default — `content` must be false there. Anonymous `metrics` may
+    // stay on for the onboarding funnel; `content` may not.
+    const cfg = await readAppConfig(dataDir);
+    expect(cfg.telemetry?.content).not.toBe(true);
   });
 
   it('persists partial telemetry prefs and omits absent keys', async () => {

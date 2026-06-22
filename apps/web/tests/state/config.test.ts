@@ -251,16 +251,16 @@ describe('mergeDaemonConfig', () => {
     expect(typeof merged.privacyDecisionAt).toBe('number');
   });
 
-  it('defaults reporting on and mints an installationId when the install never opted out', () => {
-    // Brand-new install: the daemon has no privacy state at all. The product
-    // default telemetry channels (metrics + content) are on and an anonymous
-    // id is assigned so events have a stable distinct id. This mirrors the
-    // first-run banner's "I get it" opt-in payload; artifactManifest stays
-    // off, matching that surface.
+  it('defaults metrics on but content off, minting an installationId when the install never opted out', () => {
+    // Brand-new install: the daemon has no privacy state at all. Anonymous
+    // `metrics` is on (onboarding funnel) and an anonymous id is assigned so
+    // events have a stable distinct id. `content` (raw prompt text) stays
+    // OFF — it must never flow before the user makes an explicit choice.
+    // artifactManifest stays off too.
     const merged = mergeDaemonConfig(DEFAULT_CONFIG, {});
 
     expect(merged.telemetry?.metrics).toBe(true);
-    expect(merged.telemetry?.content).toBe(true);
+    expect(merged.telemetry?.content).toBe(false);
     expect(merged.telemetry?.artifactManifest).toBe(false);
     expect(typeof merged.installationId).toBe('string');
     expect(merged.installationId).toBeTruthy();
