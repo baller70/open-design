@@ -72,6 +72,7 @@ import {
   exportProjectAsPdf,
   exportProjectAsZip,
   exportProjectImageDataUrl,
+  exportProjectScreenshotPdf,
   copyImageDataUrlToClipboard,
   exportReactComponentAsHtml,
   exportReactComponentAsZip,
@@ -8747,17 +8748,29 @@ function HtmlViewer({
                     role="menuitem"
                     onClick={() => {
                       setDownloadMenuOpen(false);
-                      // Print-ready vector PDF (instant): the artifact's print
-                      // layout via Chromium's print engine — selectable text,
-                      // true pagination, no server-side render. The pixel-perfect
-                      // screenshot PDF is available via `od export pdf`.
-                      fireShareExport('pdf', () => exportProjectAsPdf({
-                        deck: effectiveDeck,
-                        fallbackPdf: () => exportAsPdf(source ?? '', exportTitle, { deck: effectiveDeck }),
-                        filePath: file.name,
-                        projectId,
-                        title: exportTitle,
-                      }));
+                      // Pixel-perfect screenshot PDF (matches the preview, same
+                      // renderer as image/PPTX). Chosen over Chromium's vector
+                      // printToPDF because that path drops CJK glyphs in the
+                      // packaged runtime (no embedded fonts) — unacceptable for a
+                      // Chinese-first product. Falls back to the vector/browser
+                      // print path on web or on failure.
+                      fireShareExport('pdf', async () => {
+                        if (isOpenDesignHostAvailable()) {
+                          const res = await exportProjectScreenshotPdf({
+                            projectId,
+                            fileName: file.name,
+                            title: exportTitle,
+                          });
+                          if (res.ok) return;
+                        }
+                        await exportProjectAsPdf({
+                          deck: effectiveDeck,
+                          fallbackPdf: () => exportAsPdf(source ?? '', exportTitle, { deck: effectiveDeck }),
+                          filePath: file.name,
+                          projectId,
+                          title: exportTitle,
+                        });
+                      });
                     }}
                   >
                     <span className="share-menu-icon"><RemixIcon name="file-line" size={15} /></span>

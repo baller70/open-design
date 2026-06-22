@@ -932,6 +932,18 @@ export async function exportProjectImageDataUrl(opts: {
   }
 }
 
+// Pixel-perfect screenshot PDF (one raster page per deck slide, or the whole
+// page for a website) via the same off-screen renderer as image/PPTX. Used as
+// the default UI PDF because Chromium's vector printToPDF drops CJK glyphs in
+// the packaged runtime.
+export function exportProjectScreenshotPdf(opts: {
+  projectId: string;
+  fileName: string;
+  title?: string;
+}): Promise<ProjectScreenshotExportResult> {
+  return exportProjectAsPptx({ ...opts, format: 'pdf' });
+}
+
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
