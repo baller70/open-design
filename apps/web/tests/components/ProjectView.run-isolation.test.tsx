@@ -710,6 +710,7 @@ describe('ProjectView conversation run isolation', () => {
       undefined,
       {
         seedFromConversationId: 'conv-a',
+        seedMessages: conversationAMessages,
       },
     );
   });
@@ -737,6 +738,46 @@ describe('ProjectView conversation run isolation', () => {
 
     await waitFor(() => expect(createConversation).toHaveBeenCalledTimes(1));
     expect(createConversation).toHaveBeenCalledWith('project-1', undefined, undefined);
+  });
+
+  it('trims a trailing resumable failed turn from new-conversation seeds', async () => {
+    const successfulUser: ChatMessage = {
+      id: 'user-success',
+      role: 'user',
+      content: 'Keep the editorial grid and muted palette.',
+      createdAt: 1,
+    };
+    const failedUser: ChatMessage = {
+      id: 'user-failed',
+      role: 'user',
+      content: 'Add a pricing section beneath the hero.',
+      createdAt: 3,
+    };
+    const failedAssistant: ChatMessage = {
+      id: 'assistant-failed',
+      role: 'assistant',
+      content: 'Partial pricing section draft',
+      createdAt: 4,
+      runStatus: 'failed',
+      resumable: true,
+    };
+    conversationAMessages = [successfulUser, succeededAssistant, failedUser, failedAssistant];
+
+    renderProjectView();
+
+    await waitFor(() => expect(screen.getByTestId('active-conversation').textContent).toBe('conv-a'));
+
+    fireEvent.click(screen.getByTestId('new-conversation'));
+
+    await waitFor(() => expect(createConversation).toHaveBeenCalledTimes(1));
+    expect(createConversation).toHaveBeenCalledWith(
+      'project-1',
+      undefined,
+      {
+        seedFromConversationId: 'conv-a',
+        seedMessages: [successfulUser, succeededAssistant],
+      },
+    );
   });
 
   it('keeps the new conversation payload compact when the visible messages update', async () => {
@@ -786,6 +827,7 @@ describe('ProjectView conversation run isolation', () => {
       undefined,
       {
         seedFromConversationId: 'conv-a',
+        seedMessages: conversationAMessages,
       },
     );
   });
@@ -1545,6 +1587,51 @@ describe('ProjectView conversation run isolation', () => {
           name: 'Agent Title',
           metadata: expect.objectContaining({ nameSource: 'agent' }),
         }),
+      ),
+    );
+  });
+
+  it('treats a freshly seeded untitled conversation as titleable on its first new prompt', async () => {
+    const seededConversation: Conversation = {
+      id: 'conv-seeded',
+      projectId: project.id,
+      title: null,
+      createdAt: 10,
+      updatedAt: 10,
+    };
+    const seededMessages: ChatMessage[] = [
+      {
+        id: 'user-seed',
+        role: 'user',
+        content: 'Keep the editorial grid and muted palette.',
+        createdAt: 1,
+      },
+      {
+        ...succeededAssistant,
+        id: 'assistant-seed',
+        content: 'Preserve the serif body copy and the oversized headline.',
+      },
+    ];
+    listConversations.mockResolvedValue([seededConversation]);
+    listMessages.mockResolvedValue(seededMessages);
+    fetchChatRunStatus.mockResolvedValue(null);
+
+    renderProjectView();
+
+    await waitFor(() => expect(screen.getByTestId('active-conversation').textContent).toBe('conv-seeded'));
+    await waitFor(() => expect(screen.getByTestId('send-message')).toHaveProperty('disabled', false));
+
+    fireEvent.click(screen.getByTestId('send-message'));
+
+    await waitFor(() => expect(streamViaDaemon).toHaveBeenCalledTimes(1));
+    expect(streamViaDaemon).toHaveBeenCalledWith(expect.objectContaining({
+      titleGeneration: { enabled: true },
+    }));
+    await waitFor(() =>
+      expect(patchConversation).toHaveBeenCalledWith(
+        project.id,
+        seededConversation.id,
+        { title: 'Hello From B' },
       ),
     );
   });

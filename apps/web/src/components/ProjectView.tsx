@@ -3596,7 +3596,17 @@ export function ProjectView({
           current.filter((comment) => !consumedCommentIds.has(comment.id)),
         );
       }
-      const isFirstTurn = !retryTarget && historyBase.length === 0;
+      const currentConversation = conversationsRef.current.find(
+        (conversation) => conversation.id === runConversationId,
+      );
+      const isSeededUntitledConversation =
+        !retryTarget
+        && historyBase.length > 0
+        && !currentConversation?.title?.trim()
+        && currentConversation?.createdAt === currentConversation?.updatedAt;
+      const isFirstTurn = !retryTarget && (
+        historyBase.length === 0 || isSeededUntitledConversation
+      );
       const fallbackFirstTurnTitle = isDesignSystemWorkspacePrompt(prompt)
         ? DESIGN_SYSTEM_WORKSPACE_DISPLAY_TITLE
         : summarizeProjectNameFromPrompt(prompt) || prompt.slice(0, 60).trim();
@@ -5138,12 +5148,13 @@ export function ProjectView({
     setCreatingConversation(true);
     setConversationLoadError(null);
     try {
+      const seedMessages = getSeedableMessagesForNewConversation(messages);
       const seedFromConversationId =
         typeof activeConversationId === 'string'
         && activeConversationId
         && messagesConversationIdRef.current === activeConversationId
         && !currentConversationHasActiveRun
-        && messages.length > 0
+        && seedMessages.length > 0
           ? activeConversationId
           : null;
       const fresh = await createConversation(
@@ -5152,6 +5163,7 @@ export function ProjectView({
         seedFromConversationId
           ? {
               seedFromConversationId,
+              seedMessages,
             }
           : undefined,
       );
@@ -7031,6 +7043,21 @@ export function finalizeActiveAssistantMessagesOnStop(
     return updated;
   });
   return { messages: next, finalized };
+}
+
+function getSeedableMessagesForNewConversation(messages: ChatMessage[]): ChatMessage[] {
+  if (messages.length < 2) return messages;
+  const lastMessage = messages.at(-1);
+  const priorMessage = messages.at(-2);
+  if (
+    lastMessage?.role === 'assistant'
+    && lastMessage.runStatus === 'failed'
+    && lastMessage.resumable === true
+    && priorMessage?.role === 'user'
+  ) {
+    return messages.slice(0, -2);
+  }
+  return messages;
 }
 
 type BufferedTextUpdates = ReturnType<typeof createBufferedTextUpdates>;
