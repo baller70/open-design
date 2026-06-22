@@ -4988,12 +4988,13 @@ function HtmlViewer({
   const [imageExportModalOpen, setImageExportModalOpen] = useState(false);
   const [imageExportFormat, setImageExportFormat] = useState<ImageExportFormat>('png');
   const [imageExportBusy, setImageExportBusy] = useState(false);
-  const [imageExportPreparing, setImageExportPreparing] = useState(false);
+  // True only while the snapshot is being captured on Save; used to hide the
+  // modal during the web-only host-compositor capture so the overlay can't leak
+  // into the image (the desktop off-screen renderer never sees the modal).
+  const [imageExportCapturing, setImageExportCapturing] = useState(false);
   const [imageExportError, setImageExportError] = useState<string | null>(null);
   const [imageExportSavedToast, setImageExportSavedToast] = useState<{ message: string; details: string } | null>(null);
-  const [imageExportPreparedBlob, setImageExportPreparedBlob] = useState<{ format: ImageExportFormat; blob: Blob } | null>(null);
   const imageExportSnapshotDataUrlRef = useRef<string | null>(null);
-  const imageExportPrepareIdRef = useRef(0);
   // Threads the share-popover click → artifact_export_result(image) pair, the
   // same correlation other export formats get via fireShareExport. The image
   // export is a separate modal flow, so it owns its own request id / start.
@@ -7640,37 +7641,6 @@ function HtmlViewer({
     }
   }, [captureExportImageSnapshot, t]);
 
-  const prepareImageExportBlob = useCallback(async (format: ImageExportFormat) => {
-    const prepareId = imageExportPrepareIdRef.current + 1;
-    imageExportPrepareIdRef.current = prepareId;
-    setImageExportPreparing(true);
-    setImageExportError(null);
-    setImageExportPreparedBlob(null);
-    try {
-      let dataUrl = imageExportSnapshotDataUrlRef.current;
-      if (!dataUrl) {
-        const snap = await captureExportImageSnapshot();
-        if (!snap) throw new Error('Snapshot capture returned null');
-        dataUrl = snap.dataUrl;
-        imageExportSnapshotDataUrlRef.current = dataUrl;
-      }
-      const blob = await imageDataUrlToBlob(dataUrl, format);
-      if (blob.size <= 0) throw new Error('Snapshot capture produced an empty image');
-      if (imageExportPrepareIdRef.current === prepareId) {
-        setImageExportPreparedBlob({ format, blob });
-      }
-    } catch (err) {
-      console.warn('[exportAsImage] failed to prepare snapshot:', err);
-      if (imageExportPrepareIdRef.current === prepareId) {
-        setImageExportError(t('fileViewer.exportImageFailed'));
-      }
-    } finally {
-      if (imageExportPrepareIdRef.current === prepareId) {
-        setImageExportPreparing(false);
-      }
-    }
-  }, [captureExportImageSnapshot, t]);
-
   const openImageExportModal = async () => {
     flushSync(() => {
       setDownloadMenuOpen(false);
@@ -7695,28 +7665,14 @@ function HtmlViewer({
       { requestId },
     );
     setImageExportError(null);
-    setImageExportPreparedBlob(null);
     imageExportSnapshotDataUrlRef.current = null;
-    await waitForAnimationFrame();
-    await waitForAnimationFrame();
-    // Capture the clean preview BEFORE the modal opens. The snapshot uses the
-    // host compositor (capturePage of the preview region), so if the modal is
-    // already shown it overlays the slide and leaks into the exported image.
-    // prepareImageExportBlob() reuses this cached snapshot, so opening the
-    // modal afterwards never re-captures over the overlay.
-    try {
-      const cleanSnap = await captureExportImageSnapshot();
-      if (cleanSnap) imageExportSnapshotDataUrlRef.current = cleanSnap.dataUrl;
-    } catch (err) {
-      console.warn('[exportAsImage] pre-modal snapshot failed:', err);
-    }
+    // Just open the modal. Rendering happens on Save, after the user picks a
+    // format — not eagerly on open.
     setImageExportModalOpen(true);
-    void prepareImageExportBlob(imageExportFormat);
   };
 
   const changeImageExportFormat = (format: ImageExportFormat) => {
     setImageExportFormat(format);
-    void prepareImageExportBlob(format);
   };
 
   // Component-scoped so both the save flow and the modal Cancel button can
@@ -7748,26 +7704,50 @@ function HtmlViewer({
   };
 
   async function handleImageExportSave() {
-    const prepared = imageExportPreparedBlob;
-    if (!prepared || prepared.format !== imageExportFormat) {
-      setImageExportError(t('fileViewer.exportImageFailed'));
-      fireImageExportResult('failed', 'BLOB_NOT_READY');
-      return;
-    }
     setImageExportBusy(true);
     setImageExportError(null);
     try {
+      // Render now (on Save, after the format is chosen). The desktop off-screen
+      // renderer can't see the modal; for the web-only host-compositor fallback
+      // we hide the modal during the capture so the overlay doesn't leak in.
+      let dataUrl = imageExportSnapshotDataUrlRef.current;
+      if (!dataUrl) {
+        const hideForCapture = !isOpenDesignHostAvailable();
+        if (hideForCapture) {
+          setImageExportCapturing(true);
+          await waitForAnimationFrame();
+          await waitForAnimationFrame();
+        }
+        let snap;
+        try {
+          snap = await captureExportImageSnapshot();
+        } finally {
+          if (hideForCapture) setImageExportCapturing(false);
+        }
+        if (!snap) {
+          setImageExportError(t('fileViewer.exportImageFailed'));
+          fireImageExportResult('failed', 'CAPTURE_FAILED');
+          return;
+        }
+        dataUrl = snap.dataUrl;
+        imageExportSnapshotDataUrlRef.current = dataUrl;
+      }
+      const blob = await imageDataUrlToBlob(dataUrl, imageExportFormat);
+      if (blob.size <= 0) {
+        setImageExportError(t('fileViewer.exportImageFailed'));
+        fireImageExportResult('failed', 'EMPTY_IMAGE');
+        return;
+      }
       const target = await prepareImageExportTarget(exportTitle, imageExportFormat, { useNativePicker: false });
       if (!target) {
         // Not a terminal state: the modal stays open so the user can retry or
         // Cancel. The cancelled result is emitted by the Cancel button.
         return;
       }
-      const preparedDataUrl = imageExportSnapshotDataUrlRef.current;
-      if (target.method === 'download' && imageExportFormat === 'png' && preparedDataUrl) {
-        downloadImageDataUrl(preparedDataUrl, target.filename);
+      if (target.method === 'download' && imageExportFormat === 'png' && dataUrl) {
+        downloadImageDataUrl(dataUrl, target.filename);
       } else {
-        await target.save(prepared.blob);
+        await target.save(blob);
       }
       setImageExportModalOpen(false);
       fireImageExportResult('success');
@@ -9255,7 +9235,11 @@ function HtmlViewer({
         document.body,
       ) : null}
       {imageExportModalOpen && typeof document !== 'undefined' ? createPortal(
-        <div className="modal-backdrop viewer-modal-backdrop image-export-backdrop" role="presentation">
+        <div
+          className="modal-backdrop viewer-modal-backdrop image-export-backdrop"
+          role="presentation"
+          style={imageExportCapturing ? { visibility: 'hidden' } : undefined}
+        >
           <div
             className="modal deploy-modal image-export-modal"
             role="dialog"
@@ -9314,7 +9298,7 @@ function HtmlViewer({
               <button
                 type="button"
                 className="viewer-action primary"
-                disabled={imageExportBusy || imageExportPreparing || !imageExportPreparedBlob}
+                disabled={imageExportBusy}
                 onClick={() => {
                   void handleImageExportSave();
                 }}
