@@ -18,10 +18,14 @@ services:
       OD_API_TOKEN: ${OD_API_TOKEN:-}
       OD_DISABLE_API_AUTH: ${OPEN_DESIGN_DISABLE_API_AUTH:-}
       OD_CODEX_SANDBOX: ${OD_CODEX_SANDBOX:-}
+      VELA_BIN: /opt/vela-cli/vela
+      OPEN_DESIGN_VELA_CLI_BIN: /opt/vela-cli/vela
+      PATH: /opt/vela-cli:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     ports:
       - "127.0.0.1:${OPEN_DESIGN_PORT:-7456}:7456"
     volumes:
       - open_design_data:/app/.od
+      - /opt/apps/contenthub-vendor/open-design/vela-runtime/node_modules/@powerformer/vela-cli-linux-x64/bin:/opt/vela-cli:ro
     read_only: true
     tmpfs:
       - /tmp
