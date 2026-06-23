@@ -2180,6 +2180,18 @@ function OnboardingView({
         window.matchMedia('(prefers-color-scheme: dark)').matches);
     const themeIcon: 'sun' | 'moon' = resolvedDark ? 'moon' : 'sun';
     const cloudBusy = amrLoginPending;
+    const cloudActivationUrl =
+      cloudBusy && amrStatus?.loggedIn !== true && amrStatus?.loginInFlight === true
+        ? amrStatus.activationUrl
+        : undefined;
+    const cloudActivationCode =
+      cloudBusy && amrStatus?.loggedIn !== true && amrStatus?.loginInFlight === true
+        ? amrStatus.userCode
+        : undefined;
+    const cloudBrowserOpenFailed =
+      cloudBusy && amrStatus?.loggedIn !== true && amrStatus?.loginInFlight === true
+        ? amrStatus.browserOpenFailed
+        : false;
     // 登录态尚未拉到时显示「加载中…」并禁用，避免先闪一下「登录」再翻成「继续（已登录）」。
     // 现在状态在挂载时就并行拉取，所以这个窗口很短。
     const amrStatusResolving = !amrStatusResolved;
@@ -2259,6 +2271,45 @@ function OnboardingView({
             <span className="onboarding-cloud__error" role="alert">
               {amrLoginError}
             </span>
+          ) : null}
+          {cloudActivationUrl ? (
+            <div className="onboarding-cloud__activation" role="group">
+              <span className="onboarding-cloud__activation-hint">
+                {cloudBrowserOpenFailed
+                  ? t('settings.amrActivationBrowserFailed')
+                  : t('settings.amrActivationHint')}
+              </span>
+              <div className="onboarding-cloud__activation-actions">
+                <a
+                  className="onboarding-cloud__activation-open"
+                  href={cloudActivationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t('settings.amrActivationOpen')}
+                </a>
+                {cloudActivationCode ? (
+                  <button
+                    type="button"
+                    className="onboarding-cloud__activation-code"
+                    onClick={() => {
+                      const clipboard = navigator.clipboard;
+                      if (!clipboard) return;
+                      void clipboard.writeText(cloudActivationCode);
+                    }}
+                    aria-label={t('settings.amrActivationCopyCode')}
+                    title={t('settings.amrActivationCopyCode')}
+                  >
+                    <span className="onboarding-cloud__activation-code-value">
+                      {cloudActivationCode}
+                    </span>
+                    <span className="onboarding-cloud__activation-code-action">
+                      {t('settings.amrActivationCopy')}
+                    </span>
+                  </button>
+                ) : null}
+              </div>
+            </div>
           ) : null}
           {cloudBusy ? (
             <button
