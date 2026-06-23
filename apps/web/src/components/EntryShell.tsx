@@ -2224,48 +2224,17 @@ function OnboardingView({
             type="button"
             className="onboarding-cloud__primary"
             onClick={() => {
-              if (amrStatusResolving) return;
-              if (amrSignedIn) {
-                // 已登录：不再触发登录，但仍记一次 AMR 归因，否则
-                // “已登录直接继续”的用户在 AMR 归因漏斗里会整段隐形
-                // （登录流程的用户由 handleCloudSignIn 记录）。
-                recordAmrEntry(analytics.track, 'onboarding_amr_card', new Date(), {
-                  metricsConsent: config.telemetry?.metrics === true,
-                });
-                // Pin the runtime explicitly (mirroring handleCloudSignIn)
-                // rather than leaning on the amrAgent effect, so the
-                // completion event records runtime_type='amr_cloud' even if
-                // amrAgent hasn't resolved yet when Continue is clicked.
-                setRuntime('amr');
-                onModeChange('daemon');
-                onAgentChange('amr');
-                recordAmrEntry(
-                  analytics.track,
-                  'onboarding_amr_sign_in_continue',
-                  new Date(),
-                  {
-                    metricsConsent: config.telemetry?.metrics === true,
-                    reuseExistingFrom: ['onboarding_amr_card'],
-                  },
-                );
-                setStep((current) => current + 1);
-                return;
-              }
-              void handleCloudSignIn();
+              emitOnboardingClick('local_coding_agent', 'select_runtime', {
+                runtime_type: 'local_cli',
+              });
+              setRuntime('local');
+              onModeChange('daemon');
+              void scanCliAgents({ preferExisting: true });
+              setConnectExpanded('local');
             }}
-            disabled={cloudBusy || amrLoginCancelPending || amrStatusResolving}
-            aria-busy={cloudBusy || amrStatusResolving ? true : undefined}
           >
             <Icon name="orbit" size={17} />
-            <span>
-              {cloudBusy
-                ? t('settings.amrSigningIn')
-                : amrStatusResolving
-                  ? t('common.loading')
-                  : amrSignedIn
-                    ? t('settings.onboardingCloudContinue')
-                    : t('settings.onboardingCloudSignIn')}
-            </span>
+            <span>{t('settings.onboardingCloudSignIn')}</span>
           </button>
           {amrLoginError ? (
             <span className="onboarding-cloud__error" role="alert">
