@@ -537,6 +537,7 @@ import { registerSocialShareRoutes } from './routes/social-share.js';
 import { registerOpenDesignPublicMetadataRoutes } from './routes/open-design-public-metadata.js';
 import { registerMemoryRoutes } from './routes/memory.js';
 import { registerTelemetryRoutes } from './routes/telemetry.js';
+import { registerBrandRoutes } from './brand-routes.js';
 import {
   assembleExample,
   registerAtomRoutes,
@@ -803,6 +804,7 @@ const ARTIFACTS_DIR = path.join(RUNTIME_DATA_DIR, 'artifacts');
 // read path so project-membership, size, and CSP guards cannot be bypassed.
 const CRITIQUE_ARTIFACTS_DIR = path.join(RUNTIME_DATA_DIR, 'critique-artifacts');
 const PROJECTS_DIR = path.join(RUNTIME_DATA_DIR, 'projects');
+const BRANDS_DIR = path.join(RUNTIME_DATA_DIR, 'brands');
 const USER_SKILLS_DIR = path.join(RUNTIME_DATA_DIR, 'skills');
 const USER_DESIGN_SYSTEMS_DIR = path.join(RUNTIME_DATA_DIR, 'design-systems');
 const PLUGIN_REGISTRY_ROOTS = registryRootsForDataDir(RUNTIME_DATA_DIR);
@@ -3693,6 +3695,7 @@ export async function startServer({
   const pathDeps = {
     PROJECT_ROOT,
     PROJECTS_DIR,
+    BRANDS_DIR,
     ARTIFACTS_DIR,
     RUNTIME_DATA_DIR,
     RUNTIME_DATA_DIR_CANONICAL,
@@ -3971,6 +3974,16 @@ export async function startServer({
     projectFiles: projectFileDeps,
   });
   registerSocialShareRoutes(app, { http: httpDeps });
+  registerBrandRoutes(app, {
+    brandsRoot: BRANDS_DIR,
+    userDesignSystemsRoot: USER_DESIGN_SYSTEMS_DIR,
+    projectsRoot: PROJECTS_DIR,
+    skillsRoot: SKILLS_DIR,
+    dataDir: RUNTIME_DATA_DIR,
+    db,
+    runs: design.runs,
+    randomId,
+  });
   registerProjectRoutes(app, {
     db,
     design,
