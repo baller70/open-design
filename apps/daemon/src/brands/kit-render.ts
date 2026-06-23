@@ -75,6 +75,7 @@ export interface BrandKitPayload {
   status: 'extracting' | 'ready';
   host: string;
   brand: Record<string, unknown>;
+  sourceSnapshot: { href: string; label: string; desc: string } | null;
   assets: Array<{ kind: string; label: string; desc: string; href: string; available: boolean }>;
   system: BrandKitSystem | null;
   brandMd: { href: string } | null;
@@ -152,6 +153,16 @@ function fileExists(absPath: string): boolean {
   }
 }
 
+function readSourceSnapshot(projectDir: string, host: string): BrandKitPayload['sourceSnapshot'] {
+  const href = 'source/site/index.html';
+  if (!fileExists(path.join(projectDir, ...href.split('/')))) return null;
+  return {
+    href,
+    label: host || 'Source website',
+    desc: 'Snapshot copied from the local site app build on this server.',
+  };
+}
+
 export interface WriteBrandKitOptions {
   skillsRoot: string;
   projectsRoot: string;
@@ -196,6 +207,7 @@ export async function writeBrandKitPreview(opts: WriteBrandKitOptions): Promise<
     status: opts.status,
     host,
     brand: opts.brand,
+    sourceSnapshot: readSourceSnapshot(projectDir, host),
     assets,
     system: readSystem(projectDir),
     brandMd: brandMdAvailable ? { href: 'BRAND.md' } : null,

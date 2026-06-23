@@ -143,6 +143,9 @@
   .assets { display: grid; gap: 16px; grid-template-columns: 1fr; }
   @media (min-width: 620px) { .assets { grid-template-columns: 1fr 1fr; } }
   @media (min-width: 920px) { .assets { grid-template-columns: 1fr 1fr 1fr; } }
+  .source-assets { max-width: 920px; }
+  @media (min-width: 620px) { .source-assets { grid-template-columns: 1fr; } }
+  @media (min-width: 920px) { .source-assets { grid-template-columns: 1fr; } }
   .asset { border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface); overflow: hidden; text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: border-color .14s ease, transform .14s ease; }
   .asset:hover { border-color: var(--accent); transform: translateY(-1px); }
   .asset.pending { opacity: .55; pointer-events: none; }
@@ -408,7 +411,7 @@
   function voiceHtml() {
     var v = brand.voice || {};
     if (!arr(v.adjectives).length && !v.tone) {
-      return '<div class="card"><div class="skel skel-line" style="width:40%"></div><div class="skel skel-line" style="width:85%"></div><div class="skel skel-line" style="width:75%"></div></div>';
+      return '<div class="card"><p class="muted">No voice or tone guidance was extracted yet. Use the actual website page below as the source of truth.</p></div>';
     }
     var chips = arr(v.adjectives).map(function (a) {
       return '<span class="chip" style="background:' + esc(accent) + '1f;color:' + esc(accent) + '">' + esc(a) + '</span>';
@@ -427,7 +430,7 @@
     var im = brand.imagery || {};
     var lay = brand.layout || {};
     if (!im.style && !arr(lay.postureRules).length) {
-      return '<div class="card"><div class="skel skel-line" style="width:90%"></div><div class="skel skel-line" style="width:70%"></div></div>';
+      return '<div class="card"><p class="muted">No imagery or layout guidance was extracted yet. Use the actual website page below as the source of truth.</p></div>';
     }
     var posture = arr(lay.postureRules).length ? '<div class="posture"><div class="type-label">Layout posture</div><ul>' +
       arr(lay.postureRules).map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul></div>' : '';
@@ -479,6 +482,20 @@
       tokens + '</section>';
   }
 
+  function sourceSnapshotHtml() {
+    var source = data.sourceSnapshot;
+    if (!source || !source.href) return '';
+    var label = source.label || 'Actual website page';
+    var desc = source.desc || 'Snapshot copied from the local site app build on this server.';
+    return '<section class="sec">' + sectionTitle('Actual website page') +
+      '<p class="muted" style="margin:-6px 0 14px">' + esc(desc) + '</p>' +
+      '<div class="assets source-assets"><div class="asset" data-asset-href="' + esc(source.href) +
+      '" data-asset-label="' + esc(label) + '" data-asset-desc="' + esc(desc) + '" tabindex="0" role="button">' +
+      '<div class="asset-frame"><iframe src="' + esc(source.href) + '" loading="eager" tabindex="-1" aria-hidden="true"></iframe></div>' +
+      '<div class="asset-meta"><div class="asset-name">' + esc(label) + '<span class="open">Preview →</span></div>' +
+      '<div class="asset-desc">' + esc(desc) + '</div></div></div></div></section>';
+  }
+
   function assetsHtml() {
     if (!assets.length) return '';
     return '<section class="sec">' + sectionTitle('Generated examples') +
@@ -524,6 +541,7 @@
       '<section><h2 class="sec-title">Imagery &amp; layout</h2>' + imageryHtml() + '</section></div>' +
     galleryHtml() +
     designSystemHtml() +
+    sourceSnapshotHtml() +
     assetsHtml();
 
   document.getElementById('root').innerHTML = html;
