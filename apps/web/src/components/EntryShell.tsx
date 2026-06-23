@@ -1584,6 +1584,43 @@ function OnboardingView({
     void onConfigPersist(nextConfig);
   }
 
+
+  function handleMiniMaxByokSelect(): void {
+    const provider = KNOWN_PROVIDERS.find(
+      (item) => item.protocol === 'anthropic' && item.label.startsWith('MiniMax'),
+    );
+    emitOnboardingClick('byok', 'select_runtime', { runtime_type: 'byok' });
+    setRuntime('byok');
+    onModeChange('api');
+    setConnectExpanded('byok');
+    if (!provider) return;
+
+    const protocol = provider.protocol;
+    const saved = config.apiProtocolConfigs?.[protocol];
+    const nextProtocolConfig: ApiProtocolConfig = {
+      apiKey: saved?.apiKey ?? (config.apiProtocol === protocol ? config.apiKey : ''),
+      baseUrl: provider.baseUrl,
+      model: saved?.model?.trim() || provider.model,
+      apiVersion: '',
+      apiProviderBaseUrl: provider.baseUrl,
+    };
+    const nextConfig: AppConfig = {
+      ...config,
+      mode: 'api',
+      apiProtocol: protocol,
+      apiKey: nextProtocolConfig.apiKey,
+      baseUrl: nextProtocolConfig.baseUrl,
+      model: nextProtocolConfig.model,
+      apiVersion: '',
+      apiProviderBaseUrl: provider.baseUrl,
+      apiProtocolConfigs: {
+        ...(config.apiProtocolConfigs ?? {}),
+        [protocol]: nextProtocolConfig,
+      },
+    };
+    void onConfigPersist(nextConfig);
+  }
+
   function selectFirstProviderModelWhenEmpty(
     models: readonly ProviderModelOption[],
     expectedInputKey: string,
@@ -2384,6 +2421,7 @@ function OnboardingView({
                       if (!selectedAgent) return;
                       onAgentModelChange(selectedAgent.id, { model });
                     }}
+                    onSelectMiniMaxByok={handleMiniMaxByokSelect}
                   />
                 ) : null}
                 {connectExpanded === 'byok' ? (
@@ -2710,6 +2748,7 @@ function OnboardingCliSetupPanel({
   onRefresh,
   onSelectAgent,
   onSelectModel,
+  onSelectMiniMaxByok,
 }: {
   agents: AgentInfo[];
   daemonLive: boolean;
@@ -2721,6 +2760,7 @@ function OnboardingCliSetupPanel({
   onRefresh: () => void;
   onSelectAgent: (agentId: string) => void;
   onSelectModel: (model: string) => void;
+  onSelectMiniMaxByok: () => void;
 }) {
   const t = useT();
   const scanning = scanStatus === 'scanning';
@@ -2779,6 +2819,19 @@ function OnboardingCliSetupPanel({
           {t('settings.noAgentsDetected')}
         </div>
       ) : null}
+      <div className="onboarding-view__agent-strip">
+        <button
+          type="button"
+          className="onboarding-view__agent-chip"
+          onClick={onSelectMiniMaxByok}
+        >
+          <Icon name="sparkles" size={22} />
+          <span>
+            <strong>MiniMax API key</strong>
+            <small>BYOK provider</small>
+          </span>
+        </button>
+      </div>
       {selectedAgent && modelOptions.length > 0 ? (
         <OnboardingDropdown
           label={`${t('settings.modelPicker')} · ${selectedAgent.name}`}
