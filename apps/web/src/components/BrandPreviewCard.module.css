@@ -411,6 +411,99 @@
   color: var(--text-muted);
 }
 
+/* ── Reusable foundations ─────────────────────────────────────────── */
+.foundationBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.foundationBlock + .foundationBlock {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.savedFonts,
+.semanticGrid,
+.componentGrid,
+.contentRules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.savedFont,
+.semanticItem,
+.savedComponent,
+.contentRule {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+}
+
+.savedFontRole,
+.semanticName,
+.contentRuleLabel {
+  font-size: 11px;
+  font-weight: 660;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.savedFontName,
+.semanticValue,
+.componentName {
+  font-size: 14px;
+  font-weight: 660;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.savedFontMeta,
+.savedFontUse,
+.semanticUsage,
+.componentDesc,
+.contentRuleValue {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.componentDemo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 116px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid currentColor;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.componentCode {
+  display: block;
+  padding: 8px;
+  border-radius: var(--radius-xs);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.contentRules {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
 /* ── Voice & tone ─────────────────────────────────────────────────── */
 .pills {
   display: flex;

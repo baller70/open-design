@@ -288,6 +288,93 @@ export function BrandPreviewCard({
   const imagery = brand?.imagery;
   const layout = brand?.layout;
 
+  const savedFontRows = useMemo(
+    () =>
+      fonts.map(({ font, label }) => ({
+        label,
+        family: font.family,
+        stack: fontStack(font),
+        weights: font.weights.length > 0 ? font.weights.join('/') : 'Default',
+        variable:
+          label === 'Display'
+            ? '--brand-font-display'
+            : label === 'Body'
+              ? '--brand-font-body'
+              : '--brand-font-mono',
+        usage:
+          label === 'Display'
+            ? 'Headlines, hero statements, campaign titles'
+            : label === 'Body'
+              ? 'Paragraphs, cards, forms, navigation'
+              : 'Code, IDs, technical labels',
+      })),
+    [fonts],
+  );
+
+  const semanticTokens = useMemo(() => {
+    const byRole = (role: string, fallback?: string) =>
+      colors.find((c) => c.role === role)?.hex ?? fallback;
+    const primary = tokens?.colorPrimary ?? byRole('accent') ?? colors[0]?.hex ?? '#c96442';
+    const primaryBg = tokens?.colorPrimaryBg ?? byRole('background', '#ffffff');
+    const foreground = byRole('foreground', '#1a1a18');
+    const surface = byRole('surface', primaryBg);
+    const mutedColor = byRole('muted', '#57564f');
+    const border = byRole('border', '#e7e5dc');
+    return [
+      { name: '--brand-bg', value: primaryBg, usage: 'Page canvas and quiet section backgrounds' },
+      { name: '--brand-surface', value: surface, usage: 'Cards, panels, drawers, menus' },
+      { name: '--brand-text', value: foreground, usage: 'Primary readable text' },
+      { name: '--brand-muted', value: mutedColor, usage: 'Secondary labels, helper copy, captions' },
+      { name: '--brand-border', value: border, usage: 'Dividers, outlines, input borders' },
+      { name: '--brand-accent', value: primary, usage: 'Primary buttons, links, selected states' },
+      { name: '--brand-radius', value: `${tokens?.borderRadius ?? 8}px`, usage: 'Reusable corner radius for components' },
+      { name: '--brand-font-display', value: savedFontRows[0]?.family ?? 'Display font', usage: 'Headlines and big brand moments' },
+      { name: '--brand-font-body', value: savedFontRows[1]?.family ?? savedFontRows[0]?.family ?? 'Body font', usage: 'Reusable body and UI font' },
+    ];
+  }, [colors, savedFontRows, tokens]);
+
+  const savedComponentRows = useMemo(() => {
+    const primary = tokens?.colorPrimary ?? colors.find((c) => c.role === 'accent')?.hex ?? '#c96442';
+    const bg = tokens?.colorPrimaryBg ?? colors.find((c) => c.role === 'background')?.hex ?? '#ffffff';
+    const fg = colors.find((c) => c.role === 'foreground')?.hex ?? '#1a1a18';
+    const radius = `${tokens?.borderRadius ?? 8}px`;
+    return [
+      {
+        name: 'Primary CTA',
+        desc: 'Use for signup, schedule, buy, contact, or next-step actions.',
+        sample: 'Get started',
+        style: { background: primary, color: isLightHex(primary) ? '#111' : '#fff', borderColor: primary, borderRadius: radius },
+        code: '.btn-primary { background: var(--brand-accent); color: white; border-radius: var(--brand-radius); }',
+      },
+      {
+        name: 'Content card',
+        desc: 'Use for programs, services, offers, testimonials, and resource blocks.',
+        sample: 'Program card',
+        style: { background: bg, color: fg, borderColor: colors.find((c) => c.role === 'border')?.hex ?? '#e7e5dc', borderRadius: radius },
+        code: '.brand-card { background: var(--brand-surface); border: 1px solid var(--brand-border); }',
+      },
+      {
+        name: 'Form field',
+        desc: 'Use for contact forms, registration flows, filters, and intake questions.',
+        sample: 'Email address',
+        style: { background: bg, color: fg, borderColor: primary, borderRadius: radius },
+        code: '.brand-input { border-color: var(--brand-border); font-family: var(--brand-font-body); }',
+      },
+    ];
+  }, [colors, tokens]);
+
+  const contentRules = useMemo(() => {
+    const leadPillar = pillars[0] || brand?.tagline || brand?.description || `${name} helps customers take the next step.`;
+    const useWords = vocabUse.slice(0, 6);
+    const avoidWords = vocabAvoid.slice(0, 6);
+    return [
+      { label: 'Headline rule', value: `Lead with the outcome: ${leadPillar}` },
+      { label: 'CTA rule', value: `Use direct action language tied to the visitor's next step for ${name}.` },
+      { label: 'Use words', value: useWords.length ? useWords.join(', ') : 'Clear, specific, action-oriented brand language' },
+      { label: 'Avoid words', value: avoidWords.length ? avoidWords.join(', ') : 'Generic filler, hype, vague promises' },
+    ];
+  }, [brand?.description, brand?.tagline, name, pillars, vocabAvoid, vocabUse]);
+
   // The compact picker preview deliberately drops the iframe-heavy sections
   // (embedded kit, asset tiles, image gallery) — they are too heavy for a
   // small popover and need a live project the popover may not warrant.
@@ -647,6 +734,70 @@ export function BrandPreviewCard({
                   <span className={styles.swatchRole}>{c.role}</span>
                   {!compact && c.usage ? <span className={styles.swatchUsage}>{c.usage}</span> : null}
                 </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!compact && (semanticTokens.length > 0 || savedFontRows.length > 0) ? (
+        <section className={styles.section} aria-label="Reusable foundations">
+          <h3 className={styles.sectionTitle}>Reusable foundations</h3>
+          {savedFontRows.length > 0 ? (
+            <div className={styles.foundationBlock}>
+              <h4 className={styles.subTitle}>Saved fonts</h4>
+              <div className={styles.savedFonts}>
+                {savedFontRows.map((row) => (
+                  <div key={row.variable} className={styles.savedFont}>
+                    <span className={styles.savedFontRole}>{row.label}</span>
+                    <span className={styles.savedFontName} style={{ fontFamily: row.stack }}>
+                      {row.family}
+                    </span>
+                    <span className={styles.savedFontMeta}>{row.variable} · {row.weights}</span>
+                    <span className={styles.savedFontUse}>{row.usage}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className={styles.foundationBlock}>
+            <h4 className={styles.subTitle}>Semantic tokens</h4>
+            <div className={styles.semanticGrid}>
+              {semanticTokens.map((tok) => (
+                <div key={tok.name} className={styles.semanticItem}>
+                  <span className={styles.semanticName}>{tok.name}</span>
+                  <span className={styles.semanticValue}>{tok.value}</span>
+                  <span className={styles.semanticUsage}>{tok.usage}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className={styles.foundationBlock}>
+            <h4 className={styles.subTitle}>Saved components</h4>
+            <div className={styles.componentGrid}>
+              {savedComponentRows.map((item) => (
+                <div key={item.name} className={styles.savedComponent}>
+                  <div className={styles.componentDemo} style={item.style}>
+                    {item.sample}
+                  </div>
+                  <span className={styles.componentName}>{item.name}</span>
+                  <span className={styles.componentDesc}>{item.desc}</span>
+                  <code className={styles.componentCode}>{item.code}</code>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {!compact && contentRules.length > 0 ? (
+        <section className={styles.section} aria-label="Content rules">
+          <h3 className={styles.sectionTitle}>Content rules</h3>
+          <div className={styles.contentRules}>
+            {contentRules.map((rule) => (
+              <div key={rule.label} className={styles.contentRule}>
+                <span className={styles.contentRuleLabel}>{rule.label}</span>
+                <span className={styles.contentRuleValue}>{rule.value}</span>
               </div>
             ))}
           </div>

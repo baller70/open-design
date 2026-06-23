@@ -122,6 +122,19 @@
   .posture ul { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--ink-mute); }
   .posture ul li { margin-top: 2px; }
 
+  /* Reusable foundations */
+  .foundation { display: grid; gap: 18px; }
+  .foundation-block { display: grid; gap: 10px; }
+  .foundation-title { margin: 0; font-size: 12px; font-weight: 650; color: var(--ink-mute); }
+  .saved-fonts, .semantic-grid, .component-grid, .content-rules { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .saved-fonts, .semantic-grid, .component-grid, .content-rules { grid-template-columns: repeat(3, 1fr); } }
+  .saved-font, .semantic-item, .saved-component, .content-rule { display: flex; min-width: 0; flex-direction: column; gap: 5px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface); padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+  .saved-font .role, .semantic-item .name, .content-rule .label { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); }
+  .saved-font .family, .semantic-item .value, .saved-component .name { font-size: 14px; font-weight: 650; color: var(--ink); overflow-wrap: anywhere; }
+  .saved-font .meta, .saved-font .use, .semantic-item .usage, .saved-component .desc, .content-rule .value { font-size: 12px; line-height: 1.45; color: var(--ink-mute); }
+  .component-demo { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-width: 116px; min-height: 38px; padding: 8px 14px; border: 1px solid currentColor; border-radius: 9px; font-size: 13px; font-weight: 650; }
+  .component-code { display: block; margin-top: 4px; padding: 8px; border-radius: 8px; background: var(--paper); color: var(--ink-mute); font-family: var(--font-mono); font-size: 11px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
+
   /* Design system */
   .ds-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px; }
   .ds-sub { margin: 2px 0 0; font-size: 13px; color: var(--ink-mute); }
@@ -450,6 +463,84 @@
     return '<div class="tok"><span class="val">' + esc(value) + '</span><span class="k">' + esc(label) + '</span></div>';
   }
 
+  function savedFontRows() {
+    var rows = [
+      { label: 'Display', spec: typo.display, variable: '--brand-font-display', usage: 'Headlines, hero statements, campaign titles' },
+      { label: 'Body', spec: typo.body, variable: '--brand-font-body', usage: 'Paragraphs, cards, forms, navigation' },
+      { label: 'Mono', spec: typo.mono, variable: '--brand-font-mono', usage: 'Code, IDs, technical labels' },
+    ].filter(function (r) { return r.spec && r.spec.family; });
+    return rows.map(function (r) {
+      return {
+        label: r.label,
+        family: r.spec.family,
+        stack: fontStack(r.spec),
+        weights: arr(r.spec.weights).length ? arr(r.spec.weights).join('/') : 'Default',
+        variable: r.variable,
+        usage: r.usage,
+      };
+    });
+  }
+
+  function semanticRows() {
+    var sysTokens = (data.system && data.system.tokens) || {};
+    var rows = [
+      { name: '--brand-bg', value: sysTokens.colorPrimaryBg || role(brand, 'background', '#ffffff'), usage: 'Page canvas and quiet section backgrounds' },
+      { name: '--brand-surface', value: role(brand, 'surface', sysTokens.colorPrimaryBg || '#ffffff'), usage: 'Cards, panels, drawers, menus' },
+      { name: '--brand-text', value: role(brand, 'foreground', '#1a1a18'), usage: 'Primary readable text' },
+      { name: '--brand-muted', value: role(brand, 'muted', '#57564f'), usage: 'Secondary labels, helper copy, captions' },
+      { name: '--brand-border', value: role(brand, 'border', '#e7e5dc'), usage: 'Dividers, outlines, input borders' },
+      { name: '--brand-accent', value: sysTokens.colorPrimary || accent, usage: 'Primary buttons, links, selected states' },
+      { name: '--brand-radius', value: String(sysTokens.borderRadius || 8) + 'px', usage: 'Reusable corner radius for components' },
+      { name: '--brand-font-display', value: (savedFontRows()[0] && savedFontRows()[0].family) || 'Display font', usage: 'Headlines and big brand moments' },
+      { name: '--brand-font-body', value: (savedFontRows()[1] && savedFontRows()[1].family) || (savedFontRows()[0] && savedFontRows()[0].family) || 'Body font', usage: 'Reusable body and UI font' },
+    ];
+    return rows;
+  }
+
+  function foundationsHtml() {
+    var fonts = savedFontRows();
+    var sysTokens = (data.system && data.system.tokens) || {};
+    var primary = sysTokens.colorPrimary || accent;
+    var radius = String(sysTokens.borderRadius || 8) + 'px';
+    var savedFonts = fonts.length ? '<div class="foundation-block"><h3 class="foundation-title">Saved fonts</h3><div class="saved-fonts">' + fonts.map(function (f) {
+      return '<div class="saved-font"><span class="role">' + esc(f.label) + '</span>' +
+        '<span class="family" style="font-family:' + esc(f.stack) + '">' + esc(f.family) + '</span>' +
+        '<span class="meta">' + esc(f.variable) + ' · ' + esc(f.weights) + '</span>' +
+        '<span class="use">' + esc(f.usage) + '</span></div>';
+    }).join('') + '</div></div>' : '';
+    var semantic = '<div class="foundation-block"><h3 class="foundation-title">Semantic tokens</h3><div class="semantic-grid">' + semanticRows().map(function (t) {
+      return '<div class="semantic-item"><span class="name">' + esc(t.name) + '</span>' +
+        '<span class="value">' + esc(t.value) + '</span><span class="usage">' + esc(t.usage) + '</span></div>';
+    }).join('') + '</div></div>';
+    var comps = [
+      { name: 'Primary CTA', desc: 'Use for signup, schedule, buy, contact, or next-step actions.', sample: 'Get started', code: '.btn-primary { background: var(--brand-accent); border-radius: var(--brand-radius); }', style: 'background:' + primary + ';color:' + (isLight(primary) ? '#111' : '#fff') + ';border-color:' + primary + ';border-radius:' + radius },
+      { name: 'Content card', desc: 'Use for programs, services, offers, testimonials, and resource blocks.', sample: 'Program card', code: '.brand-card { background: var(--brand-surface); border: 1px solid var(--brand-border); }', style: 'background:' + bg + ';color:' + fg + ';border-color:' + role(brand, 'border', '#e7e5dc') + ';border-radius:' + radius },
+      { name: 'Form field', desc: 'Use for contact forms, registration flows, filters, and intake questions.', sample: 'Email address', code: '.brand-input { border-color: var(--brand-border); font-family: var(--brand-font-body); }', style: 'background:' + bg + ';color:' + fg + ';border-color:' + primary + ';border-radius:' + radius },
+    ];
+    var components = '<div class="foundation-block"><h3 class="foundation-title">Saved components</h3><div class="component-grid">' + comps.map(function (c) {
+      return '<div class="saved-component"><div class="component-demo" style="' + esc(c.style) + '">' + esc(c.sample) + '</div>' +
+        '<span class="name">' + esc(c.name) + '</span><span class="desc">' + esc(c.desc) + '</span>' +
+        '<code class="component-code">' + esc(c.code) + '</code></div>';
+    }).join('') + '</div></div>';
+    return '<section class="sec">' + sectionTitle('Reusable foundations') + '<div class="foundation card">' + savedFonts + semantic + components + '</div></section>';
+  }
+
+  function contentRulesHtml() {
+    var v = brand.voice || {};
+    var lead = arr(v.messagingPillars)[0] || brand.tagline || brand.description || ((brand.name || 'This brand') + ' helps customers take the next step.');
+    var useWords = arr(v.vocabulary && v.vocabulary.use).slice(0, 6).join(', ') || 'Clear, specific, action-oriented brand language';
+    var avoidWords = arr(v.vocabulary && v.vocabulary.avoid).slice(0, 6).join(', ') || 'Generic filler, hype, vague promises';
+    var rules = [
+      { label: 'Headline rule', value: 'Lead with the outcome: ' + lead },
+      { label: 'CTA rule', value: 'Use direct action language tied to the visitor\'s next step for ' + (brand.name || 'this brand') + '.' },
+      { label: 'Use words', value: useWords },
+      { label: 'Avoid words', value: avoidWords },
+    ];
+    return '<section class="sec">' + sectionTitle('Content rules') + '<div class="content-rules">' + rules.map(function (r) {
+      return '<div class="content-rule"><span class="label">' + esc(r.label) + '</span><span class="value">' + esc(r.value) + '</span></div>';
+    }).join('') + '</div></section>';
+  }
+
   function designSystemHtml() {
     var sys = data.system;
     if (!sys || !sys.kitHref) return '';
@@ -537,8 +628,10 @@
     '<div class="sec grid-top"><section><h2 class="sec-title">Logo</h2>' + logoHtml() + '</section>' +
       '<section><h2 class="sec-title">Typography</h2>' + fontTilesHtml() + typeHtml() + '</section></div>' +
     '<section class="sec">' + sectionTitle('Palette') + paletteHtml() + '</section>' +
+    foundationsHtml() +
     '<div class="sec grid-2"><section><h2 class="sec-title">Voice &amp; tone</h2>' + voiceHtml() + '</section>' +
       '<section><h2 class="sec-title">Imagery &amp; layout</h2>' + imageryHtml() + '</section></div>' +
+    contentRulesHtml() +
     galleryHtml() +
     designSystemHtml() +
     sourceSnapshotHtml() +
