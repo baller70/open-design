@@ -2007,6 +2007,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
     }
 
     const file = await readProjectFile(PROJECTS_DIR, projectId, relPath, metadata);
+    res.setHeader('Cache-Control', 'no-store');
     res.type(file.mime).send(transformFile ? await transformFile(file) : file.buffer);
   }
 
