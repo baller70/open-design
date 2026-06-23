@@ -737,6 +737,11 @@
   gap: 16px;
 }
 
+.sourceAssets {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 900px;
+}
+
 .asset {
   display: flex;
   flex-direction: column;
@@ -783,6 +788,22 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text-strong);
+}
+
+.assetDesc,
+.sectionNote {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.assetDesc {
+  margin-top: 4px;
+}
+
+.sectionNote {
+  margin: -4px 0 14px;
 }
 
 /* Image lightbox overlay. */

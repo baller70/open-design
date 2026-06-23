@@ -91,6 +91,7 @@ export function BrandLogo({ id, host, name, faviconSize, className, fallbackClas
 /** How many imagery samples render inline before the rest are gated behind a
  *  subtle "show all" toggle, so a long sample set never floods the panel. */
 const IMAGE_CAP = 8;
+const SOURCE_SNAPSHOT_FILE = 'source/site/index.html';
 
 /** Build a CSS font-family stack from a brand font spec, quoting multi-word
  *  family names so they parse as a single family. */
@@ -239,6 +240,7 @@ export function BrandPreviewCard({
   const [dsTheme, setDsTheme] = useState<'light' | 'dark'>('light');
   const [imagesExpanded, setImagesExpanded] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; caption: string } | null>(null);
+  const [sourceSnapshotAvailable, setSourceSnapshotAvailable] = useState(false);
 
   const colors = brand?.colors ?? [];
   const fonts = useMemo<{ font: BrandFontSpec; label: string }[]>(() => {
@@ -395,14 +397,64 @@ export function BrandPreviewCard({
 
   const dsKitFile = dsTheme === 'dark' ? 'system/kit.dark.html' : 'system/kit.html';
 
-  const assetTiles = useMemo(
+  useEffect(() => {
+    setSourceSnapshotAvailable(false);
+    if (!projectId || compact) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const resp = await fetch(projectRawUrl(projectId, SOURCE_SNAPSHOT_FILE), {
+          method: 'HEAD',
+          cache: 'no-store',
+        });
+        if (!cancelled) setSourceSnapshotAvailable(resp.ok);
+      } catch {
+        if (!cancelled) setSourceSnapshotAvailable(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [compact, projectId]);
+
+  const generatedAssetTiles = useMemo(
     () => [
-      { kind: 'landing', label: 'Landing page', file: 'system/artifacts/landing.html' },
-      { kind: 'deck', label: 'Pitch deck', file: 'system/artifacts/deck.html' },
-      { kind: 'poster', label: 'Poster', file: 'system/artifacts/poster.html' },
-      { kind: 'email', label: 'Email', file: 'system/artifacts/email.html' },
-      { kind: 'newsletter', label: 'Newsletter', file: 'system/artifacts/newsletter.html' },
-      { kind: 'form', label: 'Form page', file: 'system/artifacts/form.html' },
+      {
+        kind: 'landing',
+        label: 'Generated landing page',
+        desc: 'Design-system example, not a copy of the website.',
+        file: 'system/artifacts/landing.html',
+      },
+      {
+        kind: 'deck',
+        label: 'Generated pitch deck',
+        desc: 'Design-system example, not a copy of the website.',
+        file: 'system/artifacts/deck.html',
+      },
+      {
+        kind: 'poster',
+        label: 'Generated poster',
+        desc: 'Design-system example, not a copy of the website.',
+        file: 'system/artifacts/poster.html',
+      },
+      {
+        kind: 'email',
+        label: 'Generated email',
+        desc: 'Design-system example, not a copy of the website.',
+        file: 'system/artifacts/email.html',
+      },
+      {
+        kind: 'newsletter',
+        label: 'Generated newsletter',
+        desc: 'Design-system example, not a copy of the website.',
+        file: 'system/artifacts/newsletter.html',
+      },
+      {
+        kind: 'form',
+        label: 'Generated form page',
+        desc: 'Design-system example, not a copy of the website.',
+        file: 'system/artifacts/form.html',
+      },
     ],
     [],
   );
@@ -799,10 +851,59 @@ export function BrandPreviewCard({
       ) : null}
 
       {showSystem && projectId ? (
+        <>
+          {sourceSnapshotAvailable ? (
+            <section className={styles.section} aria-label="Actual website page">
+              <div className={styles.dsHead}>
+                <h3 className={styles.sectionTitle}>Actual website page</h3>
+                <a
+                  className={styles.dsOpen}
+                  href={projectRawUrl(projectId, SOURCE_SNAPSHOT_FILE)}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  Open actual page
+                  <ExternalGlyph />
+                </a>
+              </div>
+              <p className={styles.sectionNote}>Snapshot copied from the local site app build on this server.</p>
+              <div className={`${styles.assets} ${styles.sourceAssets}`}>
+                <a
+                  className={styles.asset}
+                  href={projectRawUrl(projectId, SOURCE_SNAPSHOT_FILE)}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <div className={styles.assetFrame}>
+                    <iframe
+                      key={`${meta.id}:${projectId}:${SOURCE_SNAPSHOT_FILE}`}
+                      src={projectRawUrl(projectId, SOURCE_SNAPSHOT_FILE)}
+                      loading="eager"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      sandbox=""
+                      title="Actual website page"
+                    />
+                  </div>
+                  <div className={styles.assetMeta}>
+                    <span className={styles.assetName}>{name}</span>
+                    <span className={styles.assetDesc}>Snapshot copied from the local site app build on this server.</span>
+                  </div>
+                </a>
+              </div>
+            </section>
+          ) : null}
+        </>
+      ) : null}
+
+      {showSystem && projectId ? (
         <section className={styles.section} aria-label={t('brandDetail.brandAssets')}>
           <h3 className={styles.sectionTitle}>{t('brandDetail.brandAssets')}</h3>
+          <p className={styles.sectionNote}>
+            These are generated design-system examples, not copies of the original website pages.
+          </p>
           <div className={styles.assets}>
-            {assetTiles.map((a) => (
+            {generatedAssetTiles.map((a) => (
               <a
                 key={a.kind}
                 className={styles.asset}
@@ -823,6 +924,7 @@ export function BrandPreviewCard({
                 </div>
                 <div className={styles.assetMeta}>
                   <span className={styles.assetName}>{a.label}</span>
+                  <span className={styles.assetDesc}>{a.desc}</span>
                 </div>
               </a>
             ))}

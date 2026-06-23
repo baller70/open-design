@@ -3193,7 +3193,7 @@ export const en: Dict = {
   'brandDetail.imageryLayout': 'Imagery & layout',
   'brandDetail.images': 'Images',
   'brandDetail.designSystem': 'Design system',
-  'brandDetail.brandAssets': 'Design system assets',
+  'brandDetail.brandAssets': 'Generated examples',
   'brandDetail.openProject': 'Open project',
   'brandDetail.openFullSystem': 'Open full system',
   'brandDetail.themeLight': 'Light',

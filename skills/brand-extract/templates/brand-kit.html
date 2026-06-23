@@ -481,10 +481,10 @@
 
   function assetsHtml() {
     if (!assets.length) return '';
-    return '<section class="sec">' + sectionTitle('Brand assets') +
+    return '<section class="sec">' + sectionTitle('Generated examples') +
       '<p class="muted" style="margin:-6px 0 14px">' + (extracting
         ? 'Generated once extraction finishes — click any tile to preview the full page.'
-        : 'Click any tile to preview the full page; everything is colored from this one brand.') + '</p>' +
+        : 'These are generated design-system examples, not copies of the original website pages.') + '</p>' +
       '<div class="assets">' + assets.map(function (a) {
         var pending = !a.available;
         var inner = pending
