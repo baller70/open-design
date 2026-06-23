@@ -304,7 +304,7 @@ export function AmrLoginPill({
   amrEntrySourceDetail,
   metricsConsent = false,
   installationId,
-  showActivationDetails = false,
+  showActivationDetails = true,
   revealPendingCancelAction = false,
   showConsoleAction = false,
   iconOnlySignOut = false,
