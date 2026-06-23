@@ -84,7 +84,8 @@ RUN apk add --no-cache tini poppler-utils bash git gcompat libstdc++ && \
     npm install -g \
       @anthropic-ai/claude-code@2.1.181 \
       @openai/codex@0.137.0 \
-      @google/gemini-cli@0.46.0 && \
+      @google/gemini-cli@0.46.0 \
+      opencode-ai@1.17.9 && \
     addgroup -S -g 1001 open-design && \
     adduser -S -D -h /home/open-design -u 1001 -G open-design open-design && \
     mkdir -p /home/open-design && \
@@ -105,8 +106,10 @@ COPY --from=build --chown=open-design:open-design /app/assets/community-pets ./a
 # it on startup so the container ships with first-party atoms reachable
 # via the same registry path third-party plugins use.
 COPY --from=build --chown=open-design:open-design /app/plugins/_official ./plugins/_official
+COPY --chown=open-design:open-design deploy/docker-entrypoint.sh ./deploy/docker-entrypoint.sh
 
-RUN mkdir -p /app/.od && \
+RUN chmod +x /app/deploy/docker-entrypoint.sh && \
+    mkdir -p /app/.od && \
     chown -R open-design:open-design /app
 
 ENV NODE_ENV=production
@@ -119,4 +122,4 @@ EXPOSE 7456
 
 USER open-design
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "apps/daemon/dist/cli.js", "--no-open"]
+CMD ["/app/deploy/docker-entrypoint.sh"]

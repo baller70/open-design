@@ -21,6 +21,11 @@ export const opencodeAgentDef = {
     fallbackModels: [
       DEFAULT_MODEL_OPTION,
       {
+        id: 'minimax-coding-plan/MiniMax-M3',
+        label: 'MiniMax Token Plan / MiniMax-M3',
+      },
+      { id: 'minimax/MiniMax-M3', label: 'MiniMax / MiniMax-M3' },
+      {
         id: 'anthropic/claude-sonnet-4-5',
         label: 'anthropic/claude-sonnet-4-5',
       },
