@@ -770,7 +770,7 @@ export function BrandPreviewCard({
               key={`${meta.id}:${projectId}:${dsKitFile}`}
               className={styles.dsFrame}
               src={projectRawUrl(projectId, dsKitFile)}
-              loading="lazy"
+              loading="eager"
               sandbox=""
               title={t('brandDetail.designSystem')}
             />
@@ -814,7 +814,7 @@ export function BrandPreviewCard({
                   <iframe
                     key={`${meta.id}:${projectId}:${a.file}`}
                     src={projectRawUrl(projectId, a.file)}
-                    loading="lazy"
+                    loading="eager"
                     tabIndex={-1}
                     aria-hidden="true"
                     sandbox=""

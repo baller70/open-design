@@ -475,7 +475,7 @@
         '</div>' +
         '<span class="ds-cap">system/kit.html · themes: ' + esc(themes) + '</span>' +
       '</div>' +
-      '<iframe id="ds-frame" class="ds-frame" src="' + esc(sys.kitHref) + '" loading="lazy" sandbox="" title="Component kit"></iframe></div>' +
+      '<iframe id="ds-frame" class="ds-frame" src="' + esc(sys.kitHref) + '" loading="eager" sandbox="" title="Component kit"></iframe></div>' +
       tokens + '</section>';
   }
 
@@ -489,7 +489,7 @@
         var pending = !a.available;
         var inner = pending
           ? '<div class="asset-frame"><div class="skel" style="position:absolute;inset:0"></div></div>'
-          : '<div class="asset-frame"><iframe src="' + esc(a.href) + '" loading="lazy" tabindex="-1" aria-hidden="true"></iframe></div>';
+          : '<div class="asset-frame"><iframe src="' + esc(a.href) + '" loading="eager" tabindex="-1" aria-hidden="true"></iframe></div>';
         // Clicking a tile opens its full page in an in-page modal iframe — the
         // kit is sandboxed with no top navigation, so a plain link cannot
         // navigate. Data attributes carry what the modal needs.
