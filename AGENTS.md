@@ -2,6 +2,16 @@
 
 This file is the single source of truth for agents entering this repository. Read this file first; after entering `apps/`, `packages/`, `tools/`, or `e2e/`, read that layer's `AGENTS.md` for module-level details. Do not copy module details back into the root file; root stays focused on cross-repository boundaries, workflow, and commands.
 
+## Codex Cloud environment
+
+Group: `KCLOUD-BUILDOUT-20260720`
+
+Environment label: `KCLOUD-BUILDOUT-20260720-SALES-10-open-design-main-MONOREPO`
+
+Use a fresh Codex Cloud environment for Kevin Houston's Open Design fork setup, guard/typecheck verification, and scoped planning. Do not deploy, package releases, rewrite lifecycle commands, or change daemon data-root rules without Kevin approval. Push setup changes directly to `main` unless Kevin gives different instructions.
+
+First Cloud task: verify the fork can be worked on safely in Codex Cloud by running `corepack enable`, `pnpm install --frozen-lockfile`, `pnpm guard`, and `pnpm typecheck` if feasible, then produce a scoped next-task plan without altering root workflows.
+
 ## Core documentation index
 
 - Product and onboarding: `README.md`, `docs/i18n/README.zh-CN.md`, `QUICKSTART.md`.
